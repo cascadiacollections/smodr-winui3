@@ -12,7 +12,7 @@ namespace smodr.Services
     public class DataService
     {
         private readonly HttpClient _httpClient;
-        private const string SMODCAST_RSS_URL = "http://smodcast.libsyn.com/rss";
+        private const string SMODCAST_RSS_URL = "https://feeds.feedburner.com/SModcasts";
 
         public DataService()
         {

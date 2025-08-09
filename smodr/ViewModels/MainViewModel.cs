@@ -1,33 +1,118 @@
+using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
+using System.Windows.Input;
+using Windows.Media.Playback;
 using smodr.Models;
 using smodr.Services;
 
 namespace smodr.ViewModels
 {
-    public partial class MainViewModel : ObservableObject
+    public class MainViewModel : INotifyPropertyChanged
     {
         private readonly DataService _dataService;
+        private readonly DownloadService _downloadService;
+        private readonly AudioService _audioService;
+        private bool _isLoading;
+        private string _loadingMessage = "Loading episodes...";
+        private Episode? _selectedEpisode;
+        private Episode? _currentPlayingEpisode;
+        private bool _isPlaying;
+        private bool _isPaused;
+        private TimeSpan _currentPosition;
+        private TimeSpan _duration;
+        private string _playbackStatus = "Stopped";
 
-        [ObservableProperty]
-        private bool isLoading;
+        public bool IsLoading
+        {
+            get => _isLoading;
+            set => SetProperty(ref _isLoading, value);
+        }
 
-        [ObservableProperty]
-        private string loadingMessage = "Loading episodes...";
+        public string LoadingMessage
+        {
+            get => _loadingMessage;
+            set => SetProperty(ref _loadingMessage, value);
+        }
 
-        [ObservableProperty]
-        private Episode? selectedEpisode;
+        public Episode? SelectedEpisode
+        {
+            get => _selectedEpisode;
+            set => SetProperty(ref _selectedEpisode, value);
+        }
+
+        public Episode? CurrentPlayingEpisode
+        {
+            get => _currentPlayingEpisode;
+            set => SetProperty(ref _currentPlayingEpisode, value);
+        }
+
+        public bool IsPlaying
+        {
+            get => _isPlaying;
+            set => SetProperty(ref _isPlaying, value);
+        }
+
+        public bool IsPaused
+        {
+            get => _isPaused;
+            set => SetProperty(ref _isPaused, value);
+        }
+
+        public TimeSpan CurrentPosition
+        {
+            get => _currentPosition;
+            set => SetProperty(ref _currentPosition, value);
+        }
+
+        public TimeSpan Duration
+        {
+            get => _duration;
+            set => SetProperty(ref _duration, value);
+        }
+
+        public string PlaybackStatus
+        {
+            get => _playbackStatus;
+            set => SetProperty(ref _playbackStatus, value);
+        }
+
+        public string FormattedPosition => $"{CurrentPosition:mm\\:ss}";
+        public string FormattedDuration => $"{Duration:mm\\:ss}";
 
         public ObservableCollection<Episode> Episodes { get; } = new();
+
+        public ICommand LoadEpisodesCommand { get; }
+        public ICommand RefreshEpisodesCommand { get; }
+        public ICommand SelectEpisodeCommand { get; }
+        public ICommand DownloadEpisodeCommand { get; }
+        public ICommand PlayEpisodeCommand { get; }
+        public ICommand PlayPauseCommand { get; }
+        public ICommand StopCommand { get; }
 
         public MainViewModel()
         {
             _dataService = new DataService();
+            _downloadService = new DownloadService();
+            _audioService = new AudioService();
+            
+            LoadEpisodesCommand = new AsyncRelayCommand(LoadEpisodesAsync);
+            RefreshEpisodesCommand = new AsyncRelayCommand(LoadEpisodesAsync);
+            SelectEpisodeCommand = new RelayCommand<Episode>(SelectEpisode);
+            DownloadEpisodeCommand = new AsyncRelayCommand<Episode>(DownloadEpisodeAsync);
+            PlayEpisodeCommand = new AsyncRelayCommand<Episode>(PlayEpisodeAsync);
+            PlayPauseCommand = new RelayCommand(PlayPause);
+            StopCommand = new RelayCommand(Stop);
+
+            // Subscribe to audio service events
+            _audioService.EpisodeChanged += AudioService_EpisodeChanged;
+            _audioService.PlaybackStateChanged += AudioService_PlaybackStateChanged;
+            _audioService.PositionChanged += AudioService_PositionChanged;
+            _audioService.DurationChanged += AudioService_DurationChanged;
         }
 
-        [RelayCommand]
         public async Task LoadEpisodesAsync()
         {
             IsLoading = true;
@@ -48,7 +133,7 @@ namespace smodr.ViewModels
                     LoadingMessage = "No episodes found. Please check your internet connection.";
                 }
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 LoadingMessage = $"Error loading episodes: {ex.Message}";
             }
@@ -58,22 +143,269 @@ namespace smodr.ViewModels
             }
         }
 
-        [RelayCommand]
-        public async Task RefreshEpisodesAsync()
+        public void SelectEpisode(Episode? episode)
         {
-            await LoadEpisodesAsync();
+            if (episode != null)
+            {
+                SelectedEpisode = episode;
+            }
         }
 
-        [RelayCommand]
-        public void SelectEpisode(Episode episode)
+        public async Task PlayEpisodeAsync(Episode? episode)
         {
-            SelectedEpisode = episode;
-            // TODO: Implement episode playback
+            if (episode == null || string.IsNullOrEmpty(episode.MediaUrl))
+                return;
+
+            try
+            {
+                await _audioService.PlayEpisodeAsync(episode);
+                SelectedEpisode = episode;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Playback failed: {ex.Message}");
+                PlaybackStatus = $"Error: {ex.Message}";
+            }
+        }
+
+        public void PlayPause()
+        {
+            if (_audioService.IsPlaying)
+            {
+                _audioService.Pause();
+            }
+            else
+            {
+                _audioService.Play();
+            }
+        }
+
+        public void Stop()
+        {
+            _audioService.Stop();
+        }
+
+        public async Task DownloadEpisodeAsync(Episode? episode)
+        {
+            if (episode == null || string.IsNullOrEmpty(episode.MediaUrl))
+                return;
+
+            try
+            {
+                var success = await _downloadService.DownloadEpisodeAsync(episode);
+                if (success)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Successfully downloaded: {episode.Title}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Download failed: {ex.Message}");
+            }
+        }
+
+        private void AudioService_EpisodeChanged(object? sender, Episode episode)
+        {
+            CurrentPlayingEpisode = episode;
+        }
+
+        private void AudioService_PlaybackStateChanged(object? sender, MediaPlaybackState state)
+        {
+            IsPlaying = state == MediaPlaybackState.Playing;
+            IsPaused = state == MediaPlaybackState.Paused;
+            
+            PlaybackStatus = state switch
+            {
+                MediaPlaybackState.Playing => "Playing",
+                MediaPlaybackState.Paused => "Paused",
+                MediaPlaybackState.None => "Stopped",
+                MediaPlaybackState.Buffering => "Buffering",
+                MediaPlaybackState.Opening => "Loading",
+                _ => "Unknown"
+            };
+
+            // Notify UI that formatted properties have changed
+            OnPropertyChanged(nameof(FormattedPosition));
+            OnPropertyChanged(nameof(FormattedDuration));
+        }
+
+        private void AudioService_PositionChanged(object? sender, TimeSpan position)
+        {
+            CurrentPosition = position;
+            OnPropertyChanged(nameof(FormattedPosition));
+        }
+
+        private void AudioService_DurationChanged(object? sender, TimeSpan duration)
+        {
+            Duration = duration;
+            OnPropertyChanged(nameof(FormattedDuration));
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(field, value)) return false;
+            field = value;
+            OnPropertyChanged(propertyName);
+            return true;
         }
 
         public void Dispose()
         {
+            _audioService?.Dispose();
             _dataService?.Dispose();
+            _downloadService?.Dispose();
+        }
+    }
+
+    // Simple relay command implementations
+    public class RelayCommand<T> : ICommand
+    {
+        private readonly Action<T?> _execute;
+        private readonly Func<T?, bool>? _canExecute;
+
+        public RelayCommand(Action<T?> execute, Func<T?, bool>? canExecute = null)
+        {
+            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+            _canExecute = canExecute;
+        }
+
+        public event EventHandler? CanExecuteChanged;
+
+        public bool CanExecute(object? parameter)
+        {
+            return _canExecute == null || _canExecute((T?)parameter);
+        }
+
+        public void Execute(object? parameter)
+        {
+            _execute((T?)parameter);
+        }
+
+        public void RaiseCanExecuteChanged()
+        {
+            CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    public class RelayCommand : ICommand
+    {
+        private readonly Action _execute;
+        private readonly Func<bool>? _canExecute;
+
+        public RelayCommand(Action execute, Func<bool>? canExecute = null)
+        {
+            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+            _canExecute = canExecute;
+        }
+
+        public event EventHandler? CanExecuteChanged;
+
+        public bool CanExecute(object? parameter)
+        {
+            return _canExecute == null || _canExecute();
+        }
+
+        public void Execute(object? parameter)
+        {
+            _execute();
+        }
+
+        public void RaiseCanExecuteChanged()
+        {
+            CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    public class AsyncRelayCommand : ICommand
+    {
+        private readonly Func<Task> _execute;
+        private readonly Func<bool>? _canExecute;
+        private bool _isExecuting;
+
+        public AsyncRelayCommand(Func<Task> execute, Func<bool>? canExecute = null)
+        {
+            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+            _canExecute = canExecute;
+        }
+
+        public event EventHandler? CanExecuteChanged;
+
+        public bool CanExecute(object? parameter)
+        {
+            return !_isExecuting && (_canExecute == null || _canExecute());
+        }
+
+        public async void Execute(object? parameter)
+        {
+            if (_isExecuting) return;
+
+            _isExecuting = true;
+            RaiseCanExecuteChanged();
+
+            try
+            {
+                await _execute();
+            }
+            finally
+            {
+                _isExecuting = false;
+                RaiseCanExecuteChanged();
+            }
+        }
+
+        public void RaiseCanExecuteChanged()
+        {
+            CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    public class AsyncRelayCommand<T> : ICommand
+    {
+        private readonly Func<T?, Task> _execute;
+        private readonly Func<T?, bool>? _canExecute;
+        private bool _isExecuting;
+
+        public AsyncRelayCommand(Func<T?, Task> execute, Func<T?, bool>? canExecute = null)
+        {
+            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+            _canExecute = canExecute;
+        }
+
+        public event EventHandler? CanExecuteChanged;
+
+        public bool CanExecute(object? parameter)
+        {
+            return !_isExecuting && (_canExecute == null || _canExecute((T?)parameter));
+        }
+
+        public async void Execute(object? parameter)
+        {
+            if (_isExecuting) return;
+
+            _isExecuting = true;
+            RaiseCanExecuteChanged();
+
+            try
+            {
+                await _execute((T?)parameter);
+            }
+            finally
+            {
+                _isExecuting = false;
+                RaiseCanExecuteChanged();
+            }
+        }
+
+        public void RaiseCanExecuteChanged()
+        {
+            CanExecuteChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 }
