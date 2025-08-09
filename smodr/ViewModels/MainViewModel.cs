@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -98,8 +99,8 @@ namespace smodr.ViewModels
             _downloadService = new DownloadService();
             _audioService = new AudioService();
             
-            LoadEpisodesCommand = new AsyncRelayCommand(LoadEpisodesAsync);
-            RefreshEpisodesCommand = new AsyncRelayCommand(LoadEpisodesAsync);
+            LoadEpisodesCommand = new AsyncRelayCommand(() => LoadEpisodesAsync());
+            RefreshEpisodesCommand = new AsyncRelayCommand(() => LoadEpisodesAsync(true));
             SelectEpisodeCommand = new RelayCommand<Episode>(SelectEpisode);
             DownloadEpisodeCommand = new AsyncRelayCommand<Episode>(DownloadEpisodeAsync);
             PlayEpisodeCommand = new AsyncRelayCommand<Episode>(PlayEpisodeAsync);
@@ -113,14 +114,14 @@ namespace smodr.ViewModels
             _audioService.DurationChanged += AudioService_DurationChanged;
         }
 
-        public async Task LoadEpisodesAsync()
+        public async Task LoadEpisodesAsync(bool forceRefresh = false)
         {
             IsLoading = true;
-            LoadingMessage = "Fetching episodes from Smodcast RSS feed...";
+            LoadingMessage = forceRefresh ? "Refreshing episodes from Smodcast RSS feed..." : "Loading episodes...";
 
             try
             {
-                var episodes = await _dataService.GetEpisodesAsync();
+                var episodes = await _dataService.GetEpisodesAsync(forceRefresh);
                 
                 Episodes.Clear();
                 foreach (var episode in episodes)
@@ -131,6 +132,15 @@ namespace smodr.ViewModels
                 if (Episodes.Count == 0)
                 {
                     LoadingMessage = "No episodes found. Please check your internet connection.";
+                }
+                else
+                {
+                    // Show cache info in debug
+                    var cacheInfo = await _dataService.GetCacheInfoAsync();
+                    if (cacheInfo != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Cache info: {Episodes.Count} episodes, last updated: {cacheInfo.LastUpdated:yyyy-MM-dd HH:mm:ss}");
+                    }
                 }
             }
             catch (Exception ex)
@@ -201,6 +211,58 @@ namespace smodr.ViewModels
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Download failed: {ex.Message}");
+            }
+        }
+
+        public async Task<bool> ClearCacheAsync()
+        {
+            try
+            {
+                return await _dataService.ClearCacheAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error clearing cache: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<CacheMetadata?> GetCacheInfoAsync()
+        {
+            try
+            {
+                return await _dataService.GetCacheInfoAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting cache info: {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<long> GetCacheSizeAsync()
+        {
+            try
+            {
+                return await _dataService.GetCacheSizeAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting cache size: {ex.Message}");
+                return 0;
+            }
+        }
+
+        public async Task<List<Episode>?> GetCachedEpisodesAsync()
+        {
+            try
+            {
+                return await _dataService.GetCachedEpisodesAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting cached episodes: {ex.Message}");
+                return null;
             }
         }
 

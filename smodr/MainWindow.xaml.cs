@@ -1,17 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
+﻿using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
 using smodr.ViewModels;
 using smodr.Models;
 
@@ -86,7 +75,7 @@ namespace smodr
 
         private void UpdatePlayPauseButton()
         {
-            PlayPauseButton.Content = ViewModel.IsPlaying ? "?" : "?";
+            PlayPauseButton.Content = ViewModel.IsPlaying ? "⏸" : "▶";
         }
 
         private void UpdatePlaybackStatus()
@@ -112,22 +101,48 @@ namespace smodr
 
         private async void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
-            await LoadEpisodesAsync();
+            await LoadEpisodesAsync(forceRefresh: true);
         }
 
-        private async System.Threading.Tasks.Task LoadEpisodesAsync()
+        private async System.Threading.Tasks.Task LoadEpisodesAsync(bool forceRefresh = false)
         {
             try
             {
-                // Show loading
+                // If not forcing refresh, try to load from cache first without showing loading
+                if (!forceRefresh)
+                {
+                    // Quick check if we have cached data
+                    var cachedEpisodes = await ViewModel.GetCachedEpisodesAsync();
+                    if (cachedEpisodes is not null && cachedEpisodes.Count > 0)
+                    {
+                        // Show cached data immediately
+                        EpisodesListView.ItemsSource = cachedEpisodes;
+                        LoadingPanel.Visibility = Visibility.Collapsed;
+                        EpisodesListView.Visibility = Visibility.Visible;
+                        LoadingRing.IsActive = false;
+                        RefreshButton.IsEnabled = true;
+                        
+                        // Update ViewModel episodes collection
+                        ViewModel.Episodes.Clear();
+                        foreach (var episode in cachedEpisodes)
+                        {
+                            ViewModel.Episodes.Add(episode);
+                        }
+                        
+                        System.Diagnostics.Debug.WriteLine($"Loaded {cachedEpisodes.Count} episodes from cache instantly");
+                        return;
+                    }
+                }
+
+                // Show loading only when we need to fetch from network
                 LoadingPanel.Visibility = Visibility.Visible;
                 EpisodesListView.Visibility = Visibility.Collapsed;
                 LoadingRing.IsActive = true;
-                LoadingMessage.Text = "Fetching episodes from Smodcast RSS feed...";
+                LoadingMessage.Text = forceRefresh ? "Refreshing episodes from Smodcast RSS feed..." : "Loading episodes from network...";
                 RefreshButton.IsEnabled = false;
 
-                // Load episodes
-                await ViewModel.LoadEpisodesAsync();
+                // Load episodes (this will hit network or show cache if not available)
+                await ViewModel.LoadEpisodesAsync(forceRefresh);
 
                 // Update UI
                 EpisodesListView.ItemsSource = ViewModel.Episodes;
@@ -255,6 +270,84 @@ namespace smodr
             
             errorDialog.XamlRoot = this.Content.XamlRoot;
             await errorDialog.ShowAsync();
+        }
+
+        private async void CacheInfoMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var cacheInfo = await ViewModel.GetCacheInfoAsync();
+                var cacheSize = await ViewModel.GetCacheSizeAsync();
+                
+                string message;
+                if (cacheInfo != null)
+                {
+                    var cacheSizeFormatted = cacheSize > 0 ? $"{cacheSize / 1024.0:F1} KB" : "Unknown";
+                    message = $"Episodes: {cacheInfo.EpisodeCount}\n" +
+                             $"Last Updated: {cacheInfo.LastUpdated:yyyy-MM-dd HH:mm:ss}\n" +
+                             $"Cache Size: {cacheSizeFormatted}\n" +
+                             $"Version: {cacheInfo.Version}";
+                }
+                else
+                {
+                    message = "No cache data available.";
+                }
+
+                var dialog = new ContentDialog
+                {
+                    Title = "Cache Information",
+                    Content = message,
+                    CloseButtonText = "OK"
+                };
+                
+                dialog.XamlRoot = this.Content.XamlRoot;
+                await dialog.ShowAsync();
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorDialogAsync("Error", $"Failed to get cache information: {ex.Message}");
+            }
+        }
+
+        private async void ClearCacheMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var confirmDialog = new ContentDialog
+                {
+                    Title = "Clear Cache",
+                    Content = "Are you sure you want to clear the cache? This will force a fresh download of episodes on next refresh.",
+                    PrimaryButtonText = "Clear",
+                    CloseButtonText = "Cancel"
+                };
+                
+                confirmDialog.XamlRoot = this.Content.XamlRoot;
+                var result = await confirmDialog.ShowAsync();
+                
+                if (result == ContentDialogResult.Primary)
+                {
+                    var success = await ViewModel.ClearCacheAsync();
+                    
+                    var resultDialog = new ContentDialog
+                    {
+                        Title = success ? "Success" : "Error",
+                        Content = success ? "Cache cleared successfully." : "Failed to clear cache.",
+                        CloseButtonText = "OK"
+                    };
+                    
+                    resultDialog.XamlRoot = this.Content.XamlRoot;
+                    await resultDialog.ShowAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorDialogAsync("Error", $"Failed to clear cache: {ex.Message}");
+            }
+        }
+
+        private async void ForceRefreshMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            await LoadEpisodesAsync(forceRefresh: true);
         }
     }
 }

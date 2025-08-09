@@ -25,6 +25,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             
             <StackPanel Grid.Column="0">
@@ -37,9 +38,41 @@
             </StackPanel>
             
             <Button Grid.Column="1" 
+                    x:Name="SettingsButton"
+                    Content="⚙️" 
+                    Style="{ThemeResource DefaultButtonStyle}"
+                    Margin="0,0,10,0"
+                    ToolTipService.ToolTip="Settings">
+                <Button.Flyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="Cache Information" 
+                                       Click="CacheInfoMenuItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <SymbolIcon Symbol="Help"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Text="Clear Cache" 
+                                       Click="ClearCacheMenuItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <SymbolIcon Symbol="Delete"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutSeparator/>
+                        <MenuFlyoutItem Text="Force Refresh" 
+                                       Click="ForceRefreshMenuItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <SymbolIcon Symbol="Refresh"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                    </MenuFlyout>
+                </Button.Flyout>
+            </Button>
+            
+            <Button Grid.Column="2" 
                     x:Name="RefreshButton"
-                    Content="Refresh" 
-                    Click="RefreshButton_Click"/>
+                    Content="🔄" 
+                    Click="RefreshButton_Click"
+                    ToolTipService.ToolTip="Refresh"/>
         </Grid>
 
         <!-- Content -->
@@ -77,13 +110,19 @@
                             <Grid.ContextFlyout>
                                 <MenuFlyout>
                                     <MenuFlyoutItem Text="Download Episode" 
-                                                   Icon="Download"
                                                    Click="DownloadMenuItem_Click"
-                                                   Tag="{Binding}"/>
+                                                   Tag="{Binding}">
+                                        <MenuFlyoutItem.Icon>
+                                            <SymbolIcon Symbol="Download"/>
+                                        </MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
                                     <MenuFlyoutItem Text="Play Episode" 
-                                                   Icon="Play"
                                                    Click="PlayMenuItem_Click"
-                                                   Tag="{Binding}"/>
+                                                   Tag="{Binding}">
+                                        <MenuFlyoutItem.Icon>
+                                            <SymbolIcon Symbol="Play"/>
+                                        </MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
                                 </MenuFlyout>
                             </Grid.ContextFlyout>
 
