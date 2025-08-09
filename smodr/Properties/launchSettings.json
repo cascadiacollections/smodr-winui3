@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "smodr (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "smodr (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
