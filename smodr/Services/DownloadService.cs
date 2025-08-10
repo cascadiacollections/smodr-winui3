@@ -91,11 +91,11 @@ namespace smodr.Services
             }
             
             // Limit length
-            if (fileName.Length > 100)
+            if (fileName.Length > MaxFileNameLength)
             {
                 var extension = Path.GetExtension(fileName);
                 var nameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
-                fileName = nameWithoutExtension.Substring(0, 100 - extension.Length) + extension;
+                fileName = nameWithoutExtension.Substring(0, MaxFileNameLength - extension.Length) + extension;
             }
 
             return fileName;
