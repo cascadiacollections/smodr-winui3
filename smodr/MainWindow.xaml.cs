@@ -109,7 +109,7 @@ namespace smodr
             try
             {
                 // If not forcing refresh, try to load from cache first without showing loading
-                if (!forceRefresh)
+                if (!forceRefresh && ViewModel.IsCacheValid())
                 {
                     // Quick check if we have cached data
                     var cachedEpisodes = await ViewModel.GetCachedEpisodesAsync();
