@@ -29,8 +29,7 @@ namespace smodr.Services
                 // Create a file picker to let the user choose where to save
                 var savePicker = new FileSavePicker();
                 
-                // Initialize the picker with the current window
-                var window = App.MainWindow;
+                // Initialize the picker with the provided window
                 var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
                 WinRT.Interop.InitializeWithWindow.Initialize(savePicker, hWnd);
 
