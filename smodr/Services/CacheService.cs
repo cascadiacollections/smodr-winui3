@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Windows.Storage;
@@ -24,7 +24,8 @@ namespace smodr.Services
                 {
                     return intValue;
                 }
-                else if (value is string strValue && int.TryParse(strValue, out int parsed))
+
+                if (value is string strValue && int.TryParse(strValue, out int parsed))
                 {
                     return parsed;
                 }
@@ -43,7 +44,7 @@ namespace smodr.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error initializing cache folder: {ex.Message}");
+                Debug.WriteLine($"Error initializing cache folder: {ex.Message}");
             }
         }
 
@@ -69,12 +70,12 @@ namespace smodr.Services
                 var jsonContent = await FileIO.ReadTextAsync(episodesFile);
                 var episodes = JsonSerializer.Deserialize<List<Episode>>(jsonContent);
 
-                System.Diagnostics.Debug.WriteLine($"Loaded {episodes?.Count ?? 0} episodes from cache");
+                Debug.WriteLine($"Loaded {episodes?.Count ?? 0} episodes from cache");
                 return episodes;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error reading cached episodes: {ex.Message}");
+                Debug.WriteLine($"Error reading cached episodes: {ex.Message}");
                 return null;
             }
         }
@@ -114,12 +115,12 @@ namespace smodr.Services
                 var metadataFile = await _cacheFolder.CreateFileAsync(CACHE_METADATA_FILE, CreationCollisionOption.ReplaceExisting);
                 await FileIO.WriteTextAsync(metadataFile, metadataJson);
 
-                System.Diagnostics.Debug.WriteLine($"Cached {episodes.Count} episodes successfully");
+                Debug.WriteLine($"Cached {episodes.Count} episodes successfully");
                 return true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error caching episodes: {ex.Message}");
+                Debug.WriteLine($"Error caching episodes: {ex.Message}");
                 return false;
             }
         }
@@ -144,12 +145,12 @@ namespace smodr.Services
                 var timeSinceLastUpdate = DateTime.UtcNow - metadata.LastUpdated;
                 var isValid = timeSinceLastUpdate.TotalHours < CACHE_EXPIRY_HOURS;
 
-                System.Diagnostics.Debug.WriteLine($"Cache age: {timeSinceLastUpdate.TotalHours:F1} hours, Valid: {isValid}");
+                Debug.WriteLine($"Cache age: {timeSinceLastUpdate.TotalHours:F1} hours, Valid: {isValid}");
                 return isValid;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error checking cache validity: {ex.Message}");
+                Debug.WriteLine($"Error checking cache validity: {ex.Message}");
                 return false;
             }
         }
@@ -173,7 +174,7 @@ namespace smodr.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error reading cache metadata: {ex.Message}");
+                Debug.WriteLine($"Error reading cache metadata: {ex.Message}");
                 return null;
             }
         }
@@ -194,12 +195,12 @@ namespace smodr.Services
                     await file.DeleteAsync();
                 }
 
-                System.Diagnostics.Debug.WriteLine("Cache cleared successfully");
+                Debug.WriteLine("Cache cleared successfully");
                 return true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error clearing cache: {ex.Message}");
+                Debug.WriteLine($"Error clearing cache: {ex.Message}");
                 return false;
             }
         }
@@ -227,7 +228,7 @@ namespace smodr.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error calculating cache size: {ex.Message}");
+                Debug.WriteLine($"Error calculating cache size: {ex.Message}");
                 return 0;
             }
         }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -139,7 +140,7 @@ namespace smodr.ViewModels
                     var cacheInfo = await _dataService.GetCacheInfoAsync();
                     if (cacheInfo != null)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Cache info: {Episodes.Count} episodes, last updated: {cacheInfo.LastUpdated:yyyy-MM-dd HH:mm:ss}");
+                        Debug.WriteLine($"Cache info: {Episodes.Count} episodes, last updated: {cacheInfo.LastUpdated:yyyy-MM-dd HH:mm:ss}");
                     }
                 }
             }
@@ -173,7 +174,7 @@ namespace smodr.ViewModels
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Playback failed: {ex.Message}");
+                Debug.WriteLine($"Playback failed: {ex.Message}");
                 PlaybackStatus = $"Error: {ex.Message}";
             }
         }
@@ -205,12 +206,12 @@ namespace smodr.ViewModels
                 var success = await _downloadService.DownloadEpisodeAsync(episode);
                 if (success)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Successfully downloaded: {episode.Title}");
+                    Debug.WriteLine($"Successfully downloaded: {episode.Title}");
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Download failed: {ex.Message}");
+                Debug.WriteLine($"Download failed: {ex.Message}");
             }
         }
 
@@ -222,7 +223,7 @@ namespace smodr.ViewModels
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error clearing cache: {ex.Message}");
+                Debug.WriteLine($"Error clearing cache: {ex.Message}");
                 return false;
             }
         }
@@ -235,7 +236,7 @@ namespace smodr.ViewModels
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error getting cache info: {ex.Message}");
+                Debug.WriteLine($"Error getting cache info: {ex.Message}");
                 return null;
             }
         }
@@ -248,7 +249,7 @@ namespace smodr.ViewModels
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error getting cache size: {ex.Message}");
+                Debug.WriteLine($"Error getting cache size: {ex.Message}");
                 return 0;
             }
         }
@@ -261,7 +262,7 @@ namespace smodr.ViewModels
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error getting cached episodes: {ex.Message}");
+                Debug.WriteLine($"Error getting cached episodes: {ex.Message}");
                 return null;
             }
         }

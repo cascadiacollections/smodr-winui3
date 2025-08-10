@@ -1,10 +1,11 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Windows.Storage;
 using Windows.Storage.Pickers;
 using smodr.Models;
+using WinRT.Interop;
 
 namespace smodr.Services
 {
@@ -30,8 +31,8 @@ namespace smodr.Services
                 var savePicker = new FileSavePicker();
                 
                 // Initialize the picker with the provided window
-                var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
-                WinRT.Interop.InitializeWithWindow.Initialize(savePicker, hWnd);
+                var hWnd = WindowNative.GetWindowHandle(window);
+                InitializeWithWindow.Initialize(savePicker, hWnd);
 
                 // Set the file type and default name
                 var fileExtension = GetFileExtension(episode.MediaUrl);
@@ -60,7 +61,7 @@ namespace smodr.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error downloading episode: {ex.Message}");
+                Debug.WriteLine($"Error downloading episode: {ex.Message}");
                 throw;
             }
         }

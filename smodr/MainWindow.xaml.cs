@@ -1,8 +1,12 @@
 ﻿using System;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using smodr.ViewModels;
+using Microsoft.UI.Xaml.Media.Imaging;
 using smodr.Models;
+using smodr.ViewModels;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -18,7 +22,7 @@ namespace smodr
 
         public MainWindow()
         {
-            this.InitializeComponent();
+            InitializeComponent();
             ViewModel = new MainViewModel();
             
             // Subscribe to ViewModel events for UI updates
@@ -28,10 +32,10 @@ namespace smodr
             MediaControlsPanel.Visibility = Visibility.Collapsed;
             
             // Load episodes when the window is activated
-            this.Activated += MainWindow_Activated;
+            Activated += MainWindow_Activated;
         }
 
-        private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             // Ensure UI updates happen on the UI thread
             DispatcherQueue.TryEnqueue(() =>
@@ -64,8 +68,8 @@ namespace smodr
             {
                 MediaControlsPanel.Visibility = Visibility.Visible;
                 CurrentEpisodeTitle.Text = ViewModel.CurrentPlayingEpisode.Title;
-                CurrentEpisodeImage.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(
-                    new System.Uri(ViewModel.CurrentPlayingEpisode.ImageUrl));
+                CurrentEpisodeImage.Source = new BitmapImage(
+                    new Uri(ViewModel.CurrentPlayingEpisode.ImageUrl));
             }
             else
             {
@@ -94,7 +98,7 @@ namespace smodr
             if (e.WindowActivationState != WindowActivationState.Deactivated)
             {
                 // Only load episodes once
-                this.Activated -= MainWindow_Activated;
+                Activated -= MainWindow_Activated;
                 await LoadEpisodesAsync();
             }
         }
@@ -104,7 +108,7 @@ namespace smodr
             await LoadEpisodesAsync(forceRefresh: true);
         }
 
-        private async System.Threading.Tasks.Task LoadEpisodesAsync(bool forceRefresh = false)
+        private async Task LoadEpisodesAsync(bool forceRefresh = false)
         {
             try
             {
@@ -129,7 +133,7 @@ namespace smodr
                             ViewModel.Episodes.Add(episode);
                         }
                         
-                        System.Diagnostics.Debug.WriteLine($"Loaded {cachedEpisodes.Count} episodes from cache instantly");
+                        Debug.WriteLine($"Loaded {cachedEpisodes.Count} episodes from cache instantly");
                         return;
                     }
                 }
@@ -159,7 +163,7 @@ namespace smodr
                     EpisodesListView.Visibility = Visibility.Collapsed;
                 }
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 // Show error
                 LoadingMessage.Text = $"Error loading episodes: {ex.Message}";
@@ -190,7 +194,7 @@ namespace smodr
                 {
                     await ViewModel.PlayEpisodeAsync(episode);
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     await ShowErrorDialogAsync("Playback Error", $"Failed to play episode: {ex.Message}");
                 }
@@ -228,10 +232,10 @@ namespace smodr
                     };
                     
                     // Set XamlRoot for the dialog
-                    dialog.XamlRoot = this.Content.XamlRoot;
+                    dialog.XamlRoot = Content.XamlRoot;
                     await dialog.ShowAsync();
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     await ShowErrorDialogAsync("Download Failed", $"Failed to download episode: {ex.Message}");
                 }
@@ -252,14 +256,14 @@ namespace smodr
                 {
                     await ViewModel.PlayEpisodeAsync(episode);
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     await ShowErrorDialogAsync("Playback Error", $"Failed to play episode: {ex.Message}");
                 }
             }
         }
 
-        private async System.Threading.Tasks.Task ShowErrorDialogAsync(string title, string message)
+        private async Task ShowErrorDialogAsync(string title, string message)
         {
             var errorDialog = new ContentDialog
             {
@@ -268,7 +272,7 @@ namespace smodr
                 CloseButtonText = "OK"
             };
             
-            errorDialog.XamlRoot = this.Content.XamlRoot;
+            errorDialog.XamlRoot = Content.XamlRoot;
             await errorDialog.ShowAsync();
         }
 
@@ -300,7 +304,7 @@ namespace smodr
                     CloseButtonText = "OK"
                 };
                 
-                dialog.XamlRoot = this.Content.XamlRoot;
+                dialog.XamlRoot = Content.XamlRoot;
                 await dialog.ShowAsync();
             }
             catch (Exception ex)
@@ -321,7 +325,7 @@ namespace smodr
                     CloseButtonText = "Cancel"
                 };
                 
-                confirmDialog.XamlRoot = this.Content.XamlRoot;
+                confirmDialog.XamlRoot = Content.XamlRoot;
                 var result = await confirmDialog.ShowAsync();
                 
                 if (result == ContentDialogResult.Primary)
@@ -335,7 +339,7 @@ namespace smodr
                         CloseButtonText = "OK"
                     };
                     
-                    resultDialog.XamlRoot = this.Content.XamlRoot;
+                    resultDialog.XamlRoot = Content.XamlRoot;
                     await resultDialog.ShowAsync();
                 }
             }

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.ServiceModel.Syndication;
@@ -34,13 +36,13 @@ namespace smodr.Services
                     var cachedEpisodes = await _cacheService.GetCachedEpisodesAsync();
                     if (cachedEpisodes != null && cachedEpisodes.Count > 0)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Using cached episodes: {cachedEpisodes.Count} items");
+                        Debug.WriteLine($"Using cached episodes: {cachedEpisodes.Count} items");
                         return cachedEpisodes;
                     }
                 }
 
                 // Fetch fresh data from RSS feed
-                System.Diagnostics.Debug.WriteLine("Fetching fresh episodes from RSS feed...");
+                Debug.WriteLine("Fetching fresh episodes from RSS feed...");
                 var episodes = await FetchEpisodesFromRssAsync();
 
                 // Cache the fresh data
@@ -53,7 +55,7 @@ namespace smodr.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error in GetEpisodesAsync: {ex.Message}");
+                Debug.WriteLine($"Error in GetEpisodesAsync: {ex.Message}");
                 
                 // If network fails, try to fallback to cached data (even if expired)
                 try
@@ -61,7 +63,7 @@ namespace smodr.Services
                     var fallbackEpisodes = await _cacheService.GetCachedEpisodesAsync();
                     if (fallbackEpisodes != null && fallbackEpisodes.Count > 0)
                     {
-                        System.Diagnostics.Debug.WriteLine("Using expired cached episodes as fallback");
+                        Debug.WriteLine("Using expired cached episodes as fallback");
                         return fallbackEpisodes;
                     }
                 }
@@ -81,7 +83,7 @@ namespace smodr.Services
             
             var rssContent = await response.Content.ReadAsStringAsync();
             
-            using var xmlReader = XmlReader.Create(new System.IO.StringReader(rssContent));
+            using var xmlReader = XmlReader.Create(new StringReader(rssContent));
             var feed = SyndicationFeed.Load(xmlReader);
             
             var episodes = new List<Episode>();
@@ -225,7 +227,7 @@ namespace smodr.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error getting cached episodes: {ex.Message}");
+                Debug.WriteLine($"Error getting cached episodes: {ex.Message}");
                 return null;
             }
         }
