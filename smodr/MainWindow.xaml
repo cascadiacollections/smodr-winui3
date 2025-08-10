@@ -7,13 +7,250 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="smodr">
+    Title="Smodr - Smodcast Player">
 
     <Window.SystemBackdrop>
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
+        <!-- Header -->
+        <Grid Grid.Row="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="Smodcast Episodes" 
+                          Style="{ThemeResource TitleTextBlockStyle}" 
+                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                <TextBlock Text="Kevin Smith &amp; Scott Mosier" 
+                          Style="{ThemeResource BodyTextBlockStyle}" 
+                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+            
+            <Button Grid.Column="1" 
+                    x:Name="SettingsButton"
+                    Content="⚙️" 
+                    Style="{ThemeResource DefaultButtonStyle}"
+                    Margin="0,0,10,0"
+                    ToolTipService.ToolTip="Settings">
+                <Button.Flyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="Cache Information" 
+                                       Click="CacheInfoMenuItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <SymbolIcon Symbol="Help"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Text="Clear Cache" 
+                                       Click="ClearCacheMenuItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <SymbolIcon Symbol="Delete"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutSeparator/>
+                        <MenuFlyoutItem Text="Force Refresh" 
+                                       Click="ForceRefreshMenuItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <SymbolIcon Symbol="Refresh"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                    </MenuFlyout>
+                </Button.Flyout>
+            </Button>
+            
+            <Button Grid.Column="2" 
+                    x:Name="RefreshButton"
+                    Content="🔄" 
+                    Click="RefreshButton_Click"
+                    ToolTipService.ToolTip="Refresh"/>
+        </Grid>
+
+        <!-- Content -->
+        <Grid Grid.Row="1">
+            <!-- Loading indicator -->
+            <StackPanel x:Name="LoadingPanel" 
+                       HorizontalAlignment="Center" 
+                       VerticalAlignment="Center"
+                       Visibility="Visible">
+                <ProgressRing x:Name="LoadingRing" IsActive="True" Width="50" Height="50" Margin="0,0,0,20"/>
+                <TextBlock x:Name="LoadingMessage" 
+                          Text="Loading episodes..." 
+                          Style="{ThemeResource BodyTextBlockStyle}"
+                          HorizontalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Episodes ListView -->
+            <ListView x:Name="EpisodesListView"
+                     SelectionMode="Single"
+                     Padding="20,10"
+                     Visibility="Collapsed"
+                     SelectionChanged="EpisodesListView_SelectionChanged">
+                
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Padding="16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                              CornerRadius="8" Margin="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Context menu for each item -->
+                            <Grid.ContextFlyout>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem Text="Download Episode" 
+                                                   Click="DownloadMenuItem_Click"
+                                                   Tag="{Binding}">
+                                        <MenuFlyoutItem.Icon>
+                                            <SymbolIcon Symbol="Download"/>
+                                        </MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutItem Text="Play Episode" 
+                                                   Click="PlayMenuItem_Click"
+                                                   Tag="{Binding}">
+                                        <MenuFlyoutItem.Icon>
+                                            <SymbolIcon Symbol="Play"/>
+                                        </MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                </MenuFlyout>
+                            </Grid.ContextFlyout>
+
+                            <!-- Episode image -->
+                            <Border Grid.Column="0" 
+                                   CornerRadius="4" 
+                                   Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                   Width="64" Height="64">
+                                <Image Source="{Binding ImageUrl}" 
+                                      Stretch="UniformToFill"/>
+                            </Border>
+
+                            <!-- Episode details -->
+                            <StackPanel Grid.Column="1" Margin="16,0,16,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Title}" 
+                                          Style="{ThemeResource BodyStrongTextBlockStyle}" 
+                                          TextWrapping="Wrap" 
+                                          MaxLines="2"/>
+                                
+                                <TextBlock Text="{Binding FormattedPublishDate}" 
+                                          Style="{ThemeResource CaptionTextBlockStyle}" 
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                          Margin="0,4,0,0"/>
+                                
+                                <TextBlock Text="{Binding Description}" 
+                                          Style="{ThemeResource CaptionTextBlockStyle}" 
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                          TextWrapping="Wrap" 
+                                          MaxLines="2" 
+                                          Margin="0,4,0,0"/>
+                            </StackPanel>
+
+                            <!-- Episode metadata -->
+                            <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                <TextBlock Text="{Binding FormattedDuration}" 
+                                          Style="{ThemeResource CaptionTextBlockStyle}" 
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                          HorizontalAlignment="Right"/>
+                                
+                                <TextBlock Text="{Binding FormattedFileSize}" 
+                                          Style="{ThemeResource CaptionTextBlockStyle}" 
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                          HorizontalAlignment="Right"
+                                          Margin="0,4,0,0"/>
+                                
+                                <Button Content="Play" 
+                                       Style="{ThemeResource AccentButtonStyle}"
+                                       Margin="0,8,0,0"
+                                       Click="PlayButton_Click"
+                                       Tag="{Binding}"/>
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </Grid>
+
+        <!-- Media Player Controls -->
+        <Border Grid.Row="2" 
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                BorderThickness="0,1,0,0"
+                Padding="20,10"
+                x:Name="MediaControlsPanel">
+            
+            <Grid x:Name="MediaControlsGrid">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Now Playing Info -->
+                <Grid Grid.Row="0" Margin="0,0,0,10" x:Name="NowPlayingInfo">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="60"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Episode thumbnail -->
+                    <Border Grid.Column="0" 
+                           CornerRadius="4" 
+                           Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                           Width="50" Height="50" x:Name="EpisodeThumbnail">
+                        <Image x:Name="CurrentEpisodeImage" 
+                              Stretch="UniformToFill"/>
+                    </Border>
+
+                    <!-- Episode info -->
+                    <StackPanel Grid.Column="1" Margin="12,0,12,0" VerticalAlignment="Center">
+                        <TextBlock x:Name="CurrentEpisodeTitle" 
+                                  Style="{ThemeResource BodyStrongTextBlockStyle}" 
+                                  TextWrapping="NoWrap" 
+                                  TextTrimming="CharacterEllipsis"/>
+                        <TextBlock x:Name="PlaybackStatusText" 
+                                  Style="{ThemeResource CaptionTextBlockStyle}" 
+                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <!-- Time display -->
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Orientation="Horizontal">
+                        <TextBlock x:Name="PositionText" 
+                                  Style="{ThemeResource CaptionTextBlockStyle}" 
+                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text=" / " 
+                                  Style="{ThemeResource CaptionTextBlockStyle}" 
+                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock x:Name="DurationText" 
+                                  Style="{ThemeResource CaptionTextBlockStyle}" 
+                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Media Controls -->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="16">
+                    <Button x:Name="StopButton" 
+                           Content="⏹️" 
+                           Style="{ThemeResource DefaultButtonStyle}"
+                           Click="StopButton_Click"
+                           Width="40" Height="40"/>
+                    
+                    <Button x:Name="PlayPauseButton" 
+                           Content="▶️" 
+                           Style="{ThemeResource AccentButtonStyle}"
+                           Click="PlayPauseButton_Click"
+                           Width="50" Height="50"/>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

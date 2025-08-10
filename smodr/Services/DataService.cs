@@ -12,51 +12,116 @@ namespace smodr.Services
     public class DataService
     {
         private readonly HttpClient _httpClient;
-        private const string SMODCAST_RSS_URL = "http://smodcast.libsyn.com/rss";
+        private readonly CacheService _cacheService;
+        private const string SMODCAST_RSS_URL = "https://feeds.feedburner.com/SModcasts";
 
         public DataService()
         {
             _httpClient = new HttpClient();
+            _cacheService = new CacheService();
         }
 
-        public async Task<List<Episode>> GetEpisodesAsync()
+        public async Task<List<Episode>> GetEpisodesAsync(bool forceRefresh = false)
         {
             try
             {
-                var response = await _httpClient.GetAsync(SMODCAST_RSS_URL);
-                response.EnsureSuccessStatusCode();
-                
-                var rssContent = await response.Content.ReadAsStringAsync();
-                
-                using var xmlReader = XmlReader.Create(new System.IO.StringReader(rssContent));
-                var feed = SyndicationFeed.Load(xmlReader);
-                
-                var episodes = new List<Episode>();
-                
-                foreach (var item in feed.Items)
+                // Initialize cache service
+                await _cacheService.InitializeAsync();
+
+                // Try to get cached episodes first (unless force refresh is requested)
+                if (!forceRefresh)
                 {
-                    var episode = new Episode
+                    var cachedEpisodes = await _cacheService.GetCachedEpisodesAsync();
+                    if (cachedEpisodes != null && cachedEpisodes.Count > 0)
                     {
-                        Title = item.Title?.Text ?? "Unknown Title",
-                        Description = GetDescription(item),
-                        PublishDate = item.PublishDate.DateTime,
-                        MediaUrl = GetMediaUrl(item),
-                        ImageUrl = GetImageUrl(item),
-                        Duration = GetDuration(item),
-                        FileSize = GetFileSize(item),
-                        EpisodeNumber = ExtractEpisodeNumber(item.Title?.Text ?? "")
-                    };
-                    
-                    episodes.Add(episode);
+                        System.Diagnostics.Debug.WriteLine($"Using cached episodes: {cachedEpisodes.Count} items");
+                        return cachedEpisodes;
+                    }
                 }
-                
-                return episodes.OrderByDescending(e => e.PublishDate).ToList();
+
+                // Fetch fresh data from RSS feed
+                System.Diagnostics.Debug.WriteLine("Fetching fresh episodes from RSS feed...");
+                var episodes = await FetchEpisodesFromRssAsync();
+
+                // Cache the fresh data
+                if (episodes.Count > 0)
+                {
+                    await _cacheService.CacheEpisodesAsync(episodes);
+                }
+
+                return episodes;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error fetching episodes: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error in GetEpisodesAsync: {ex.Message}");
+                
+                // If network fails, try to fallback to cached data (even if expired)
+                try
+                {
+                    var fallbackEpisodes = await _cacheService.GetCachedEpisodesAsync();
+                    if (fallbackEpisodes != null && fallbackEpisodes.Count > 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Using expired cached episodes as fallback");
+                        return fallbackEpisodes;
+                    }
+                }
+                catch
+                {
+                    // Ignore cache errors when already in error state
+                }
+
                 return new List<Episode>();
             }
+        }
+
+        private async Task<List<Episode>> FetchEpisodesFromRssAsync()
+        {
+            var response = await _httpClient.GetAsync(SMODCAST_RSS_URL);
+            response.EnsureSuccessStatusCode();
+            
+            var rssContent = await response.Content.ReadAsStringAsync();
+            
+            using var xmlReader = XmlReader.Create(new System.IO.StringReader(rssContent));
+            var feed = SyndicationFeed.Load(xmlReader);
+            
+            var episodes = new List<Episode>();
+            
+            foreach (var item in feed.Items)
+            {
+                var episode = new Episode
+                {
+                    Title = item.Title?.Text ?? "Unknown Title",
+                    Description = GetDescription(item),
+                    PublishDate = item.PublishDate.DateTime,
+                    MediaUrl = GetMediaUrl(item),
+                    ImageUrl = GetImageUrl(item),
+                    Duration = GetDuration(item),
+                    FileSize = GetFileSize(item),
+                    EpisodeNumber = ExtractEpisodeNumber(item.Title?.Text ?? "")
+                };
+                
+                episodes.Add(episode);
+            }
+            
+            return episodes.OrderByDescending(e => e.PublishDate).ToList();
+        }
+
+        public async Task<bool> ClearCacheAsync()
+        {
+            await _cacheService.InitializeAsync();
+            return await _cacheService.ClearCacheAsync();
+        }
+
+        public async Task<CacheMetadata?> GetCacheInfoAsync()
+        {
+            await _cacheService.InitializeAsync();
+            return await _cacheService.GetCacheMetadataAsync();
+        }
+
+        public async Task<long> GetCacheSizeAsync()
+        {
+            await _cacheService.InitializeAsync();
+            return await _cacheService.GetCacheSizeAsync();
         }
 
         private string GetDescription(SyndicationItem item)
@@ -149,6 +214,20 @@ namespace smodr.Services
             }
             
             return string.Empty;
+        }
+
+        public async Task<List<Episode>?> GetCachedEpisodesAsync()
+        {
+            try
+            {
+                await _cacheService.InitializeAsync();
+                return await _cacheService.GetCachedEpisodesAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting cached episodes: {ex.Message}");
+                return null;
+            }
         }
 
         public void Dispose()
