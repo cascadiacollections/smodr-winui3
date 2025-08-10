@@ -24,13 +24,13 @@ namespace smodr
         {
             InitializeComponent();
             ViewModel = new MainViewModel();
-            
+
             // Subscribe to ViewModel events for UI updates
             ViewModel.PropertyChanged += ViewModel_PropertyChanged;
-            
+
             // Initially hide media controls
             MediaControlsPanel.Visibility = Visibility.Collapsed;
-            
+
             // Load episodes when the window is activated
             Activated += MainWindow_Activated;
         }
@@ -95,12 +95,9 @@ namespace smodr
 
         private async void MainWindow_Activated(object sender, WindowActivatedEventArgs e)
         {
-            if (e.WindowActivationState != WindowActivationState.Deactivated)
-            {
-                // Only load episodes once
-                Activated -= MainWindow_Activated;
-                await LoadEpisodesAsync();
-            }
+            if (e.WindowActivationState == WindowActivationState.Deactivated) return;
+            Activated -= MainWindow_Activated;
+            await LoadEpisodesAsync();
         }
 
         private async void RefreshButton_Click(object sender, RoutedEventArgs e)
@@ -117,7 +114,7 @@ namespace smodr
                 {
                     // Quick check if we have cached data
                     var cachedEpisodes = await ViewModel.GetCachedEpisodesAsync();
-                    if (cachedEpisodes != null && cachedEpisodes.Count > 0)
+                    if (cachedEpisodes is { Count: > 0 })
                     {
                         // Show cached data immediately
                         EpisodesListView.ItemsSource = cachedEpisodes;
@@ -125,14 +122,14 @@ namespace smodr
                         EpisodesListView.Visibility = Visibility.Visible;
                         LoadingRing.IsActive = false;
                         RefreshButton.IsEnabled = true;
-                        
+
                         // Update ViewModel episodes collection
                         ViewModel.Episodes.Clear();
                         foreach (var episode in cachedEpisodes)
                         {
                             ViewModel.Episodes.Add(episode);
                         }
-                        
+
                         Debug.WriteLine($"Loaded {cachedEpisodes.Count} episodes from cache instantly");
                         return;
                     }
@@ -188,7 +185,7 @@ namespace smodr
 
         private async void PlayButton_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button button && button.Tag is Episode episode)
+            if (sender is Button { Tag: Episode episode })
             {
                 try
                 {
@@ -228,11 +225,10 @@ namespace smodr
                     {
                         Title = "Download Complete",
                         Content = $"Successfully downloaded: {episode.Title}",
-                        CloseButtonText = "OK"
+                        CloseButtonText = "OK",
+                        XamlRoot = Content.XamlRoot
                     };
-                    
-                    // Set XamlRoot for the dialog
-                    dialog.XamlRoot = Content.XamlRoot;
+
                     await dialog.ShowAsync();
                 }
                 catch (Exception ex)
@@ -271,7 +267,7 @@ namespace smodr
                 Content = message,
                 CloseButtonText = "OK"
             };
-            
+
             errorDialog.XamlRoot = Content.XamlRoot;
             await errorDialog.ShowAsync();
         }
@@ -282,7 +278,7 @@ namespace smodr
             {
                 var cacheInfo = await ViewModel.GetCacheInfoAsync();
                 var cacheSize = await ViewModel.GetCacheSizeAsync();
-                
+
                 string message;
                 if (cacheInfo != null)
                 {
@@ -301,10 +297,10 @@ namespace smodr
                 {
                     Title = "Cache Information",
                     Content = message,
-                    CloseButtonText = "OK"
+                    CloseButtonText = "OK",
+                    XamlRoot = Content.XamlRoot
                 };
-                
-                dialog.XamlRoot = Content.XamlRoot;
+
                 await dialog.ShowAsync();
             }
             catch (Exception ex)
@@ -322,24 +318,24 @@ namespace smodr
                     Title = "Clear Cache",
                     Content = "Are you sure you want to clear the cache? This will force a fresh download of episodes on next refresh.",
                     PrimaryButtonText = "Clear",
-                    CloseButtonText = "Cancel"
+                    CloseButtonText = "Cancel",
+                    XamlRoot = Content.XamlRoot
                 };
-                
-                confirmDialog.XamlRoot = Content.XamlRoot;
+
                 var result = await confirmDialog.ShowAsync();
-                
+
                 if (result == ContentDialogResult.Primary)
                 {
                     var success = await ViewModel.ClearCacheAsync();
-                    
+
                     var resultDialog = new ContentDialog
                     {
                         Title = success ? "Success" : "Error",
                         Content = success ? "Cache cleared successfully." : "Failed to clear cache.",
-                        CloseButtonText = "OK"
+                        CloseButtonText = "OK",
+                        XamlRoot = Content.XamlRoot
                     };
-                    
-                    resultDialog.XamlRoot = Content.XamlRoot;
+
                     await resultDialog.ShowAsync();
                 }
             }

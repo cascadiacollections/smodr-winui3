@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Windows.Storage.Pickers;
@@ -11,12 +12,7 @@ namespace smodr.Services
 {
     public class DownloadService
     {
-        private readonly HttpClient _httpClient;
-
-        public DownloadService()
-        {
-            _httpClient = new HttpClient();
-        }
+        private readonly HttpClient _httpClient = new();
 
         public async Task<bool> DownloadEpisodeAsync(Episode episode)
         {
@@ -29,14 +25,14 @@ namespace smodr.Services
 
                 // Create a file picker to let the user choose where to save
                 var savePicker = new FileSavePicker();
-                
+
                 // Initialize the picker with the provided window
                 var hWnd = WindowNative.GetWindowHandle(window);
                 InitializeWithWindow.Initialize(savePicker, hWnd);
 
                 // Set the file type and default name
                 var fileExtension = GetFileExtension(episode.MediaUrl);
-                savePicker.FileTypeChoices.Add($"{fileExtension.ToUpper()} File", new[] { fileExtension });
+                savePicker.FileTypeChoices.Add($"{fileExtension.ToUpper()} File", [fileExtension]);
                 savePicker.SuggestedFileName = SanitizeFileName($"{episode.Title}{fileExtension}");
                 savePicker.SuggestedStartLocation = PickerLocationId.MusicLibrary;
 
@@ -52,9 +48,9 @@ namespace smodr.Services
                 using var response = await _httpClient.GetAsync(episode.MediaUrl, HttpCompletionOption.ResponseHeadersRead);
                 response.EnsureSuccessStatusCode();
 
-                using var contentStream = await response.Content.ReadAsStreamAsync();
-                using var fileStream = await file.OpenStreamForWriteAsync();
-                
+                await using var contentStream = await response.Content.ReadAsStreamAsync();
+                await using var fileStream = await file.OpenStreamForWriteAsync();
+
                 await contentStream.CopyToAsync(fileStream);
 
                 return true;
@@ -66,13 +62,13 @@ namespace smodr.Services
             }
         }
 
-        private string GetFileExtension(string url)
+        private static string GetFileExtension(string url)
         {
             try
             {
                 var uri = new Uri(url);
                 var extension = Path.GetExtension(uri.LocalPath);
-                
+
                 // Default to .mp3 if no extension found
                 return string.IsNullOrEmpty(extension) ? ".mp3" : extension;
             }
@@ -86,18 +82,13 @@ namespace smodr.Services
         {
             // Remove invalid characters from the file name
             var invalidChars = Path.GetInvalidFileNameChars();
-            foreach (var invalidChar in invalidChars)
-            {
-                fileName = fileName.Replace(invalidChar, '_');
-            }
-            
+            fileName = invalidChars.Aggregate(fileName, (current, invalidChar) => current.Replace(invalidChar, '_'));
+
             // Limit length
-            if (fileName.Length > MaxFileNameLength)
-            {
-                var extension = Path.GetExtension(fileName);
-                var nameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
-                fileName = nameWithoutExtension.Substring(0, MaxFileNameLength - extension.Length) + extension;
-            }
+            if (fileName.Length <= MaxFileNameLength) return fileName;
+            var extension = Path.GetExtension(fileName);
+            var nameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
+            fileName = nameWithoutExtension[..(MaxFileNameLength - extension.Length)] + extension;
 
             return fileName;
         }
