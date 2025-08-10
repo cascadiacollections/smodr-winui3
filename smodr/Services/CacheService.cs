@@ -13,7 +13,24 @@ namespace smodr.Services
         private const string CACHE_FOLDER_NAME = "EpisodeCache";
         private const string EPISODES_CACHE_FILE = "episodes.json";
         private const string CACHE_METADATA_FILE = "cache_metadata.json";
-        private const int CACHE_EXPIRY_HOURS = 6; // Cache expires after 6 hours
+        // Cache expiry time is now configurable via application settings (LocalSettings["CacheExpiryHours"])
+        private const int DEFAULT_CACHE_EXPIRY_HOURS = 6;
+        private int CacheExpiryHours
+        {
+            get
+            {
+                object? value = ApplicationData.Current.LocalSettings.Values["CacheExpiryHours"];
+                if (value is int intValue)
+                {
+                    return intValue;
+                }
+                else if (value is string strValue && int.TryParse(strValue, out int parsed))
+                {
+                    return parsed;
+                }
+                return DEFAULT_CACHE_EXPIRY_HOURS;
+            }
+        }
 
         private StorageFolder? _cacheFolder;
 

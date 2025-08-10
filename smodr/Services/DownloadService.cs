@@ -29,8 +29,7 @@ namespace smodr.Services
                 // Create a file picker to let the user choose where to save
                 var savePicker = new FileSavePicker();
                 
-                // Initialize the picker with the current window
-                var window = App.MainWindow;
+                // Initialize the picker with the provided window
                 var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
                 WinRT.Interop.InitializeWithWindow.Initialize(savePicker, hWnd);
 
@@ -92,11 +91,11 @@ namespace smodr.Services
             }
             
             // Limit length
-            if (fileName.Length > 100)
+            if (fileName.Length > MaxFileNameLength)
             {
                 var extension = Path.GetExtension(fileName);
                 var nameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
-                fileName = nameWithoutExtension.Substring(0, 100 - extension.Length) + extension;
+                fileName = nameWithoutExtension.Substring(0, MaxFileNameLength - extension.Length) + extension;
             }
 
             return fileName;
