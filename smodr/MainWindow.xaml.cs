@@ -113,7 +113,7 @@ namespace smodr
                 {
                     // Quick check if we have cached data
                     var cachedEpisodes = await ViewModel.GetCachedEpisodesAsync();
-                    if (cachedEpisodes is not null && cachedEpisodes.Count > 0)
+                    if (cachedEpisodes != null && cachedEpisodes.Count > 0)
                     {
                         // Show cached data immediately
                         EpisodesListView.ItemsSource = cachedEpisodes;
