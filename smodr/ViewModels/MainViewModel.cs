@@ -197,6 +197,12 @@ namespace smodr.ViewModels
         }
 
         public async Task DownloadEpisodeAsync(Episode? episode, object? window = null)
+        public async Task DownloadEpisodeAsync(Episode? episode)
+        {
+            await DownloadEpisodeAsync(episode, null);
+        }
+
+        public async Task DownloadEpisodeAsync(Episode? episode, object? window)
         {
             if (episode == null || string.IsNullOrEmpty(episode.MediaUrl))
                 return;
