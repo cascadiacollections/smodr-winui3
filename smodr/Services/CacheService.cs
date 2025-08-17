@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Windows.Storage;
@@ -10,25 +10,22 @@ namespace smodr.Services
 {
     public class CacheService
     {
-        private const string CACHE_FOLDER_NAME = "EpisodeCache";
-        private const string EPISODES_CACHE_FILE = "episodes.json";
-        private const string CACHE_METADATA_FILE = "cache_metadata.json";
-        // Cache expiry time is now configurable via application settings (LocalSettings["CacheExpiryHours"])
-        private const int DEFAULT_CACHE_EXPIRY_HOURS = 6;
-        private int CacheExpiryHours
+        private const string CacheFolderName = "EpisodeCache";
+        private const string EpisodesCacheFile = "episodes.json";
+        private const string CacheMetadataFile = "cache_metadata.json";
+        private const int DefaultCacheExpiryHours = 6;
+
+        private static int CacheExpiryHours
         {
             get
             {
-                object? value = ApplicationData.Current.LocalSettings.Values["CacheExpiryHours"];
-                if (value is int intValue)
+                var value = ApplicationData.Current.LocalSettings.Values["CacheExpiryHours"];
+                return value switch
                 {
-                    return intValue;
-                }
-                else if (value is string strValue && int.TryParse(strValue, out int parsed))
-                {
-                    return parsed;
-                }
-                return DEFAULT_CACHE_EXPIRY_HOURS;
+                    int intValue => intValue,
+                    string strValue when int.TryParse(strValue, out int parsed) => parsed,
+                    _ => DefaultCacheExpiryHours
+                };
             }
         }
 
@@ -39,11 +36,11 @@ namespace smodr.Services
             try
             {
                 var localFolder = ApplicationData.Current.LocalFolder;
-                _cacheFolder = await localFolder.CreateFolderAsync(CACHE_FOLDER_NAME, CreationCollisionOption.OpenIfExists);
+                _cacheFolder = await localFolder.CreateFolderAsync(CacheFolderName, CreationCollisionOption.OpenIfExists);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error initializing cache folder: {ex.Message}");
+                Debug.WriteLine($"Error initializing cache folder: {ex.Message}");
             }
         }
 
@@ -62,19 +59,19 @@ namespace smodr.Services
                     return null;
 
                 // Load cached episodes
-                var episodesFile = await _cacheFolder.TryGetItemAsync(EPISODES_CACHE_FILE) as StorageFile;
+                var episodesFile = await _cacheFolder.TryGetItemAsync(EpisodesCacheFile) as StorageFile;
                 if (episodesFile == null)
                     return null;
 
                 var jsonContent = await FileIO.ReadTextAsync(episodesFile);
                 var episodes = JsonSerializer.Deserialize<List<Episode>>(jsonContent);
 
-                System.Diagnostics.Debug.WriteLine($"Loaded {episodes?.Count ?? 0} episodes from cache");
+                Debug.WriteLine($"Loaded {episodes?.Count ?? 0} episodes from cache");
                 return episodes;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error reading cached episodes: {ex.Message}");
+                Debug.WriteLine($"Error reading cached episodes: {ex.Message}");
                 return null;
             }
         }
@@ -96,7 +93,7 @@ namespace smodr.Services
                 });
 
                 // Save episodes to cache file
-                var episodesFile = await _cacheFolder.CreateFileAsync(EPISODES_CACHE_FILE, CreationCollisionOption.ReplaceExisting);
+                var episodesFile = await _cacheFolder.CreateFileAsync(EpisodesCacheFile, CreationCollisionOption.ReplaceExisting);
                 await FileIO.WriteTextAsync(episodesFile, jsonContent);
 
                 // Save cache metadata
@@ -111,15 +108,15 @@ namespace smodr.Services
                     WriteIndented = true
                 });
 
-                var metadataFile = await _cacheFolder.CreateFileAsync(CACHE_METADATA_FILE, CreationCollisionOption.ReplaceExisting);
+                var metadataFile = await _cacheFolder.CreateFileAsync(CacheMetadataFile, CreationCollisionOption.ReplaceExisting);
                 await FileIO.WriteTextAsync(metadataFile, metadataJson);
 
-                System.Diagnostics.Debug.WriteLine($"Cached {episodes.Count} episodes successfully");
+                Debug.WriteLine($"Cached {episodes.Count} episodes successfully");
                 return true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error caching episodes: {ex.Message}");
+                Debug.WriteLine($"Error caching episodes: {ex.Message}");
                 return false;
             }
         }
@@ -131,7 +128,7 @@ namespace smodr.Services
                 if (_cacheFolder == null)
                     return false;
 
-                var metadataFile = await _cacheFolder.TryGetItemAsync(CACHE_METADATA_FILE) as StorageFile;
+                var metadataFile = await _cacheFolder.TryGetItemAsync(CacheMetadataFile) as StorageFile;
                 if (metadataFile == null)
                     return false;
 
@@ -142,14 +139,14 @@ namespace smodr.Services
                     return false;
 
                 var timeSinceLastUpdate = DateTime.UtcNow - metadata.LastUpdated;
-                var isValid = timeSinceLastUpdate.TotalHours < CACHE_EXPIRY_HOURS;
+                var isValid = timeSinceLastUpdate.TotalHours < CacheExpiryHours;
 
-                System.Diagnostics.Debug.WriteLine($"Cache age: {timeSinceLastUpdate.TotalHours:F1} hours, Valid: {isValid}");
+                Debug.WriteLine($"Cache age: {timeSinceLastUpdate.TotalHours:F1} hours, Valid: {isValid}");
                 return isValid;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error checking cache validity: {ex.Message}");
+                Debug.WriteLine($"Error checking cache validity: {ex.Message}");
                 return false;
             }
         }
@@ -164,7 +161,7 @@ namespace smodr.Services
                 if (_cacheFolder == null)
                     return null;
 
-                var metadataFile = await _cacheFolder.TryGetItemAsync(CACHE_METADATA_FILE) as StorageFile;
+                var metadataFile = await _cacheFolder.TryGetItemAsync(CacheMetadataFile) as StorageFile;
                 if (metadataFile == null)
                     return null;
 
@@ -173,7 +170,7 @@ namespace smodr.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error reading cache metadata: {ex.Message}");
+                Debug.WriteLine($"Error reading cache metadata: {ex.Message}");
                 return null;
             }
         }
@@ -194,12 +191,12 @@ namespace smodr.Services
                     await file.DeleteAsync();
                 }
 
-                System.Diagnostics.Debug.WriteLine("Cache cleared successfully");
+                Debug.WriteLine("Cache cleared successfully");
                 return true;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error clearing cache: {ex.Message}");
+                Debug.WriteLine($"Error clearing cache: {ex.Message}");
                 return false;
             }
         }
@@ -216,7 +213,7 @@ namespace smodr.Services
 
                 long totalSize = 0;
                 var files = await _cacheFolder.GetFilesAsync();
-                
+
                 foreach (var file in files)
                 {
                     var properties = await file.GetBasicPropertiesAsync();
@@ -227,7 +224,7 @@ namespace smodr.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error calculating cache size: {ex.Message}");
+                Debug.WriteLine($"Error calculating cache size: {ex.Message}");
                 return 0;
             }
         }

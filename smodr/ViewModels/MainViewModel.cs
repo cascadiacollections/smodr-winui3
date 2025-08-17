@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -98,11 +99,11 @@ namespace smodr.ViewModels
             _dataService = new DataService();
             _downloadService = new DownloadService();
             _audioService = new AudioService();
-            
+
             LoadEpisodesCommand = new AsyncRelayCommand(() => LoadEpisodesAsync());
             RefreshEpisodesCommand = new AsyncRelayCommand(() => LoadEpisodesAsync(true));
             SelectEpisodeCommand = new RelayCommand<Episode>(SelectEpisode);
-            DownloadEpisodeCommand = new AsyncRelayCommand<Episode>(DownloadEpisodeAsync);
+            DownloadEpisodeCommand = new AsyncRelayCommand<Episode>(episode => DownloadEpisodeAsync(episode));
             PlayEpisodeCommand = new AsyncRelayCommand<Episode>(PlayEpisodeAsync);
             PlayPauseCommand = new RelayCommand(PlayPause);
             StopCommand = new RelayCommand(Stop);
@@ -122,7 +123,7 @@ namespace smodr.ViewModels
             try
             {
                 var episodes = await _dataService.GetEpisodesAsync(forceRefresh);
-                
+
                 Episodes.Clear();
                 foreach (var episode in episodes)
                 {
@@ -139,7 +140,7 @@ namespace smodr.ViewModels
                     var cacheInfo = await _dataService.GetCacheInfoAsync();
                     if (cacheInfo != null)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Cache info: {Episodes.Count} episodes, last updated: {cacheInfo.LastUpdated:yyyy-MM-dd HH:mm:ss}");
+                        Debug.WriteLine($"Cache info: {Episodes.Count} episodes, last updated: {cacheInfo.LastUpdated:yyyy-MM-dd HH:mm:ss}");
                     }
                 }
             }
@@ -173,7 +174,7 @@ namespace smodr.ViewModels
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Playback failed: {ex.Message}");
+                Debug.WriteLine($"Playback failed: {ex.Message}");
                 PlaybackStatus = $"Error: {ex.Message}";
             }
         }
@@ -195,22 +196,28 @@ namespace smodr.ViewModels
             _audioService.Stop();
         }
 
+        public async Task DownloadEpisodeAsync(Episode? episode, object? window = null)
         public async Task DownloadEpisodeAsync(Episode? episode)
+        {
+            await DownloadEpisodeAsync(episode, null);
+        }
+
+        public async Task DownloadEpisodeAsync(Episode? episode, object? window)
         {
             if (episode == null || string.IsNullOrEmpty(episode.MediaUrl))
                 return;
 
             try
             {
-                var success = await _downloadService.DownloadEpisodeAsync(episode);
+                var success = await _downloadService.DownloadEpisodeAsync(episode, window);
                 if (success)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Successfully downloaded: {episode.Title}");
+                    Debug.WriteLine($"Successfully downloaded: {episode.Title}");
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Download failed: {ex.Message}");
+                Debug.WriteLine($"Download failed: {ex.Message}");
             }
         }
 
@@ -222,7 +229,7 @@ namespace smodr.ViewModels
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error clearing cache: {ex.Message}");
+                Debug.WriteLine($"Error clearing cache: {ex.Message}");
                 return false;
             }
         }
@@ -235,7 +242,7 @@ namespace smodr.ViewModels
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error getting cache info: {ex.Message}");
+                Debug.WriteLine($"Error getting cache info: {ex.Message}");
                 return null;
             }
         }
@@ -248,7 +255,7 @@ namespace smodr.ViewModels
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error getting cache size: {ex.Message}");
+                Debug.WriteLine($"Error getting cache size: {ex.Message}");
                 return 0;
             }
         }
@@ -261,7 +268,7 @@ namespace smodr.ViewModels
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error getting cached episodes: {ex.Message}");
+                Debug.WriteLine($"Error getting cached episodes: {ex.Message}");
                 return null;
             }
         }
@@ -275,7 +282,7 @@ namespace smodr.ViewModels
         {
             IsPlaying = state == MediaPlaybackState.Playing;
             IsPaused = state == MediaPlaybackState.Paused;
-            
+
             PlaybackStatus = state switch
             {
                 MediaPlaybackState.Playing => "Playing",
@@ -317,32 +324,26 @@ namespace smodr.ViewModels
             OnPropertyChanged(propertyName);
             return true;
         }
-
-        public void Dispose()
+        // Add this method to MainViewModel to fix CS1061
+        public bool IsCacheValid()
         {
-            _audioService?.Dispose();
-            _dataService?.Dispose();
-            _downloadService?.Dispose();
+            // Implement your cache validation logic here.
+            // For example, check if Episodes is not empty and cache is not expired.
+            // This is a placeholder implementation:
+            return Episodes != null && Episodes.Count > 0;
         }
     }
 
     // Simple relay command implementations
-    public class RelayCommand<T> : ICommand
+    public class RelayCommand<T>(Action<T?> execute, Func<T?, bool>? canExecute = null) : ICommand
     {
-        private readonly Action<T?> _execute;
-        private readonly Func<T?, bool>? _canExecute;
-
-        public RelayCommand(Action<T?> execute, Func<T?, bool>? canExecute = null)
-        {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-            _canExecute = canExecute;
-        }
+        private readonly Action<T?> _execute = execute ?? throw new ArgumentNullException(nameof(execute));
 
         public event EventHandler? CanExecuteChanged;
 
         public bool CanExecute(object? parameter)
         {
-            return _canExecute == null || _canExecute((T?)parameter);
+            return canExecute == null || canExecute((T?)parameter);
         }
 
         public void Execute(object? parameter)
@@ -356,22 +357,15 @@ namespace smodr.ViewModels
         }
     }
 
-    public class RelayCommand : ICommand
+    public class RelayCommand(Action execute, Func<bool>? canExecute = null) : ICommand
     {
-        private readonly Action _execute;
-        private readonly Func<bool>? _canExecute;
-
-        public RelayCommand(Action execute, Func<bool>? canExecute = null)
-        {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-            _canExecute = canExecute;
-        }
+        private readonly Action _execute = execute ?? throw new ArgumentNullException(nameof(execute));
 
         public event EventHandler? CanExecuteChanged;
 
         public bool CanExecute(object? parameter)
         {
-            return _canExecute == null || _canExecute();
+            return canExecute == null || canExecute();
         }
 
         public void Execute(object? parameter)
@@ -385,23 +379,16 @@ namespace smodr.ViewModels
         }
     }
 
-    public class AsyncRelayCommand : ICommand
+    public class AsyncRelayCommand(Func<Task> execute, Func<bool>? canExecute = null) : ICommand
     {
-        private readonly Func<Task> _execute;
-        private readonly Func<bool>? _canExecute;
+        private readonly Func<Task> _execute = execute ?? throw new ArgumentNullException(nameof(execute));
         private bool _isExecuting;
-
-        public AsyncRelayCommand(Func<Task> execute, Func<bool>? canExecute = null)
-        {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-            _canExecute = canExecute;
-        }
 
         public event EventHandler? CanExecuteChanged;
 
         public bool CanExecute(object? parameter)
         {
-            return !_isExecuting && (_canExecute == null || _canExecute());
+            return !_isExecuting && (canExecute == null || canExecute());
         }
 
         public async void Execute(object? parameter)
@@ -428,23 +415,16 @@ namespace smodr.ViewModels
         }
     }
 
-    public class AsyncRelayCommand<T> : ICommand
+    public class AsyncRelayCommand<T>(Func<T?, Task> execute, Func<T?, bool>? canExecute = null) : ICommand
     {
-        private readonly Func<T?, Task> _execute;
-        private readonly Func<T?, bool>? _canExecute;
+        private readonly Func<T?, Task> _execute = execute ?? throw new ArgumentNullException(nameof(execute));
         private bool _isExecuting;
-
-        public AsyncRelayCommand(Func<T?, Task> execute, Func<T?, bool>? canExecute = null)
-        {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-            _canExecute = canExecute;
-        }
 
         public event EventHandler? CanExecuteChanged;
 
         public bool CanExecute(object? parameter)
         {
-            return !_isExecuting && (_canExecute == null || _canExecute((T?)parameter));
+            return !_isExecuting && (canExecute == null || canExecute((T?)parameter));
         }
 
         public async void Execute(object? parameter)
