@@ -10,26 +10,22 @@ namespace smodr.Services
 {
     public class CacheService
     {
-        private const string CACHE_FOLDER_NAME = "EpisodeCache";
-        private const string EPISODES_CACHE_FILE = "episodes.json";
-        private const string CACHE_METADATA_FILE = "cache_metadata.json";
-        // Cache expiry time is now configurable via application settings (LocalSettings["CacheExpiryHours"])
-        private const int DEFAULT_CACHE_EXPIRY_HOURS = 6;
-        private int CacheExpiryHours
+        private const string CacheFolderName = "EpisodeCache";
+        private const string EpisodesCacheFile = "episodes.json";
+        private const string CacheMetadataFile = "cache_metadata.json";
+        private const int DefaultCacheExpiryHours = 6;
+
+        private static int CacheExpiryHours
         {
             get
             {
-                object? value = ApplicationData.Current.LocalSettings.Values["CacheExpiryHours"];
-                if (value is int intValue)
+                var value = ApplicationData.Current.LocalSettings.Values["CacheExpiryHours"];
+                return value switch
                 {
-                    return intValue;
-                }
-
-                if (value is string strValue && int.TryParse(strValue, out int parsed))
-                {
-                    return parsed;
-                }
-                return DEFAULT_CACHE_EXPIRY_HOURS;
+                    int intValue => intValue,
+                    string strValue when int.TryParse(strValue, out int parsed) => parsed,
+                    _ => DefaultCacheExpiryHours
+                };
             }
         }
 
@@ -40,7 +36,7 @@ namespace smodr.Services
             try
             {
                 var localFolder = ApplicationData.Current.LocalFolder;
-                _cacheFolder = await localFolder.CreateFolderAsync(CACHE_FOLDER_NAME, CreationCollisionOption.OpenIfExists);
+                _cacheFolder = await localFolder.CreateFolderAsync(CacheFolderName, CreationCollisionOption.OpenIfExists);
             }
             catch (Exception ex)
             {
@@ -63,7 +59,7 @@ namespace smodr.Services
                     return null;
 
                 // Load cached episodes
-                var episodesFile = await _cacheFolder.TryGetItemAsync(EPISODES_CACHE_FILE) as StorageFile;
+                var episodesFile = await _cacheFolder.TryGetItemAsync(EpisodesCacheFile) as StorageFile;
                 if (episodesFile == null)
                     return null;
 
@@ -97,7 +93,7 @@ namespace smodr.Services
                 });
 
                 // Save episodes to cache file
-                var episodesFile = await _cacheFolder.CreateFileAsync(EPISODES_CACHE_FILE, CreationCollisionOption.ReplaceExisting);
+                var episodesFile = await _cacheFolder.CreateFileAsync(EpisodesCacheFile, CreationCollisionOption.ReplaceExisting);
                 await FileIO.WriteTextAsync(episodesFile, jsonContent);
 
                 // Save cache metadata
@@ -112,7 +108,7 @@ namespace smodr.Services
                     WriteIndented = true
                 });
 
-                var metadataFile = await _cacheFolder.CreateFileAsync(CACHE_METADATA_FILE, CreationCollisionOption.ReplaceExisting);
+                var metadataFile = await _cacheFolder.CreateFileAsync(CacheMetadataFile, CreationCollisionOption.ReplaceExisting);
                 await FileIO.WriteTextAsync(metadataFile, metadataJson);
 
                 Debug.WriteLine($"Cached {episodes.Count} episodes successfully");
@@ -132,7 +128,7 @@ namespace smodr.Services
                 if (_cacheFolder == null)
                     return false;
 
-                var metadataFile = await _cacheFolder.TryGetItemAsync(CACHE_METADATA_FILE) as StorageFile;
+                var metadataFile = await _cacheFolder.TryGetItemAsync(CacheMetadataFile) as StorageFile;
                 if (metadataFile == null)
                     return false;
 
@@ -143,7 +139,7 @@ namespace smodr.Services
                     return false;
 
                 var timeSinceLastUpdate = DateTime.UtcNow - metadata.LastUpdated;
-                var isValid = timeSinceLastUpdate.TotalHours < CACHE_EXPIRY_HOURS;
+                var isValid = timeSinceLastUpdate.TotalHours < CacheExpiryHours;
 
                 Debug.WriteLine($"Cache age: {timeSinceLastUpdate.TotalHours:F1} hours, Valid: {isValid}");
                 return isValid;
@@ -165,7 +161,7 @@ namespace smodr.Services
                 if (_cacheFolder == null)
                     return null;
 
-                var metadataFile = await _cacheFolder.TryGetItemAsync(CACHE_METADATA_FILE) as StorageFile;
+                var metadataFile = await _cacheFolder.TryGetItemAsync(CacheMetadataFile) as StorageFile;
                 if (metadataFile == null)
                     return null;
 
@@ -217,7 +213,7 @@ namespace smodr.Services
 
                 long totalSize = 0;
                 var files = await _cacheFolder.GetFilesAsync();
-                
+
                 foreach (var file in files)
                 {
                     var properties = await file.GetBasicPropertiesAsync();

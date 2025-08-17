@@ -13,8 +13,8 @@ namespace smodr.Services
     public class DownloadService
     {
         private readonly HttpClient _httpClient = new();
-
-        public async Task<bool> DownloadEpisodeAsync(Episode episode)
+        private const int MaxFileNameLength = 255;
+        public async Task<bool> DownloadEpisodeAsync(Episode episode, object window)
         {
             try
             {
@@ -78,7 +78,7 @@ namespace smodr.Services
             }
         }
 
-        private string SanitizeFileName(string fileName)
+        private static string SanitizeFileName(string fileName)
         {
             // Remove invalid characters from the file name
             var invalidChars = Path.GetInvalidFileNameChars();
