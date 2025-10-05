@@ -88,7 +88,6 @@ namespace smodr.ViewModels
         public ICommand LoadEpisodesCommand { get; }
         public ICommand RefreshEpisodesCommand { get; }
         public ICommand SelectEpisodeCommand { get; }
-        public ICommand DownloadEpisodeCommand { get; }
         public ICommand PlayEpisodeCommand { get; }
         public ICommand PlayPauseCommand { get; }
         public ICommand StopCommand { get; }
@@ -102,7 +101,6 @@ namespace smodr.ViewModels
             LoadEpisodesCommand = new AsyncRelayCommand(() => LoadEpisodesAsync());
             RefreshEpisodesCommand = new AsyncRelayCommand(() => LoadEpisodesAsync(true));
             SelectEpisodeCommand = new RelayCommand<Episode>(SelectEpisode);
-            DownloadEpisodeCommand = new AsyncRelayCommand<Episode>(DownloadEpisodeAsync);
             PlayEpisodeCommand = new AsyncRelayCommand<Episode>(PlayEpisodeAsync);
             PlayPauseCommand = new RelayCommand(PlayPause);
             StopCommand = new RelayCommand(Stop);
@@ -195,14 +193,14 @@ namespace smodr.ViewModels
             _audioService.Stop();
         }
 
-        public async Task DownloadEpisodeAsync(Episode? episode)
+        public async Task DownloadEpisodeAsync(Episode? episode, nint windowHandle)
         {
             if (episode == null || string.IsNullOrEmpty(episode.MediaUrl))
                 return;
 
             try
             {
-                var success = await _downloadService.DownloadEpisodeAsync(episode);
+                var success = await _downloadService.DownloadEpisodeAsync(episode, windowHandle);
                 if (success)
                 {
                     System.Diagnostics.Debug.WriteLine($"Successfully downloaded: {episode.Title}");
@@ -211,6 +209,7 @@ namespace smodr.ViewModels
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Download failed: {ex.Message}");
+                throw;
             }
         }
 

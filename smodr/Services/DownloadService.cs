@@ -11,13 +11,14 @@ namespace smodr.Services
     public class DownloadService
     {
         private readonly HttpClient _httpClient;
+        private const int MaxFileNameLength = 200;
 
         public DownloadService()
         {
             _httpClient = new HttpClient();
         }
 
-        public async Task<bool> DownloadEpisodeAsync(Episode episode)
+        public async Task<bool> DownloadEpisodeAsync(Episode episode, nint windowHandle)
         {
             try
             {
@@ -30,8 +31,7 @@ namespace smodr.Services
                 var savePicker = new FileSavePicker();
                 
                 // Initialize the picker with the provided window
-                var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
-                WinRT.Interop.InitializeWithWindow.Initialize(savePicker, hWnd);
+                WinRT.Interop.InitializeWithWindow.Initialize(savePicker, windowHandle);
 
                 // Set the file type and default name
                 var fileExtension = GetFileExtension(episode.MediaUrl);

@@ -109,7 +109,7 @@ namespace smodr
             try
             {
                 // If not forcing refresh, try to load from cache first without showing loading
-                if (!forceRefresh && ViewModel.IsCacheValid())
+                if (!forceRefresh)
                 {
                     // Quick check if we have cached data
                     var cachedEpisodes = await ViewModel.GetCachedEpisodesAsync();
@@ -217,7 +217,9 @@ namespace smodr
                     menuItem.IsEnabled = false;
                     menuItem.Text = "Downloading...";
 
-                    await ViewModel.DownloadEpisodeAsync(episode);
+                    // Get window handle
+                    var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                    await ViewModel.DownloadEpisodeAsync(episode, hWnd);
 
                     // Show success message
                     var dialog = new ContentDialog

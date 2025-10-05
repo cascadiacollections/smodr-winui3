@@ -142,7 +142,7 @@ namespace smodr.Services
                     return false;
 
                 var timeSinceLastUpdate = DateTime.UtcNow - metadata.LastUpdated;
-                var isValid = timeSinceLastUpdate.TotalHours < CACHE_EXPIRY_HOURS;
+                var isValid = timeSinceLastUpdate.TotalHours < CacheExpiryHours;
 
                 System.Diagnostics.Debug.WriteLine($"Cache age: {timeSinceLastUpdate.TotalHours:F1} hours, Valid: {isValid}");
                 return isValid;
