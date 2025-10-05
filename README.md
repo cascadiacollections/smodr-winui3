@@ -1,6 +1,6 @@
 # smodr - WinUI3 Podcast Player
 
-A modern Windows desktop podcast player built with WinUI3 and .NET 8.0.
+A modern Windows desktop podcast player built with WinUI3 and .NET 9.0.
 
 ## Features
 
@@ -58,7 +58,7 @@ smodr/
 
 ## Technology Stack
 
-- **Framework**: .NET 8.0
+- **Framework**: .NET 9.0
 - **UI**: WinUI3 (Windows App SDK)
 - **Architecture**: MVVM
 - **Dependencies**:
@@ -96,11 +96,11 @@ dotnet clean
 
 ### For Running the Application
 - Windows 10 version 1809 (build 17763) or later
-- .NET 8.0 Runtime
+- .NET 9.0 Runtime
 - Windows App SDK Runtime
 
 ### For Development
-- .NET 8.0 SDK
+- .NET 9.0 SDK
 - Visual Studio 2022 (with WinUI3 workload) **OR**
 - VS Code with Dev Container (any OS for editing)
 
@@ -121,4 +121,4 @@ See [LICENSE.txt](LICENSE.txt) for details.
 
 - [WinUI3 Documentation](https://learn.microsoft.com/windows/apps/winui/winui3/)
 - [Windows App SDK](https://learn.microsoft.com/windows/apps/windows-app-sdk/)
-- [.NET 8.0 Documentation](https://learn.microsoft.com/dotnet/core/whats-new/dotnet-8)
+- [.NET 9.0 Documentation](https://learn.microsoft.com/dotnet/core/whats-new/dotnet-9)

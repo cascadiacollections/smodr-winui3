@@ -21,7 +21,7 @@ This document provides a visual overview of the modern development setup for smo
         │  Docker Dev    │             │   Native       │
         │  Container     │             │   Build        │
         │                │             │                │
-        │ • .NET 8 SDK   │             │ • .NET 8 SDK   │
+        │ • .NET 9 SDK   │             │ • .NET 9 SDK   │
         │ • Extensions   │             │ • WinUI3 SDK   │
         │ • Settings     │             │ • Windows SDK  │
         │ • Tools        │             │                │

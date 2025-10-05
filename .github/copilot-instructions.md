@@ -2,11 +2,11 @@
 
 ## Project Overview
 
-**smodr** is a WinUI3 desktop application for Windows built with .NET 8.0. It's a podcast/media player application that supports RSS feed parsing, episode playback, caching, and downloads.
+**smodr** is a WinUI3 desktop application for Windows built with .NET 9.0. It's a podcast/media player application that supports RSS feed parsing, episode playback, caching, and downloads.
 
 ## Technology Stack
 
-- **Framework**: .NET 8.0 with WinUI3 (Windows App SDK)
+- **Framework**: .NET 9.0 with WinUI3 (Windows App SDK)
 - **Platform**: Windows 10.0.19041.0 (minimum 10.0.17763.0)
 - **Architecture**: MVVM (Model-View-ViewModel)
 - **Key Dependencies**:
@@ -104,7 +104,7 @@ smodr/
 ### Prerequisites (Windows)
 
 - Visual Studio 2022 or later with WinUI3 workload
-- .NET 8.0 SDK
+- .NET 9.0 SDK
 - Windows 10 SDK (10.0.19041.0 or later)
 
 ### Build Commands

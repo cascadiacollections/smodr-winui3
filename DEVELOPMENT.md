@@ -54,7 +54,7 @@ If you prefer not to use containers or need to run the application:
 - **Visual Studio 2022** or later with the following workloads:
   - .NET Desktop Development
   - Universal Windows Platform development
-- **.NET 8.0 SDK** ([Download](https://dotnet.microsoft.com/download/dotnet/8.0))
+- **.NET 9.0 SDK** ([Download](https://dotnet.microsoft.com/download/dotnet/9.0))
 - **Windows SDK** version 10.0.19041.0 or later
 
 ### Visual Studio Setup
@@ -93,8 +93,8 @@ If you prefer VS Code on Windows:
 1. **Install VS Code**
    - Download from [code.visualstudio.com](https://code.visualstudio.com/)
 
-2. **Install .NET 8.0 SDK**
-   - Download from [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/8.0)
+2. **Install .NET 9.0 SDK**
+   - Download from [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/9.0)
 
 3. **Open the project**
    ```bash
@@ -249,7 +249,7 @@ To get the best results:
 ## Additional Resources
 
 - [WinUI 3 Documentation](https://learn.microsoft.com/windows/apps/winui/winui3/)
-- [.NET 8.0 Documentation](https://learn.microsoft.com/dotnet/core/whats-new/dotnet-8)
+- [.NET 9.0 Documentation](https://learn.microsoft.com/dotnet/core/whats-new/dotnet-9)
 - [Windows App SDK](https://learn.microsoft.com/windows/apps/windows-app-sdk/)
 - [MVVM Toolkit](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/)
 - [VS Code Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers)

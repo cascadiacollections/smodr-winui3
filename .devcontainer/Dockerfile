@@ -1,5 +1,5 @@
 # Use the official .NET SDK image as base
-FROM mcr.microsoft.com/dotnet/sdk:8.0
+FROM mcr.microsoft.com/dotnet/sdk:9.0
 
 # Install additional dependencies for WinUI3 development
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \

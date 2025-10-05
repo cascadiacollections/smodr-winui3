@@ -19,7 +19,7 @@ code .
 When VS Code opens, click **"Reopen in Container"** (or press F1 → "Remote-Containers: Reopen in Container")
 
 **That's it!** Everything is configured:
-✅ .NET 8.0 SDK installed
+✅ .NET 9.0 SDK installed
 ✅ Dependencies restored
 ✅ Extensions installed
 ✅ Settings configured
@@ -30,7 +30,7 @@ When VS Code opens, click **"Reopen in Container"** (or press F1 → "Remote-Con
 **Prerequisites:**
 - Windows 10 (version 1809+)
 - Visual Studio 2022 with WinUI3 workload
-- .NET 8.0 SDK
+- .NET 9.0 SDK
 
 **Steps:**
 ```bash
