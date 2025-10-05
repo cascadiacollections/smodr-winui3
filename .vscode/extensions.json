@@ -1,0 +1,16 @@
+{
+  "recommendations": [
+    "ms-dotnettools.csdevkit",
+    "ms-dotnettools.csharp",
+    "ms-dotnettools.vscode-dotnet-runtime",
+    "GitHub.copilot",
+    "GitHub.copilot-chat",
+    "editorconfig.editorconfig",
+    "streetsidesoftware.code-spell-checker",
+    "visualstudioexptteam.vscodeintellicode",
+    "formulahendry.dotnet-test-explorer",
+    "ms-vscode.powershell",
+    "davidanson.vscode-markdownlint"
+  ],
+  "unwantedRecommendations": []
+}
