@@ -45,7 +45,9 @@ namespace smodr.Converters
 
         public object ConvertBack(object value, Type targetType, object parameter, string language)
         {
-            throw new NotImplementedException();
+            // ConvertBack doesn't make logical sense for string-to-visibility conversion
+            // Two-way binding is not supported for this converter
+            throw new NotSupportedException("ConvertBack is not supported for StringToVisibilityConverter.");
         }
     }
 
@@ -59,7 +61,9 @@ namespace smodr.Converters
 
         public object ConvertBack(object value, Type targetType, object parameter, string language)
         {
-            throw new NotImplementedException();
+            // Convert icon string back to boolean state
+            string? icon = value?.ToString();
+            return icon == "⏸"; // true if pause icon (meaning currently playing), false otherwise
         }
     }
 }
