@@ -37,9 +37,9 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.250606001" />
-    <PackageReference Include="System.ServiceModel.Syndication" Version="9.0.8" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.6584" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.0.250930001-experimental1" />
+    <PackageReference Include="System.ServiceModel.Syndication" Version="10.0.0-rc.1.25451.107" />
   </ItemGroup>
 
   <!--
