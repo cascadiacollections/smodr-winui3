@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or Discussion
+    url: https://github.com/cascadiacollections/smodr-winui3/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: Security Issue
+    url: https://github.com/cascadiacollections/smodr-winui3/security/advisories/new
+    about: Report security vulnerabilities privately

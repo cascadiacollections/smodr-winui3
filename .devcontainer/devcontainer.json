@@ -1,7 +1,11 @@
 {
   "name": "smodr WinUI3 Development",
   "build": {
-    "dockerfile": "Dockerfile"
+    "dockerfile": "Dockerfile",
+    "context": "..",
+    "args": {
+      "VARIANT": "9.0"
+    }
   },
   
   "features": {
@@ -10,10 +14,19 @@
       "installUsingApt": true
     },
     "ghcr.io/devcontainers/features/git:1": {
-      "version": "latest"
+      "version": "latest",
+      "ppa": true
     },
     "ghcr.io/devcontainers/features/github-cli:1": {
       "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "installOhMyZsh": true,
+      "upgradePackages": true,
+      "username": "vscode",
+      "userUid": "1000",
+      "userGid": "1000"
     }
   },
 
@@ -42,7 +55,10 @@
           "**/.vs/**": true
         },
         "csharp.semanticHighlighting.enabled": true,
-        "dotnet-test-explorer.testProjectPath": "**/*Tests.csproj"
+        "dotnet-test-explorer.testProjectPath": "**/*Tests.csproj",
+        "git.enableSmartCommit": true,
+        "git.autofetch": true,
+        "git.confirmSync": false
       },
       "extensions": [
         "ms-dotnettools.csdevkit",
@@ -55,18 +71,45 @@
         "visualstudioexptteam.vscodeintellicode",
         "formulahendry.dotnet-test-explorer",
         "ms-vscode.powershell",
-        "davidanson.vscode-markdownlint"
+        "davidanson.vscode-markdownlint",
+        "eamodio.gitlens"
       ]
+    },
+    "codespaces": {
+      "repositories": {
+        "cascadiacollections/*": {
+          "permissions": {
+            "contents": "write",
+            "pull_requests": "write"
+          }
+        }
+      }
     }
   },
 
   "forwardPorts": [],
 
-  "postCreateCommand": "dotnet restore smodr.sln",
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
 
   "remoteUser": "vscode",
 
   "mounts": [
     "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached"
-  ]
+  ],
+
+  "containerEnv": {
+    "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+    "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1",
+    "DOTNET_NOLOGO": "1"
+  },
+
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "4gb",
+    "storage": "32gb"
+  },
+
+  "portsAttributes": {},
+
+  "updateContentCommand": "dotnet restore smodr.sln || true"
 }

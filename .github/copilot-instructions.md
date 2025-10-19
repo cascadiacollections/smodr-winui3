@@ -200,6 +200,102 @@ public void Dispose()
 
 ## Resources
 
-- [WinUI3 Documentation](https://learn.microsoft.com/windows/apps/winui/winui3/)
-- [.NET MAUI and WinUI Samples](https://github.com/microsoft/WindowsAppSDK-Samples)
-- [MVVM Toolkit Documentation](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/)
+- <a href="https://learn.microsoft.com/windows/apps/winui/winui3/">WinUI3 Documentation</a>
+- <a href="https://github.com/microsoft/WindowsAppSDK-Samples">.NET MAUI and WinUI Samples</a>
+- <a href="https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/">MVVM Toolkit Documentation</a>
+
+## CI/CD and Automation
+
+### GitHub Actions
+
+This project uses GitHub Actions for continuous integration:
+
+- **Build Workflow**: Builds the solution on Windows runners
+- **CodeQL Analysis**: Security scanning for vulnerabilities
+- **Format Check**: Validates code formatting against `.editorconfig`
+- **Dev Container Test**: Validates dev container configuration
+
+### Dependabot
+
+Automated dependency updates are configured for:
+- NuGet packages (grouped by vendor)
+- GitHub Actions
+- Docker base images
+
+### Code Quality
+
+- Use `dotnet format` to format code before committing
+- CodeQL scans run on every push and pull request
+- All warnings should be addressed or suppressed with justification
+
+## Development Environment
+
+### Dev Container / Codespaces
+
+The project includes a fully configured dev container that works with:
+- VS Code Dev Containers
+- GitHub Codespaces
+- Any container-compatible IDE
+
+**Note**: The dev container is for code editing only. WinUI3 apps require Windows to build and run.
+
+### Available Tools
+
+Pre-installed in the dev container:
+- .NET 9.0 SDK
+- dotnet-format (code formatter)
+- dotnet-outdated-tool (dependency checker)
+- GitHub CLI (gh)
+- Git with enhanced features
+
+## Security Best Practices
+
+- Never commit secrets or credentials
+- Use `LocalSettings` for user-specific configuration
+- Validate all external inputs (RSS feeds, URLs)
+- Handle exceptions gracefully
+- Keep dependencies up to date via Dependabot
+
+## Modern C# Patterns
+
+### File-scoped Namespaces
+
+```csharp
+namespace smodr.Services;
+
+public class MyService
+{
+    // Implementation
+}
+```
+
+### Top-level Statements
+
+Not used in this project due to WinUI3 requirements, but be aware of the pattern.
+
+### Record Types
+
+Use for immutable data transfer objects:
+
+```csharp
+public record Episode(string Title, string Url, DateTime PublishDate);
+```
+
+### Pattern Matching
+
+```csharp
+if (result is { Success: true, Data: var data })
+{
+    ProcessData(data);
+}
+```
+
+### Init-only Properties
+
+```csharp
+public class CacheMetadata
+{
+    public DateTime CachedAt { get; init; }
+    public string Url { get; init; } = string.Empty;
+}
+```
