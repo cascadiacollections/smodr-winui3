@@ -16,6 +16,8 @@ jobs:
   build:
     name: Build WinUI3 Application
     runs-on: windows-latest
+    permissions:
+      contents: read
     
     steps:
     - name: Checkout code
@@ -59,6 +61,8 @@ jobs:
   format-check:
     name: Check Code Formatting
     runs-on: windows-latest
+    permissions:
+      contents: read
     
     steps:
     - name: Checkout code
@@ -79,6 +83,8 @@ jobs:
     name: Code Quality Analysis
     runs-on: windows-latest
     needs: build
+    permissions:
+      contents: read
     
     steps:
     - name: Checkout code
