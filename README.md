@@ -1,5 +1,10 @@
 # smodr - WinUI3 Podcast Player
 
+[![Build Status](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/build.yml/badge.svg)](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/build.yml)
+[![CodeQL](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/codeql.yml/badge.svg)](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/codeql.yml)
+[![Dev Container](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/devcontainer.yml/badge.svg)](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/devcontainer.yml)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.txt)
+
 A modern Windows desktop podcast player built with WinUI3 and .NET 9.0.
 
 ## Features
@@ -17,10 +22,13 @@ A modern Windows desktop podcast player built with WinUI3 and .NET 9.0.
 
 This project includes a complete dev container setup for instant development:
 
+[![Open in Dev Containers](https://img.shields.io/static/v1?label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/cascadiacollections/smodr-winui3)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/cascadiacollections/smodr-winui3)
+
 1. **Prerequisites**
    - [Visual Studio Code](https://code.visualstudio.com/)
-   - [Docker Desktop](https://www.docker.com/products/docker-desktop)
-   - [Remote - Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+   - [Docker Desktop](https://www.docker.com/products/docker-desktop) (for local dev containers)
+   - OR use GitHub Codespaces (no local setup needed!)
 
 2. **Get Started**
    ```bash
@@ -71,6 +79,8 @@ smodr/
 - **Code Style**: Enforced via `.editorconfig`
 - **GitHub Copilot**: Custom instructions in `.github/copilot-instructions.md`
 - **Dev Container**: Complete containerized dev environment
+- **GitHub Actions**: Automated builds, testing, and security scanning
+- **Dependabot**: Automated dependency updates
 
 For complete development setup instructions, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
@@ -108,10 +118,18 @@ dotnet clean
 
 Contributions are welcome! Please:
 
-1. Use the dev container for consistent environment
+1. Use the dev container or GitHub Codespaces for consistent environment
 2. Follow the code style defined in `.editorconfig`
 3. Maintain MVVM architecture patterns
 4. Test changes on Windows before submitting
+5. Review our [Contributing Guide](CONTRIBUTING.md)
+6. Check our [Security Policy](SECURITY.md) for security-related contributions
+
+## Community
+
+- 💬 [Discussions](https://github.com/cascadiacollections/smodr-winui3/discussions) - Ask questions, share ideas
+- 🐛 [Issues](https://github.com/cascadiacollections/smodr-winui3/issues) - Report bugs, request features
+- 🔒 [Security](SECURITY.md) - Report security vulnerabilities
 
 ## License
 

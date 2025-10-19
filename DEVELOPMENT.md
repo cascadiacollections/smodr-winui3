@@ -4,13 +4,25 @@ This guide helps you set up your development environment for the smodr WinUI3 pr
 
 ## Quick Start with VS Code Dev Container
 
-The fastest way to get started is using VS Code with Dev Containers:
+The fastest way to get started is using VS Code with Dev Containers or GitHub Codespaces:
 
-### Prerequisites
+### Option 1: GitHub Codespaces (Easiest)
+
+Click the button to launch a fully configured cloud development environment:
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/cascadiacollections/smodr-winui3)
+
+No local setup required! Everything runs in the cloud.
+
+### Option 2: Local Dev Container
+
+For local development with full control:
+
+#### Prerequisites
 
 - [Visual Studio Code](https://code.visualstudio.com/)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop)
-- [Remote - Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+- [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 
 ### Steps
 
@@ -28,17 +40,27 @@ The fastest way to get started is using VS Code with Dev Containers:
 3. **Reopen in Container**
    - VS Code will detect the `.devcontainer` configuration
    - Click "Reopen in Container" when prompted
-   - Or use Command Palette (F1) → "Remote-Containers: Reopen in Container"
+   - Or use Command Palette (F1) → "Dev Containers: Reopen in Container"
 
 4. **Wait for Setup**
    - The container will build automatically
-   - Dependencies will be restored via `dotnet restore`
+   - Post-create script will install tools and restore packages
    - Recommended extensions will be installed
+   - This takes 2-3 minutes on first run
 
 5. **Start Developing!**
    - All VS Code settings are pre-configured
    - IntelliSense and code navigation work out of the box
    - Use the integrated terminal for builds and commands
+   - GitHub Copilot has project-specific instructions
+
+**What's Included in the Dev Container:**
+- ✅ .NET 9.0 SDK
+- ✅ dotnet-format (code formatter)
+- ✅ dotnet-outdated-tool (dependency checker)
+- ✅ Git and GitHub CLI
+- ✅ All recommended VS Code extensions
+- ✅ Bash completion and helpful tools
 
 **Note**: While the dev container is great for code editing, analysis, and builds, running WinUI3 applications requires Windows. You'll need to build and run on a Windows machine or VM.
 
@@ -154,7 +176,7 @@ smodr-winui3/
 # Restore dependencies
 dotnet restore
 
-# Build the solution
+# Build the solution (works on Windows only for WinUI3)
 dotnet build
 
 # Clean build artifacts
@@ -169,6 +191,25 @@ dotnet clean && dotnet build
 ```bash
 # Format code according to .editorconfig
 dotnet format
+
+# Check formatting without making changes
+dotnet format --verify-no-changes
+```
+
+### Using GitHub CLI
+
+```bash
+# View pull requests
+gh pr list
+
+# View issues
+gh issue list
+
+# Create a pull request
+gh pr create
+
+# Check workflow runs
+gh run list
 ```
 
 ### Working with the Dev Container
@@ -227,6 +268,53 @@ VS Code Terminal (Ctrl+`) automatically connects
 **Problem**: Media playback not working
 - **Solution**: Check that the RSS feed URL is accessible
 - **Solution**: Verify media file format is supported
+
+---
+
+## CI/CD and Automation
+
+This project uses GitHub Actions for continuous integration and delivery:
+
+### Build Workflow
+
+Runs on every push and pull request to `main` and `develop` branches:
+- ✅ Builds the solution on Windows runners
+- ✅ Checks code formatting with `dotnet format`
+- ✅ Runs code quality analyzers
+- ✅ Uploads build artifacts
+
+### CodeQL Security Analysis
+
+Runs on pushes, PRs, and weekly schedule:
+- 🔒 Scans for security vulnerabilities
+- 🔒 Checks for code quality issues
+- 🔒 Uses extended security queries
+
+### Dev Container Validation
+
+Validates the dev container configuration:
+- 🐳 Builds and tests the dev container
+- 🐳 Ensures environment is reproducible
+
+### Dependabot
+
+Automatically creates PRs for dependency updates:
+- 📦 NuGet packages (grouped by vendor)
+- 🔧 GitHub Actions versions
+- 🐳 Docker base images
+
+### Viewing Workflow Results
+
+```bash
+# List recent workflow runs
+gh run list
+
+# View details of a specific run
+gh run view <run-id>
+
+# Watch a running workflow
+gh run watch
+```
 
 ---
 
