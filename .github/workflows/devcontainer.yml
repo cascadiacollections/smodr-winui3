@@ -2,12 +2,12 @@ name: Dev Container Validation
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ master, develop ]
     paths:
       - '.devcontainer/**'
       - '.github/workflows/devcontainer.yml'
   pull_request:
-    branches: [ main, develop ]
+    branches: [ master, develop ]
     paths:
       - '.devcontainer/**'
       - '.github/workflows/devcontainer.yml'
