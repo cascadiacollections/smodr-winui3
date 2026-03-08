@@ -339,7 +339,7 @@ To get the best results:
 ## Additional Resources
 
 - [WinUI 3 Documentation](https://learn.microsoft.com/windows/apps/winui/winui3/)
-- [.NET 9.0 Documentation](https://learn.microsoft.com/dotnet/core/whats-new/dotnet-9)
+- [.NET 10.0 Documentation](https://learn.microsoft.com/dotnet/core/whats-new/dotnet-10)
 - [Windows App SDK](https://learn.microsoft.com/windows/apps/windows-app-sdk/)
 - [MVVM Toolkit](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/)
 - [VS Code Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers)

@@ -1,7 +1,6 @@
 # smodr - WinUI3 Podcast Player
 
 [![Build Status](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/build.yml/badge.svg)](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/build.yml)
-[![CodeQL](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/codeql.yml/badge.svg)](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/codeql.yml)
 [![Dev Container](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/devcontainer.yml/badge.svg)](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/devcontainer.yml)
 [![GitHub Pages](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/pages.yml/badge.svg)](https://cascadiacollections.github.io/smodr-winui3/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.txt)
