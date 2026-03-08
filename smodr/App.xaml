@@ -18,6 +18,7 @@
             <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
             <converters:PlayPauseIconConverter x:Key="PlayPauseIconConverter" />
             <converters:CachedImageConverter x:Key="CachedImageConverter" />
+            <converters:PodcastArtworkConverter x:Key="PodcastArtworkConverter" />
 
             <!-- Other app resources here -->
         </ResourceDictionary>

@@ -97,7 +97,7 @@ public sealed partial class MainWindow : Window
         {
             MediaControlsPanel.Visibility = Visibility.Visible;
             CurrentEpisodeTitle.Text = episode.Title;
-            _ = LoadNowPlayingImageAsync(episode.ImageUrl);
+            _ = LoadNowPlayingImageAsync(episode);
         }
         else
         {
@@ -108,11 +108,24 @@ public sealed partial class MainWindow : Window
     private void UpdatePlayPauseButton() =>
         PlayPauseIcon.Glyph = ViewModel.IsPlaying ? "\uE769" : "\uE768";
 
-    private async Task LoadNowPlayingImageAsync(string imageUrl)
+    private async Task LoadNowPlayingImageAsync(Episode episode)
     {
         try
         {
-            var file = await _imageCacheService.GetOrDownloadImageAsync(imageUrl);
+            StorageFile? file = null;
+
+            // Try episode-specific image first
+            if (!string.IsNullOrEmpty(episode.ImageUrl))
+            {
+                file = await _imageCacheService.GetOrDownloadImageAsync(episode.ImageUrl);
+            }
+
+            // Fall back to podcast artwork via iTunes
+            if (file is null && ViewModel.SelectedPodcast is { } podcast)
+            {
+                file = await _imageCacheService.GetPodcastArtworkAsync(podcast);
+            }
+
             if (file is not null)
             {
                 var bitmap = new BitmapImage();

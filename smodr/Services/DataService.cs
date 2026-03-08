@@ -177,7 +177,7 @@ public class DataService : IDisposable
             }
         }
 
-        return "https://smodcast.com/wp-content/blogs.dir/1/files_mf/smodcast1400.jpg";
+        return string.Empty;
     }
 
     private static string GetDuration(SyndicationItem item)
