@@ -121,7 +121,7 @@ dotnet clean
 
 ### For Development
 - .NET 10.0 SDK
-- Visual Studio 2022 17.14+ (with WinUI 3 workload) **OR**
+- Visual Studio 2022 17.14+ or Visual Studio 2026 (with WinUI 3 workload) **OR**
 - VS Code with Dev Container (any OS for editing)
 
 ## Contributing

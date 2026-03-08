@@ -2,9 +2,10 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Windows.Media.Playback;
+using Microsoft.UI.Dispatching;
 using smodr.Models;
 using smodr.Services;
+using Windows.Media.Playback;
 
 namespace smodr.ViewModels;
 
@@ -13,35 +14,39 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly DataService _dataService = new();
     private readonly DownloadService _downloadService = new();
     private readonly AudioService _audioService = new();
+    private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
     [ObservableProperty]
-    private bool _isLoading;
+    public partial bool IsLoading { get; set; }
 
     [ObservableProperty]
-    private string _loadingMessage = "Loading episodes...";
+    public partial string LoadingMessage { get; set; } = "Loading episodes...";
 
     [ObservableProperty]
-    private Episode? _selectedEpisode;
+    public partial Episode? SelectedEpisode { get; set; }
 
     [ObservableProperty]
-    private Episode? _currentPlayingEpisode;
+    public partial Episode? CurrentPlayingEpisode { get; set; }
 
     [ObservableProperty]
-    private bool _isPlaying;
+    public partial bool IsPlaying { get; set; }
 
     [ObservableProperty]
-    private bool _isPaused;
+    public partial bool IsPaused { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FormattedPosition))]
-    private TimeSpan _currentPosition;
+    public partial TimeSpan CurrentPosition { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FormattedDuration))]
-    private TimeSpan _duration;
+    public partial TimeSpan Duration { get; set; }
 
     [ObservableProperty]
-    private string _playbackStatus = "Stopped";
+    public partial string PlaybackStatus { get; set; } = "Stopped";
+
+    [ObservableProperty]
+    public partial Podcast? SelectedPodcast { get; set; }
 
     public string FormattedPosition => $"{CurrentPosition:mm\\:ss}";
     public string FormattedDuration => $"{Duration:mm\\:ss}";
@@ -59,12 +64,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task LoadEpisodesAsync(bool forceRefresh = false)
     {
+        if (SelectedPodcast is not { } podcast)
+            return;
+
         IsLoading = true;
-        LoadingMessage = forceRefresh ? "Refreshing episodes from Smodcast RSS feed..." : "Loading episodes...";
+        LoadingMessage = forceRefresh
+            ? $"Refreshing {podcast.Name} episodes..."
+            : $"Loading {podcast.Name} episodes...";
 
         try
         {
-            var episodes = await _dataService.GetEpisodesAsync(forceRefresh);
+            var episodes = await _dataService.GetEpisodesAsync(podcast.Id, podcast.FeedUrl, forceRefresh);
 
             Episodes.Clear();
             foreach (var episode in episodes)
@@ -74,14 +84,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
             if (Episodes.Count == 0)
             {
-                LoadingMessage = "No episodes found. Please check your internet connection.";
+                LoadingMessage = "No episodes found. The feed may be unavailable.";
             }
             else
             {
-                var cacheInfo = await _dataService.GetCacheInfoAsync();
+                var cacheInfo = await _dataService.GetCacheInfoAsync(podcast.Id);
                 if (cacheInfo is not null)
                 {
-                    Debug.WriteLine($"Cache info: {Episodes.Count} episodes, last updated: {cacheInfo.LastUpdated:yyyy-MM-dd HH:mm:ss}");
+                    Debug.WriteLine($"Cache info for {podcast.Id}: {Episodes.Count} episodes, last updated: {cacheInfo.LastUpdated:yyyy-MM-dd HH:mm:ss}");
                 }
             }
         }
@@ -133,6 +143,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public void Stop() => _audioService.Stop();
 
+    public void Seek(TimeSpan position) => _audioService.SetPosition(position);
+
     public async Task DownloadEpisodeAsync(Episode? episode, nint windowHandle)
     {
         if (episode is null || string.IsNullOrEmpty(episode.MediaUrl))
@@ -168,9 +180,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task<CacheMetadata?> GetCacheInfoAsync()
     {
+        if (SelectedPodcast is not { } podcast)
+            return null;
+
         try
         {
-            return await _dataService.GetCacheInfoAsync();
+            return await _dataService.GetCacheInfoAsync(podcast.Id);
         }
         catch (Exception ex)
         {
@@ -194,9 +209,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task<List<Episode>?> GetCachedEpisodesAsync()
     {
+        if (SelectedPodcast is not { } podcast)
+            return null;
+
         try
         {
-            return await _dataService.GetCachedEpisodesAsync();
+            return await _dataService.GetCachedEpisodesAsync(podcast.Id);
         }
         catch (Exception ex)
         {
@@ -206,37 +224,40 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     private void AudioService_EpisodeChanged(object? sender, Episode episode) =>
-        CurrentPlayingEpisode = episode;
+        _dispatcherQueue.TryEnqueue(() => CurrentPlayingEpisode = episode);
 
     private void AudioService_PlaybackStateChanged(object? sender, MediaPlaybackState state)
     {
-        IsPlaying = state == MediaPlaybackState.Playing;
-        IsPaused = state == MediaPlaybackState.Paused;
-
-        PlaybackStatus = state switch
+        _dispatcherQueue.TryEnqueue(() =>
         {
-            MediaPlaybackState.Playing => "Playing",
-            MediaPlaybackState.Paused => "Paused",
-            MediaPlaybackState.None => "Stopped",
-            MediaPlaybackState.Buffering => "Buffering",
-            MediaPlaybackState.Opening => "Loading",
-            _ => "Unknown"
-        };
+            IsPlaying = state == MediaPlaybackState.Playing;
+            IsPaused = state == MediaPlaybackState.Paused;
 
-        OnPropertyChanged(nameof(FormattedPosition));
-        OnPropertyChanged(nameof(FormattedDuration));
+            PlaybackStatus = state switch
+            {
+                MediaPlaybackState.Playing => "Playing",
+                MediaPlaybackState.Paused => "Paused",
+                MediaPlaybackState.None => "Stopped",
+                MediaPlaybackState.Buffering => "Buffering",
+                MediaPlaybackState.Opening => "Loading",
+                _ => "Unknown"
+            };
+
+            OnPropertyChanged(nameof(FormattedPosition));
+            OnPropertyChanged(nameof(FormattedDuration));
+        });
     }
 
     private void AudioService_PositionChanged(object? sender, TimeSpan position) =>
-        CurrentPosition = position;
+        _dispatcherQueue.TryEnqueue(() => CurrentPosition = position);
 
     private void AudioService_DurationChanged(object? sender, TimeSpan duration) =>
-        Duration = duration;
+        _dispatcherQueue.TryEnqueue(() => Duration = duration);
 
     public void Dispose()
     {
-        _audioService?.Dispose();
-        _dataService?.Dispose();
-        _downloadService?.Dispose();
+        _audioService.Dispose();
+        _dataService.Dispose();
+        _downloadService.Dispose();
     }
 }

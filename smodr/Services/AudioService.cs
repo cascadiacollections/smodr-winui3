@@ -1,7 +1,7 @@
 using System.Diagnostics;
+using smodr.Models;
 using Windows.Media.Core;
 using Windows.Media.Playback;
-using smodr.Models;
 
 namespace smodr.Services;
 

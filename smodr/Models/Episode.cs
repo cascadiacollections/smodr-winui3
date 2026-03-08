@@ -15,6 +15,7 @@ public record class Episode
     public string FormattedPublishDate => PublishDate.ToString("MMM dd, yyyy");
     public string FormattedDuration => Duration ?? "Unknown";
     public string FormattedFileSize => FileSize > 0 ? $"{FileSize / (1024 * 1024):F1} MB" : "Unknown";
+    public string MetadataLine => $"{FormattedPublishDate} · {FormattedDuration}";
 
     public virtual bool Equals(Episode? other)
     {
