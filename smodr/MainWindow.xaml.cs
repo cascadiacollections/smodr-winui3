@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media.Imaging;
 using smodr.Models;
 using smodr.ViewModels;
+using Windows.Storage;
 
 namespace smodr;
 
@@ -13,6 +14,9 @@ namespace smodr;
 /// </summary>
 public sealed partial class MainWindow : Window
 {
+    private static readonly ApplicationDataContainer _settings = ApplicationData.Current.LocalSettings;
+    private const string LastPodcastIdKey = "LastPodcastId";
+
     private bool _updatingSliderProgrammatically;
 
     public MainViewModel ViewModel { get; }
@@ -30,7 +34,35 @@ public sealed partial class MainWindow : Window
 
         MediaControlsPanel.Visibility = Visibility.Collapsed;
 
-        Activated += MainWindow_Activated;
+        // Populate podcast catalog
+        PodcastsGridView.ItemsSource = Podcast.Catalog;
+
+        // Restore last-viewed podcast on launch
+        RestoreNavigationState();
+
+        // Clean up on close
+        Closed += MainWindow_Closed;
+    }
+
+    private void RestoreNavigationState()
+    {
+        if (_settings.Values[LastPodcastIdKey] is string lastPodcastId
+            && Podcast.Catalog.FirstOrDefault(p => p.Id == lastPodcastId) is { } podcast)
+        {
+            Debug.WriteLine($"Restoring last view: {podcast.Name}");
+            NavigateToEpisodes(podcast);
+        }
+    }
+
+    private void SaveNavigationState()
+    {
+        _settings.Values[LastPodcastIdKey] = ViewModel.SelectedPodcast?.Id;
+    }
+
+    private void MainWindow_Closed(object sender, WindowEventArgs args)
+    {
+        SaveNavigationState();
+        ViewModel.Dispose();
     }
 
     private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -89,13 +121,43 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async void MainWindow_Activated(object sender, WindowActivatedEventArgs e)
+    private void PodcastCard_Click(object sender, ItemClickEventArgs e)
     {
-        if (e.WindowActivationState == WindowActivationState.Deactivated)
-            return;
+        if (e.ClickedItem is Podcast podcast)
+        {
+            NavigateToEpisodes(podcast);
+        }
+    }
 
-        Activated -= MainWindow_Activated;
-        await LoadEpisodesAsync();
+    private void BackButton_Click(object sender, RoutedEventArgs e) => NavigateToPodcasts();
+
+    private void NavigateToEpisodes(Podcast podcast)
+    {
+        ViewModel.SelectedPodcast = podcast;
+        EpisodesPodcastTitle.Text = podcast.Name;
+        EpisodesPodcastHosts.Text = podcast.Hosts;
+
+        PodcastsView.Visibility = Visibility.Collapsed;
+        EpisodesView.Visibility = Visibility.Visible;
+
+        SaveNavigationState();
+
+        _ = LoadEpisodesAsync();
+    }
+
+    private void NavigateToPodcasts()
+    {
+        ViewModel.SelectedPodcast = null;
+        ViewModel.Episodes.Clear();
+        EpisodesListView.ItemsSource = null;
+
+        EpisodesView.Visibility = Visibility.Collapsed;
+        PodcastsView.Visibility = Visibility.Visible;
+
+        LoadingPanel.Visibility = Visibility.Collapsed;
+        LoadingRing.IsActive = false;
+
+        SaveNavigationState();
     }
 
     private async void RefreshButton_Click(object sender, RoutedEventArgs e) =>
@@ -103,6 +165,9 @@ public sealed partial class MainWindow : Window
 
     private async Task LoadEpisodesAsync(bool forceRefresh = false)
     {
+        if (ViewModel.SelectedPodcast is not { } podcast)
+            return;
+
         try
         {
             if (!forceRefresh)
@@ -122,7 +187,7 @@ public sealed partial class MainWindow : Window
                         ViewModel.Episodes.Add(episode);
                     }
 
-                    Debug.WriteLine($"Loaded {cachedEpisodes.Count} episodes from cache instantly");
+                    Debug.WriteLine($"Loaded {cachedEpisodes.Count} episodes for {podcast.Id} from cache instantly");
                     return;
                 }
             }
@@ -131,8 +196,8 @@ public sealed partial class MainWindow : Window
             EpisodesListView.Visibility = Visibility.Collapsed;
             LoadingRing.IsActive = true;
             LoadingMessage.Text = forceRefresh
-                ? "Refreshing episodes from Smodcast RSS feed..."
-                : "Loading episodes from network...";
+                ? $"Refreshing {podcast.Name} episodes..."
+                : $"Loading {podcast.Name} episodes...";
             RefreshButton.IsEnabled = false;
 
             await ViewModel.LoadEpisodesAsync(forceRefresh);

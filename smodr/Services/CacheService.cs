@@ -8,9 +8,10 @@ namespace smodr.Services;
 public class CacheService
 {
     private const string CacheFolderName = "EpisodeCache";
-    private const string EpisodesCacheFile = "episodes.json";
-    private const string CacheMetadataFile = "cache_metadata.json";
     private const int DefaultCacheExpiryHours = 6;
+
+    private static string EpisodesCacheFileName(string podcastId) => $"{podcastId}_episodes.json";
+    private static string MetadataCacheFileName(string podcastId) => $"{podcastId}_metadata.json";
 
     private int CacheExpiryHours
     {
@@ -47,7 +48,7 @@ public class CacheService
             await InitializeAsync();
     }
 
-    public async Task<List<Episode>?> GetCachedEpisodesAsync()
+    public async Task<List<Episode>?> GetCachedEpisodesAsync(string podcastId)
     {
         try
         {
@@ -55,10 +56,10 @@ public class CacheService
             if (_cacheFolder is null)
                 return null;
 
-            if (!await IsCacheValidAsync())
+            if (!await IsCacheValidAsync(podcastId))
                 return null;
 
-            if (await _cacheFolder.TryGetItemAsync(EpisodesCacheFile) is not StorageFile episodesFile)
+            if (await _cacheFolder.TryGetItemAsync(EpisodesCacheFileName(podcastId)) is not StorageFile episodesFile)
                 return null;
 
             var jsonContent = await FileIO.ReadTextAsync(episodesFile);
@@ -74,7 +75,7 @@ public class CacheService
         }
     }
 
-    public async Task<bool> CacheEpisodesAsync(List<Episode> episodes, string? etag = null, DateTimeOffset? lastModified = null)
+    public async Task<bool> CacheEpisodesAsync(string podcastId, List<Episode> episodes, string? etag = null, DateTimeOffset? lastModified = null)
     {
         try
         {
@@ -85,7 +86,7 @@ public class CacheService
             var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
 
             var jsonContent = JsonSerializer.Serialize(episodes, jsonOptions);
-            var episodesFile = await _cacheFolder.CreateFileAsync(EpisodesCacheFile, CreationCollisionOption.ReplaceExisting);
+            var episodesFile = await _cacheFolder.CreateFileAsync(EpisodesCacheFileName(podcastId), CreationCollisionOption.ReplaceExisting);
             await FileIO.WriteTextAsync(episodesFile, jsonContent);
 
             var metadata = new CacheMetadata
@@ -97,7 +98,7 @@ public class CacheService
             };
 
             var metadataJson = JsonSerializer.Serialize(metadata, jsonOptions);
-            var metadataFile = await _cacheFolder.CreateFileAsync(CacheMetadataFile, CreationCollisionOption.ReplaceExisting);
+            var metadataFile = await _cacheFolder.CreateFileAsync(MetadataCacheFileName(podcastId), CreationCollisionOption.ReplaceExisting);
             await FileIO.WriteTextAsync(metadataFile, metadataJson);
 
             Debug.WriteLine($"Cached {episodes.Count} episodes successfully");
@@ -110,14 +111,14 @@ public class CacheService
         }
     }
 
-    public async Task<bool> IsCacheValidAsync()
+    public async Task<bool> IsCacheValidAsync(string podcastId)
     {
         try
         {
             if (_cacheFolder is null)
                 return false;
 
-            if (await _cacheFolder.TryGetItemAsync(CacheMetadataFile) is not StorageFile metadataFile)
+            if (await _cacheFolder.TryGetItemAsync(MetadataCacheFileName(podcastId)) is not StorageFile metadataFile)
                 return false;
 
             var metadataJson = await FileIO.ReadTextAsync(metadataFile);
@@ -139,7 +140,7 @@ public class CacheService
         }
     }
 
-    public async Task<CacheMetadata?> GetCacheMetadataAsync()
+    public async Task<CacheMetadata?> GetCacheMetadataAsync(string podcastId)
     {
         try
         {
@@ -147,7 +148,7 @@ public class CacheService
             if (_cacheFolder is null)
                 return null;
 
-            if (await _cacheFolder.TryGetItemAsync(CacheMetadataFile) is not StorageFile metadataFile)
+            if (await _cacheFolder.TryGetItemAsync(MetadataCacheFileName(podcastId)) is not StorageFile metadataFile)
                 return null;
 
             var metadataJson = await FileIO.ReadTextAsync(metadataFile);

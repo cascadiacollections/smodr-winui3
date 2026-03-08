@@ -45,6 +45,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial string PlaybackStatus { get; set; } = "Stopped";
 
+    [ObservableProperty]
+    public partial Podcast? SelectedPodcast { get; set; }
+
     public string FormattedPosition => $"{CurrentPosition:mm\\:ss}";
     public string FormattedDuration => $"{Duration:mm\\:ss}";
 
@@ -61,12 +64,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task LoadEpisodesAsync(bool forceRefresh = false)
     {
+        if (SelectedPodcast is not { } podcast)
+            return;
+
         IsLoading = true;
-        LoadingMessage = forceRefresh ? "Refreshing episodes from Smodcast RSS feed..." : "Loading episodes...";
+        LoadingMessage = forceRefresh
+            ? $"Refreshing {podcast.Name} episodes..."
+            : $"Loading {podcast.Name} episodes...";
 
         try
         {
-            var episodes = await _dataService.GetEpisodesAsync(forceRefresh);
+            var episodes = await _dataService.GetEpisodesAsync(podcast.Id, podcast.FeedUrl, forceRefresh);
 
             Episodes.Clear();
             foreach (var episode in episodes)
@@ -76,14 +84,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
             if (Episodes.Count == 0)
             {
-                LoadingMessage = "No episodes found. Please check your internet connection.";
+                LoadingMessage = "No episodes found. The feed may be unavailable.";
             }
             else
             {
-                var cacheInfo = await _dataService.GetCacheInfoAsync();
+                var cacheInfo = await _dataService.GetCacheInfoAsync(podcast.Id);
                 if (cacheInfo is not null)
                 {
-                    Debug.WriteLine($"Cache info: {Episodes.Count} episodes, last updated: {cacheInfo.LastUpdated:yyyy-MM-dd HH:mm:ss}");
+                    Debug.WriteLine($"Cache info for {podcast.Id}: {Episodes.Count} episodes, last updated: {cacheInfo.LastUpdated:yyyy-MM-dd HH:mm:ss}");
                 }
             }
         }
@@ -172,9 +180,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task<CacheMetadata?> GetCacheInfoAsync()
     {
+        if (SelectedPodcast is not { } podcast)
+            return null;
+
         try
         {
-            return await _dataService.GetCacheInfoAsync();
+            return await _dataService.GetCacheInfoAsync(podcast.Id);
         }
         catch (Exception ex)
         {
@@ -198,9 +209,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task<List<Episode>?> GetCachedEpisodesAsync()
     {
+        if (SelectedPodcast is not { } podcast)
+            return null;
+
         try
         {
-            return await _dataService.GetCachedEpisodesAsync();
+            return await _dataService.GetCachedEpisodesAsync(podcast.Id);
         }
         catch (Exception ex)
         {

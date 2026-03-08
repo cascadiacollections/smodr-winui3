@@ -10,10 +10,9 @@ public class DataService : IDisposable
 {
     private readonly HttpClient _httpClient = new();
     private readonly CacheService _cacheService = new();
-    private const string SmodcastRssUrl = "https://feeds.feedburner.com/SModcasts";
     private const string UserAgent = "smodr/1.0 (+https://github.com/cascadiacollections/smodr-winui3)";
 
-    public async Task<List<Episode>> GetEpisodesAsync(bool forceRefresh = false)
+    public async Task<List<Episode>> GetEpisodesAsync(string podcastId, string feedUrl, bool forceRefresh = false)
     {
         try
         {
@@ -21,31 +20,31 @@ public class DataService : IDisposable
 
             if (!forceRefresh)
             {
-                var cachedEpisodes = await _cacheService.GetCachedEpisodesAsync();
+                var cachedEpisodes = await _cacheService.GetCachedEpisodesAsync(podcastId);
                 if (cachedEpisodes is { Count: > 0 })
                 {
-                    Debug.WriteLine($"Using cached episodes: {cachedEpisodes.Count} items");
+                    Debug.WriteLine($"Using cached episodes for {podcastId}: {cachedEpisodes.Count} items");
                     return cachedEpisodes;
                 }
             }
 
-            Debug.WriteLine("Fetching fresh episodes from RSS feed...");
-            var (episodes, etag, lastModified) = await FetchEpisodesFromRssAsync();
+            Debug.WriteLine($"Fetching fresh episodes for {podcastId} from {feedUrl}...");
+            var (episodes, etag, lastModified) = await FetchEpisodesFromRssAsync(podcastId, feedUrl);
 
             if (episodes.Count > 0)
             {
-                await _cacheService.CacheEpisodesAsync(episodes, etag, lastModified);
+                await _cacheService.CacheEpisodesAsync(podcastId, episodes, etag, lastModified);
             }
 
             return episodes;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Error in GetEpisodesAsync: {ex.Message}");
+            Debug.WriteLine($"Error in GetEpisodesAsync for {podcastId}: {ex.Message}");
 
             try
             {
-                var fallbackEpisodes = await _cacheService.GetCachedEpisodesAsync();
+                var fallbackEpisodes = await _cacheService.GetCachedEpisodesAsync(podcastId);
                 if (fallbackEpisodes is { Count: > 0 })
                 {
                     Debug.WriteLine("Using expired cached episodes as fallback");
@@ -61,13 +60,13 @@ public class DataService : IDisposable
         }
     }
 
-    private async Task<(List<Episode> Episodes, string? ETag, DateTimeOffset? LastModified)> FetchEpisodesFromRssAsync()
+    private async Task<(List<Episode> Episodes, string? ETag, DateTimeOffset? LastModified)> FetchEpisodesFromRssAsync(string podcastId, string feedUrl)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, SmodcastRssUrl);
+        using var request = new HttpRequestMessage(HttpMethod.Get, feedUrl);
         request.Headers.UserAgent.ParseAdd(UserAgent);
 
         // Use conditional requests to respect server caching (ETag / Last-Modified)
-        var metadata = await _cacheService.GetCacheMetadataAsync();
+        var metadata = await _cacheService.GetCacheMetadataAsync(podcastId);
         if (metadata?.ETag is { Length: > 0 } etag)
         {
             request.Headers.IfNoneMatch.ParseAdd(etag);
@@ -82,8 +81,8 @@ public class DataService : IDisposable
 
         if (response.StatusCode == HttpStatusCode.NotModified)
         {
-            Debug.WriteLine("RSS feed not modified (304), using cache");
-            var cached = await _cacheService.GetCachedEpisodesAsync();
+            Debug.WriteLine($"RSS feed for {podcastId} not modified (304), using cache");
+            var cached = await _cacheService.GetCachedEpisodesAsync(podcastId);
             return (cached ?? [], metadata?.ETag, metadata?.LastModified);
         }
 
@@ -118,10 +117,10 @@ public class DataService : IDisposable
         return await _cacheService.ClearCacheAsync();
     }
 
-    public async Task<CacheMetadata?> GetCacheInfoAsync()
+    public async Task<CacheMetadata?> GetCacheInfoAsync(string podcastId)
     {
         await _cacheService.InitializeAsync();
-        return await _cacheService.GetCacheMetadataAsync();
+        return await _cacheService.GetCacheMetadataAsync(podcastId);
     }
 
     public async Task<long> GetCacheSizeAsync()
@@ -214,12 +213,12 @@ public class DataService : IDisposable
         return (spaceIndex >= 0 ? afterHash[..spaceIndex] : afterHash).ToString();
     }
 
-    public async Task<List<Episode>?> GetCachedEpisodesAsync()
+    public async Task<List<Episode>?> GetCachedEpisodesAsync(string podcastId)
     {
         try
         {
             await _cacheService.InitializeAsync();
-            return await _cacheService.GetCachedEpisodesAsync();
+            return await _cacheService.GetCachedEpisodesAsync(podcastId);
         }
         catch (Exception ex)
         {
