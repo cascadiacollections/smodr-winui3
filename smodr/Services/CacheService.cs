@@ -1,242 +1,217 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
+using System.Diagnostics;
 using System.Text.Json;
-using System.Threading.Tasks;
 using Windows.Storage;
 using smodr.Models;
 
-namespace smodr.Services
+namespace smodr.Services;
+
+public class CacheService
 {
-    public class CacheService
+    private const string CacheFolderName = "EpisodeCache";
+    private const string EpisodesCacheFile = "episodes.json";
+    private const string CacheMetadataFile = "cache_metadata.json";
+    private const int DefaultCacheExpiryHours = 6;
+
+    private int CacheExpiryHours
     {
-        private const string CACHE_FOLDER_NAME = "EpisodeCache";
-        private const string EPISODES_CACHE_FILE = "episodes.json";
-        private const string CACHE_METADATA_FILE = "cache_metadata.json";
-        // Cache expiry time is now configurable via application settings (LocalSettings["CacheExpiryHours"])
-        private const int DEFAULT_CACHE_EXPIRY_HOURS = 6;
-        private int CacheExpiryHours
+        get
         {
-            get
+            var value = ApplicationData.Current.LocalSettings.Values["CacheExpiryHours"];
+            return value switch
             {
-                object? value = ApplicationData.Current.LocalSettings.Values["CacheExpiryHours"];
-                if (value is int intValue)
-                {
-                    return intValue;
-                }
-                else if (value is string strValue && int.TryParse(strValue, out int parsed))
-                {
-                    return parsed;
-                }
-                return DEFAULT_CACHE_EXPIRY_HOURS;
-            }
+                int intValue => intValue,
+                string strValue when int.TryParse(strValue, out var parsed) => parsed,
+                _ => DefaultCacheExpiryHours
+            };
         }
+    }
 
-        private StorageFolder? _cacheFolder;
+    private StorageFolder? _cacheFolder;
 
-        public async Task InitializeAsync()
+    public async Task InitializeAsync()
+    {
+        try
         {
-            try
-            {
-                var localFolder = ApplicationData.Current.LocalFolder;
-                _cacheFolder = await localFolder.CreateFolderAsync(CACHE_FOLDER_NAME, CreationCollisionOption.OpenIfExists);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error initializing cache folder: {ex.Message}");
-            }
+            var localFolder = ApplicationData.Current.LocalFolder;
+            _cacheFolder = await localFolder.CreateFolderAsync(CacheFolderName, CreationCollisionOption.OpenIfExists);
         }
-
-        public async Task<List<Episode>?> GetCachedEpisodesAsync()
+        catch (Exception ex)
         {
-            try
-            {
-                if (_cacheFolder == null)
-                    await InitializeAsync();
+            Debug.WriteLine($"Error initializing cache folder: {ex.Message}");
+        }
+    }
 
-                if (_cacheFolder == null)
-                    return null;
+    private async Task EnsureInitializedAsync()
+    {
+        if (_cacheFolder is null)
+            await InitializeAsync();
+    }
 
-                // Check if cache is valid
-                if (!await IsCacheValidAsync())
-                    return null;
-
-                // Load cached episodes
-                var episodesFile = await _cacheFolder.TryGetItemAsync(EPISODES_CACHE_FILE) as StorageFile;
-                if (episodesFile == null)
-                    return null;
-
-                var jsonContent = await FileIO.ReadTextAsync(episodesFile);
-                var episodes = JsonSerializer.Deserialize<List<Episode>>(jsonContent);
-
-                System.Diagnostics.Debug.WriteLine($"Loaded {episodes?.Count ?? 0} episodes from cache");
-                return episodes;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error reading cached episodes: {ex.Message}");
+    public async Task<List<Episode>?> GetCachedEpisodesAsync()
+    {
+        try
+        {
+            await EnsureInitializedAsync();
+            if (_cacheFolder is null)
                 return null;
-            }
-        }
 
-        public async Task<bool> CacheEpisodesAsync(List<Episode> episodes)
-        {
-            try
-            {
-                if (_cacheFolder == null)
-                    await InitializeAsync();
-
-                if (_cacheFolder == null)
-                    return false;
-
-                // Serialize episodes to JSON
-                var jsonContent = JsonSerializer.Serialize(episodes, new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
-
-                // Save episodes to cache file
-                var episodesFile = await _cacheFolder.CreateFileAsync(EPISODES_CACHE_FILE, CreationCollisionOption.ReplaceExisting);
-                await FileIO.WriteTextAsync(episodesFile, jsonContent);
-
-                // Save cache metadata
-                var metadata = new CacheMetadata
-                {
-                    LastUpdated = DateTime.UtcNow,
-                    EpisodeCount = episodes.Count
-                };
-
-                var metadataJson = JsonSerializer.Serialize(metadata, new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
-
-                var metadataFile = await _cacheFolder.CreateFileAsync(CACHE_METADATA_FILE, CreationCollisionOption.ReplaceExisting);
-                await FileIO.WriteTextAsync(metadataFile, metadataJson);
-
-                System.Diagnostics.Debug.WriteLine($"Cached {episodes.Count} episodes successfully");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error caching episodes: {ex.Message}");
-                return false;
-            }
-        }
-
-        public async Task<bool> IsCacheValidAsync()
-        {
-            try
-            {
-                if (_cacheFolder == null)
-                    return false;
-
-                var metadataFile = await _cacheFolder.TryGetItemAsync(CACHE_METADATA_FILE) as StorageFile;
-                if (metadataFile == null)
-                    return false;
-
-                var metadataJson = await FileIO.ReadTextAsync(metadataFile);
-                var metadata = JsonSerializer.Deserialize<CacheMetadata>(metadataJson);
-
-                if (metadata == null)
-                    return false;
-
-                var timeSinceLastUpdate = DateTime.UtcNow - metadata.LastUpdated;
-                var isValid = timeSinceLastUpdate.TotalHours < CacheExpiryHours;
-
-                System.Diagnostics.Debug.WriteLine($"Cache age: {timeSinceLastUpdate.TotalHours:F1} hours, Valid: {isValid}");
-                return isValid;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error checking cache validity: {ex.Message}");
-                return false;
-            }
-        }
-
-        public async Task<CacheMetadata?> GetCacheMetadataAsync()
-        {
-            try
-            {
-                if (_cacheFolder == null)
-                    await InitializeAsync();
-
-                if (_cacheFolder == null)
-                    return null;
-
-                var metadataFile = await _cacheFolder.TryGetItemAsync(CACHE_METADATA_FILE) as StorageFile;
-                if (metadataFile == null)
-                    return null;
-
-                var metadataJson = await FileIO.ReadTextAsync(metadataFile);
-                return JsonSerializer.Deserialize<CacheMetadata>(metadataJson);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error reading cache metadata: {ex.Message}");
+            if (!await IsCacheValidAsync())
                 return null;
-            }
+
+            if (await _cacheFolder.TryGetItemAsync(EpisodesCacheFile) is not StorageFile episodesFile)
+                return null;
+
+            var jsonContent = await FileIO.ReadTextAsync(episodesFile);
+            var episodes = JsonSerializer.Deserialize<List<Episode>>(jsonContent);
+
+            Debug.WriteLine($"Loaded {episodes?.Count ?? 0} episodes from cache");
+            return episodes;
         }
-
-        public async Task<bool> ClearCacheAsync()
+        catch (Exception ex)
         {
-            try
-            {
-                if (_cacheFolder == null)
-                    await InitializeAsync();
+            Debug.WriteLine($"Error reading cached episodes: {ex.Message}");
+            return null;
+        }
+    }
 
-                if (_cacheFolder == null)
-                    return false;
-
-                var files = await _cacheFolder.GetFilesAsync();
-                foreach (var file in files)
-                {
-                    await file.DeleteAsync();
-                }
-
-                System.Diagnostics.Debug.WriteLine("Cache cleared successfully");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error clearing cache: {ex.Message}");
+    public async Task<bool> CacheEpisodesAsync(List<Episode> episodes)
+    {
+        try
+        {
+            await EnsureInitializedAsync();
+            if (_cacheFolder is null)
                 return false;
-            }
+
+            var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
+
+            var jsonContent = JsonSerializer.Serialize(episodes, jsonOptions);
+            var episodesFile = await _cacheFolder.CreateFileAsync(EpisodesCacheFile, CreationCollisionOption.ReplaceExisting);
+            await FileIO.WriteTextAsync(episodesFile, jsonContent);
+
+            var metadata = new CacheMetadata
+            {
+                LastUpdated = DateTime.UtcNow,
+                EpisodeCount = episodes.Count
+            };
+
+            var metadataJson = JsonSerializer.Serialize(metadata, jsonOptions);
+            var metadataFile = await _cacheFolder.CreateFileAsync(CacheMetadataFile, CreationCollisionOption.ReplaceExisting);
+            await FileIO.WriteTextAsync(metadataFile, metadataJson);
+
+            Debug.WriteLine($"Cached {episodes.Count} episodes successfully");
+            return true;
         }
-
-        public async Task<long> GetCacheSizeAsync()
+        catch (Exception ex)
         {
-            try
+            Debug.WriteLine($"Error caching episodes: {ex.Message}");
+            return false;
+        }
+    }
+
+    public async Task<bool> IsCacheValidAsync()
+    {
+        try
+        {
+            if (_cacheFolder is null)
+                return false;
+
+            if (await _cacheFolder.TryGetItemAsync(CacheMetadataFile) is not StorageFile metadataFile)
+                return false;
+
+            var metadataJson = await FileIO.ReadTextAsync(metadataFile);
+            var metadata = JsonSerializer.Deserialize<CacheMetadata>(metadataJson);
+
+            if (metadata is null)
+                return false;
+
+            var timeSinceLastUpdate = DateTime.UtcNow - metadata.LastUpdated;
+            var isValid = timeSinceLastUpdate.TotalHours < CacheExpiryHours;
+
+            Debug.WriteLine($"Cache age: {timeSinceLastUpdate.TotalHours:F1} hours, Valid: {isValid}");
+            return isValid;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error checking cache validity: {ex.Message}");
+            return false;
+        }
+    }
+
+    public async Task<CacheMetadata?> GetCacheMetadataAsync()
+    {
+        try
+        {
+            await EnsureInitializedAsync();
+            if (_cacheFolder is null)
+                return null;
+
+            if (await _cacheFolder.TryGetItemAsync(CacheMetadataFile) is not StorageFile metadataFile)
+                return null;
+
+            var metadataJson = await FileIO.ReadTextAsync(metadataFile);
+            return JsonSerializer.Deserialize<CacheMetadata>(metadataJson);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error reading cache metadata: {ex.Message}");
+            return null;
+        }
+    }
+
+    public async Task<bool> ClearCacheAsync()
+    {
+        try
+        {
+            await EnsureInitializedAsync();
+            if (_cacheFolder is null)
+                return false;
+
+            var files = await _cacheFolder.GetFilesAsync();
+            foreach (var file in files)
             {
-                if (_cacheFolder == null)
-                    await InitializeAsync();
-
-                if (_cacheFolder == null)
-                    return 0;
-
-                long totalSize = 0;
-                var files = await _cacheFolder.GetFilesAsync();
-                
-                foreach (var file in files)
-                {
-                    var properties = await file.GetBasicPropertiesAsync();
-                    totalSize += (long)properties.Size;
-                }
-
-                return totalSize;
+                await file.DeleteAsync();
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error calculating cache size: {ex.Message}");
+
+            Debug.WriteLine("Cache cleared successfully");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error clearing cache: {ex.Message}");
+            return false;
+        }
+    }
+
+    public async Task<long> GetCacheSizeAsync()
+    {
+        try
+        {
+            await EnsureInitializedAsync();
+            if (_cacheFolder is null)
                 return 0;
+
+            long totalSize = 0;
+            var files = await _cacheFolder.GetFilesAsync();
+
+            foreach (var file in files)
+            {
+                var properties = await file.GetBasicPropertiesAsync();
+                totalSize += (long)properties.Size;
             }
+
+            return totalSize;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error calculating cache size: {ex.Message}");
+            return 0;
         }
     }
+}
 
-    public class CacheMetadata
-    {
-        public DateTime LastUpdated { get; set; }
-        public int EpisodeCount { get; set; }
-        public string Version { get; set; } = "1.0";
-    }
+public class CacheMetadata
+{
+    public DateTime LastUpdated { get; init; }
+    public int EpisodeCount { get; init; }
+    public string Version { get; init; } = "1.0";
 }
