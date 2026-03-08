@@ -1,11 +1,11 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using Windows.Media.Playback;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Dispatching;
 using smodr.Models;
 using smodr.Services;
+using Windows.Media.Playback;
 
 namespace smodr.ViewModels;
 

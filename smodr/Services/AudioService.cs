@@ -1,7 +1,7 @@
 using System.Diagnostics;
+using smodr.Models;
 using Windows.Media.Core;
 using Windows.Media.Playback;
-using smodr.Models;
 
 namespace smodr.Services;
 
@@ -51,7 +51,8 @@ public partial class AudioService : IDisposable
 
         _mediaPlayer = new MediaPlayer
         {
-            AudioCategory = MediaPlayerAudioCategory.Media, AudioDeviceType = MediaPlayerAudioDeviceType.Multimedia
+            AudioCategory = MediaPlayerAudioCategory.Media,
+            AudioDeviceType = MediaPlayerAudioDeviceType.Multimedia
         };
 
         _mediaPlayer.PlaybackSession.PlaybackStateChanged += PlaybackSession_PlaybackStateChanged;
