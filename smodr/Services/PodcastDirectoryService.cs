@@ -17,7 +17,8 @@ public sealed class PodcastDirectoryService
 
     private static readonly JsonSerializerOptions _writeOptions = new()
     {
-        PropertyNameCaseInsensitive = true, WriteIndented = true
+        PropertyNameCaseInsensitive = true,
+        WriteIndented = true
     };
 
     private Dictionary<long, PodcastLookupResult>? _cache;
