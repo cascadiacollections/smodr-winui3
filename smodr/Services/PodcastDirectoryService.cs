@@ -154,7 +154,7 @@ public sealed class PodcastDirectoryService
     }
 }
 
-public sealed class PodcastLookupResult
+public sealed record class PodcastLookupResult
 {
     public long TrackId { get; init; }
     public string TrackName { get; init; } = string.Empty;

@@ -10,6 +10,15 @@ public record class Podcast
     public string Hosts { get; init; } = string.Empty;
     public long? ApplePodcastId { get; init; }
 
+    public virtual bool Equals(Podcast? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return string.Equals(Id, other.Id, StringComparison.Ordinal);
+    }
+
+    public override int GetHashCode() => Id.GetHashCode(StringComparison.Ordinal);
+
     public static IReadOnlyList<Podcast> Catalog { get; } =
     [
         new()

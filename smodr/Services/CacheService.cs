@@ -212,7 +212,7 @@ public class CacheService
     }
 }
 
-public class CacheMetadata
+public record class CacheMetadata
 {
     public DateTime LastUpdated { get; init; }
     public int EpisodeCount { get; init; }

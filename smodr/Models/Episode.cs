@@ -2,18 +2,18 @@ namespace smodr.Models;
 
 public record class Episode
 {
-    public required string Title { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public required string MediaUrl { get; set; } = string.Empty;
-    public DateTime PublishDate { get; set; }
-    public string Duration { get; set; } = string.Empty;
-    public long FileSize { get; set; }
+    public required string Title { get; init; }
+    public string Description { get; init; } = string.Empty;
+    public required string MediaUrl { get; init; }
+    public DateTime PublishDate { get; init; }
+    public string Duration { get; init; } = string.Empty;
+    public long FileSize { get; init; }
     public int CurrentTime { get; set; }
-    public string ImageUrl { get; set; } = string.Empty;
-    public string EpisodeNumber { get; set; } = string.Empty;
+    public string ImageUrl { get; init; } = string.Empty;
+    public string EpisodeNumber { get; init; } = string.Empty;
 
     public string FormattedPublishDate => PublishDate.ToString("MMM dd, yyyy");
-    public string FormattedDuration => Duration ?? "Unknown";
+    public string FormattedDuration => string.IsNullOrEmpty(Duration) ? "Unknown" : Duration;
     public string FormattedFileSize => FileSize > 0 ? $"{FileSize / (1024 * 1024):F1} MB" : "Unknown";
     public string MetadataLine => $"{FormattedPublishDate} · {FormattedDuration}";
 
@@ -21,8 +21,8 @@ public record class Episode
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        return MediaUrl == other.MediaUrl;
+        return string.Equals(MediaUrl, other.MediaUrl, StringComparison.Ordinal);
     }
 
-    public override int GetHashCode() => MediaUrl.GetHashCode();
+    public override int GetHashCode() => MediaUrl.GetHashCode(StringComparison.Ordinal);
 }
