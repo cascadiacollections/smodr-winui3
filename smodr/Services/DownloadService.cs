@@ -62,16 +62,23 @@ public class DownloadService : IDisposable
     private static string SanitizeFileName(string fileName)
     {
         var invalidChars = Path.GetInvalidFileNameChars();
-        foreach (var invalidChar in invalidChars)
+        fileName = string.Create(fileName.Length, (fileName, invalidChars), static (span, state) =>
         {
-            fileName = fileName.Replace(invalidChar, '_');
-        }
+            state.fileName.CopyTo(span);
+            foreach (ref var c in span)
+            {
+                if (state.invalidChars.AsSpan().Contains(c))
+                {
+                    c = '_';
+                }
+            }
+        });
 
         if (fileName.Length > MaxFileNameLength)
         {
             var extension = Path.GetExtension(fileName);
             var nameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
-            fileName = nameWithoutExtension[..(MaxFileNameLength - extension.Length)] + extension;
+            fileName = string.Concat(nameWithoutExtension.AsSpan(0, MaxFileNameLength - extension.Length), extension);
         }
 
         return fileName;

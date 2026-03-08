@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.UI.Dispatching;
 using smodr.Models;
 using smodr.Services;
 using Windows.Media.Playback;
@@ -13,6 +14,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly DataService _dataService = new();
     private readonly DownloadService _downloadService = new();
     private readonly AudioService _audioService = new();
+    private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
     [ObservableProperty]
     public partial bool IsLoading { get; set; }
@@ -133,6 +135,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public void Stop() => _audioService.Stop();
 
+    public void Seek(TimeSpan position) => _audioService.SetPosition(position);
+
     public async Task DownloadEpisodeAsync(Episode? episode, nint windowHandle)
     {
         if (episode is null || string.IsNullOrEmpty(episode.MediaUrl))
@@ -206,37 +210,40 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     private void AudioService_EpisodeChanged(object? sender, Episode episode) =>
-        CurrentPlayingEpisode = episode;
+        _dispatcherQueue.TryEnqueue(() => CurrentPlayingEpisode = episode);
 
     private void AudioService_PlaybackStateChanged(object? sender, MediaPlaybackState state)
     {
-        IsPlaying = state == MediaPlaybackState.Playing;
-        IsPaused = state == MediaPlaybackState.Paused;
-
-        PlaybackStatus = state switch
+        _dispatcherQueue.TryEnqueue(() =>
         {
-            MediaPlaybackState.Playing => "Playing",
-            MediaPlaybackState.Paused => "Paused",
-            MediaPlaybackState.None => "Stopped",
-            MediaPlaybackState.Buffering => "Buffering",
-            MediaPlaybackState.Opening => "Loading",
-            _ => "Unknown"
-        };
+            IsPlaying = state == MediaPlaybackState.Playing;
+            IsPaused = state == MediaPlaybackState.Paused;
 
-        OnPropertyChanged(nameof(FormattedPosition));
-        OnPropertyChanged(nameof(FormattedDuration));
+            PlaybackStatus = state switch
+            {
+                MediaPlaybackState.Playing => "Playing",
+                MediaPlaybackState.Paused => "Paused",
+                MediaPlaybackState.None => "Stopped",
+                MediaPlaybackState.Buffering => "Buffering",
+                MediaPlaybackState.Opening => "Loading",
+                _ => "Unknown"
+            };
+
+            OnPropertyChanged(nameof(FormattedPosition));
+            OnPropertyChanged(nameof(FormattedDuration));
+        });
     }
 
     private void AudioService_PositionChanged(object? sender, TimeSpan position) =>
-        CurrentPosition = position;
+        _dispatcherQueue.TryEnqueue(() => CurrentPosition = position);
 
     private void AudioService_DurationChanged(object? sender, TimeSpan duration) =>
-        Duration = duration;
+        _dispatcherQueue.TryEnqueue(() => Duration = duration);
 
     public void Dispose()
     {
-        _audioService?.Dispose();
-        _dataService?.Dispose();
-        _downloadService?.Dispose();
+        _audioService.Dispose();
+        _dataService.Dispose();
+        _downloadService.Dispose();
     }
 }

@@ -74,7 +74,7 @@ public class CacheService
         }
     }
 
-    public async Task<bool> CacheEpisodesAsync(List<Episode> episodes)
+    public async Task<bool> CacheEpisodesAsync(List<Episode> episodes, string? etag = null, DateTimeOffset? lastModified = null)
     {
         try
         {
@@ -91,7 +91,9 @@ public class CacheService
             var metadata = new CacheMetadata
             {
                 LastUpdated = DateTime.UtcNow,
-                EpisodeCount = episodes.Count
+                EpisodeCount = episodes.Count,
+                ETag = etag,
+                LastModified = lastModified
             };
 
             var metadataJson = JsonSerializer.Serialize(metadata, jsonOptions);
@@ -214,4 +216,6 @@ public class CacheMetadata
     public DateTime LastUpdated { get; init; }
     public int EpisodeCount { get; init; }
     public string Version { get; init; } = "1.0";
+    public string? ETag { get; init; }
+    public DateTimeOffset? LastModified { get; init; }
 }

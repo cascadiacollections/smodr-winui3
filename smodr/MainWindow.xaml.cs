@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media.Imaging;
 using smodr.Models;
 using smodr.ViewModels;
@@ -12,12 +13,18 @@ namespace smodr;
 /// </summary>
 public sealed partial class MainWindow : Window
 {
+    private bool _updatingSliderProgrammatically;
+
     public MainViewModel ViewModel { get; }
 
     public MainWindow()
     {
         InitializeComponent();
         ViewModel = new MainViewModel();
+
+        // Custom title bar
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
 
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
 
@@ -28,25 +35,26 @@ public sealed partial class MainWindow : Window
 
     private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        DispatcherQueue.TryEnqueue(() =>
+        switch (e.PropertyName)
         {
-            switch (e.PropertyName)
-            {
-                case nameof(ViewModel.CurrentPlayingEpisode):
-                    UpdateNowPlayingInfo();
-                    break;
-                case nameof(ViewModel.IsPlaying):
-                    UpdatePlayPauseButton();
-                    break;
-                case nameof(ViewModel.PlaybackStatus):
-                    PlaybackStatusText.Text = ViewModel.PlaybackStatus;
-                    break;
-                case nameof(ViewModel.FormattedPosition) or nameof(ViewModel.FormattedDuration):
-                    PositionText.Text = ViewModel.FormattedPosition;
-                    DurationText.Text = ViewModel.FormattedDuration;
-                    break;
-            }
-        });
+            case nameof(ViewModel.CurrentPlayingEpisode):
+                UpdateNowPlayingInfo();
+                break;
+            case nameof(ViewModel.IsPlaying):
+                UpdatePlayPauseButton();
+                break;
+            case nameof(ViewModel.PlaybackStatus):
+                PlaybackStatusText.Text = ViewModel.PlaybackStatus;
+                break;
+            case nameof(ViewModel.CurrentPosition):
+                UpdateSeekPosition();
+                PositionText.Text = ViewModel.FormattedPosition;
+                break;
+            case nameof(ViewModel.Duration):
+                SeekSlider.Maximum = Math.Max(1, ViewModel.Duration.TotalSeconds);
+                DurationText.Text = ViewModel.FormattedDuration;
+                break;
+        }
     }
 
     private void UpdateNowPlayingInfo()
@@ -64,7 +72,22 @@ public sealed partial class MainWindow : Window
     }
 
     private void UpdatePlayPauseButton() =>
-        PlayPauseButton.Content = ViewModel.IsPlaying ? "⏸" : "▶";
+        PlayPauseIcon.Glyph = ViewModel.IsPlaying ? "\uE769" : "\uE768";
+
+    private void UpdateSeekPosition()
+    {
+        _updatingSliderProgrammatically = true;
+        SeekSlider.Value = ViewModel.CurrentPosition.TotalSeconds;
+        _updatingSliderProgrammatically = false;
+    }
+
+    private void SeekSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (!_updatingSliderProgrammatically)
+        {
+            ViewModel.Seek(TimeSpan.FromSeconds(e.NewValue));
+        }
+    }
 
     private async void MainWindow_Activated(object sender, WindowActivatedEventArgs e)
     {

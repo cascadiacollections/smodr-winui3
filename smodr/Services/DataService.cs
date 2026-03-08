@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net;
 using System.ServiceModel.Syndication;
 using System.Xml;
 using smodr.Models;
@@ -10,6 +11,7 @@ public class DataService : IDisposable
     private readonly HttpClient _httpClient = new();
     private readonly CacheService _cacheService = new();
     private const string SmodcastRssUrl = "https://feeds.feedburner.com/SModcasts";
+    private const string UserAgent = "smodr/1.0 (+https://github.com/cascadiacollections/smodr-winui3)";
 
     public async Task<List<Episode>> GetEpisodesAsync(bool forceRefresh = false)
     {
@@ -28,11 +30,11 @@ public class DataService : IDisposable
             }
 
             Debug.WriteLine("Fetching fresh episodes from RSS feed...");
-            var episodes = await FetchEpisodesFromRssAsync();
+            var (episodes, etag, lastModified) = await FetchEpisodesFromRssAsync();
 
             if (episodes.Count > 0)
             {
-                await _cacheService.CacheEpisodesAsync(episodes);
+                await _cacheService.CacheEpisodesAsync(episodes, etag, lastModified);
             }
 
             return episodes;
@@ -59,14 +61,37 @@ public class DataService : IDisposable
         }
     }
 
-    private async Task<List<Episode>> FetchEpisodesFromRssAsync()
+    private async Task<(List<Episode> Episodes, string? ETag, DateTimeOffset? LastModified)> FetchEpisodesFromRssAsync()
     {
-        var response = await _httpClient.GetAsync(SmodcastRssUrl);
+        using var request = new HttpRequestMessage(HttpMethod.Get, SmodcastRssUrl);
+        request.Headers.UserAgent.ParseAdd(UserAgent);
+
+        // Use conditional requests to respect server caching (ETag / Last-Modified)
+        var metadata = await _cacheService.GetCacheMetadataAsync();
+        if (metadata?.ETag is { Length: > 0 } etag)
+        {
+            request.Headers.IfNoneMatch.ParseAdd(etag);
+        }
+
+        if (metadata?.LastModified is { } lastModified)
+        {
+            request.Headers.IfModifiedSince = lastModified;
+        }
+
+        var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+
+        if (response.StatusCode == HttpStatusCode.NotModified)
+        {
+            Debug.WriteLine("RSS feed not modified (304), using cache");
+            var cached = await _cacheService.GetCachedEpisodesAsync();
+            return (cached ?? [], metadata?.ETag, metadata?.LastModified);
+        }
+
         response.EnsureSuccessStatusCode();
 
-        var rssContent = await response.Content.ReadAsStringAsync();
-
-        using var xmlReader = XmlReader.Create(new StringReader(rssContent));
+        // Stream directly into the XML reader instead of buffering the full string
+        using var stream = await response.Content.ReadAsStreamAsync();
+        using var xmlReader = XmlReader.Create(stream, new XmlReaderSettings { Async = true, DtdProcessing = DtdProcessing.Prohibit });
         var feed = SyndicationFeed.Load(xmlReader);
 
         var episodes = feed.Items.Select(item => new Episode
@@ -81,7 +106,10 @@ public class DataService : IDisposable
             EpisodeNumber = ExtractEpisodeNumber(item.Title?.Text ?? "")
         });
 
-        return episodes.OrderByDescending(e => e.PublishDate).ToList();
+        var newETag = response.Headers.ETag?.Tag;
+        var newLastModified = response.Content.Headers.LastModified;
+
+        return (episodes.OrderByDescending(e => e.PublishDate).ToList(), newETag, newLastModified);
     }
 
     public async Task<bool> ClearCacheAsync()
@@ -143,21 +171,21 @@ public class DataService : IDisposable
     {
         foreach (var extension in item.ElementExtensions)
         {
-            if (extension.OuterName == "image" && extension.OuterNamespace.Contains("itunes"))
+            if (extension.OuterName == "image" && extension.OuterNamespace.Contains("itunes", StringComparison.Ordinal))
             {
                 var reader = extension.GetReader();
                 return reader.GetAttribute("href") ?? string.Empty;
             }
         }
 
-        return "http://smodcast.com/wp-content/blogs.dir/1/files_mf/smodcast1400.jpg";
+        return "https://smodcast.com/wp-content/blogs.dir/1/files_mf/smodcast1400.jpg";
     }
 
     private static string GetDuration(SyndicationItem item)
     {
         foreach (var extension in item.ElementExtensions)
         {
-            if (extension.OuterName == "duration" && extension.OuterNamespace.Contains("itunes"))
+            if (extension.OuterName == "duration" && extension.OuterNamespace.Contains("itunes", StringComparison.Ordinal))
             {
                 return extension.GetObject<string>();
             }
@@ -168,7 +196,7 @@ public class DataService : IDisposable
     private static long GetFileSize(SyndicationItem item)
     {
         var enclosure = item.Links?.FirstOrDefault(l => l.RelationshipType == "enclosure");
-        return enclosure is not null && long.TryParse(enclosure.Length.ToString(), out var size) ? size : 0;
+        return enclosure?.Length ?? 0;
     }
 
     private static string ExtractEpisodeNumber(string title)
@@ -176,8 +204,14 @@ public class DataService : IDisposable
         if (string.IsNullOrEmpty(title))
             return string.Empty;
 
-        var parts = title.Split('#');
-        return parts.Length > 1 ? parts[1].Split(' ')[0] : string.Empty;
+        var span = title.AsSpan();
+        var hashIndex = span.IndexOf('#');
+        if (hashIndex < 0)
+            return string.Empty;
+
+        var afterHash = span[(hashIndex + 1)..];
+        var spaceIndex = afterHash.IndexOf(' ');
+        return (spaceIndex >= 0 ? afterHash[..spaceIndex] : afterHash).ToString();
     }
 
     public async Task<List<Episode>?> GetCachedEpisodesAsync()
