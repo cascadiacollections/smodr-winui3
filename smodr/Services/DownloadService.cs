@@ -20,7 +20,7 @@ public class DownloadService : IDisposable
             WinRT.Interop.InitializeWithWindow.Initialize(savePicker, windowHandle);
 
             var fileExtension = GetFileExtension(episode.MediaUrl);
-            savePicker.FileTypeChoices.Add($"{fileExtension.ToUpper()} File", [fileExtension]);
+            savePicker.FileTypeChoices.Add($"{fileExtension.ToUpperInvariant()} File", [fileExtension]);
             savePicker.SuggestedFileName = SanitizeFileName($"{episode.Title}{fileExtension}");
             savePicker.SuggestedStartLocation = PickerLocationId.MusicLibrary;
 
@@ -28,7 +28,7 @@ public class DownloadService : IDisposable
             if (file is null)
                 return false;
 
-            using var response = await _httpClient.GetAsync(episode.MediaUrl, HttpCompletionOption.ResponseHeadersRead);
+            using var response = await _httpClient.GetAsync(new Uri(episode.MediaUrl), HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
 
             using var contentStream = await response.Content.ReadAsStreamAsync();
@@ -84,5 +84,9 @@ public class DownloadService : IDisposable
         return fileName;
     }
 
-    public void Dispose() => _httpClient?.Dispose();
+    public void Dispose()
+    {
+        _httpClient?.Dispose();
+        GC.SuppressFinalize(this);
+    }
 }

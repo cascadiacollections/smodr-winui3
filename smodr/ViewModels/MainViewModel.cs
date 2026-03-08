@@ -259,5 +259,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _audioService.Dispose();
         _dataService.Dispose();
         _downloadService.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

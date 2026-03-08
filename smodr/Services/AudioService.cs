@@ -147,5 +147,6 @@ public class AudioService : IDisposable
         }
 
         _isInitialized = false;
+        GC.SuppressFinalize(this);
     }
 }

@@ -9,11 +9,12 @@ public class CacheService
 {
     private const string CacheFolderName = "EpisodeCache";
     private const int DefaultCacheExpiryHours = 6;
+    private static readonly JsonSerializerOptions _writeOptions = new() { WriteIndented = true };
 
     private static string EpisodesCacheFileName(string podcastId) => $"{podcastId}_episodes.json";
     private static string MetadataCacheFileName(string podcastId) => $"{podcastId}_metadata.json";
 
-    private int CacheExpiryHours
+    private static int CacheExpiryHours
     {
         get
         {
@@ -83,9 +84,7 @@ public class CacheService
             if (_cacheFolder is null)
                 return false;
 
-            var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
-
-            var jsonContent = JsonSerializer.Serialize(episodes, jsonOptions);
+            var jsonContent = JsonSerializer.Serialize(episodes, _writeOptions);
             var episodesFile = await _cacheFolder.CreateFileAsync(EpisodesCacheFileName(podcastId), CreationCollisionOption.ReplaceExisting);
             await FileIO.WriteTextAsync(episodesFile, jsonContent);
 
@@ -97,7 +96,7 @@ public class CacheService
                 LastModified = lastModified
             };
 
-            var metadataJson = JsonSerializer.Serialize(metadata, jsonOptions);
+            var metadataJson = JsonSerializer.Serialize(metadata, _writeOptions);
             var metadataFile = await _cacheFolder.CreateFileAsync(MetadataCacheFileName(podcastId), CreationCollisionOption.ReplaceExisting);
             await FileIO.WriteTextAsync(metadataFile, metadataJson);
 

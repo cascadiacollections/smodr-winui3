@@ -12,7 +12,7 @@ public record class Episode
     public string ImageUrl { get; init; } = string.Empty;
     public string EpisodeNumber { get; init; } = string.Empty;
 
-    public string FormattedPublishDate => PublishDate.ToString("MMM dd, yyyy");
+    public string FormattedPublishDate => PublishDate.ToString("MMM dd, yyyy", System.Globalization.CultureInfo.CurrentCulture);
     public string FormattedDuration => string.IsNullOrEmpty(Duration) ? "Unknown" : Duration;
     public string FormattedFileSize => FileSize > 0 ? $"{FileSize / (1024 * 1024):F1} MB" : "Unknown";
     public string MetadataLine => $"{FormattedPublishDate} · {FormattedDuration}";

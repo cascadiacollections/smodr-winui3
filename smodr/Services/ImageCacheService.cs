@@ -80,7 +80,7 @@ public sealed class ImageCacheService
             }
 
             Debug.WriteLine($"Downloading image: {imageUrl}");
-            var bytes = await _httpClient.GetByteArrayAsync(imageUrl);
+            var bytes = await _httpClient.GetByteArrayAsync(new Uri(imageUrl));
 
             var file = await _cacheFolder.CreateFileAsync(fileName, CreationCollisionOption.ReplaceExisting);
             await FileIO.WriteBytesAsync(file, bytes);

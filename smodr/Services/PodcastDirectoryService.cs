@@ -16,6 +16,11 @@ public sealed class PodcastDirectoryService
     {
         PropertyNameCaseInsensitive = true
     };
+    private static readonly JsonSerializerOptions _writeOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        WriteIndented = true
+    };
 
     private Dictionary<long, PodcastLookupResult>? _cache;
     private StorageFolder? _cacheFolder;
@@ -74,7 +79,7 @@ public sealed class PodcastDirectoryService
             var url = $"{LookupBaseUrl}?id={idsParam}";
 
             Debug.WriteLine($"iTunes lookup: fetching {idsToFetch.Count} podcast(s)");
-            var json = await _httpClient.GetStringAsync(url);
+            var json = await _httpClient.GetStringAsync(new Uri(url));
             var response = JsonSerializer.Deserialize<iTunesLookupResponse>(json, _jsonOptions);
 
             if (response?.Results is { } items)
@@ -144,7 +149,7 @@ public sealed class PodcastDirectoryService
                 return;
 
             var file = await _cacheFolder.CreateFileAsync(CacheFileName, CreationCollisionOption.ReplaceExisting);
-            var json = JsonSerializer.Serialize(_cache, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(_cache, _writeOptions);
             await FileIO.WriteTextAsync(file, json);
         }
         catch (Exception ex)

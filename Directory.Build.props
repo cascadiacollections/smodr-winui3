@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <!-- Roslyn code-quality analyzers (built into .NET SDK, no NuGet needed) -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+
+    <!-- Enforce .editorconfig IDE* code-style rules during build, not just in IDE -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- Required for IDE0005 (remove unnecessary usings) to work during build -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+</Project>
