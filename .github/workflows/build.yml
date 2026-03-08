@@ -8,54 +8,59 @@ on:
   workflow_dispatch:
 
 env:
-  DOTNET_VERSION: '9.0.x'
+  DOTNET_VERSION: '10.0.x'
   SOLUTION_PATH: 'smodr.sln'
   CONFIGURATION: 'Release'
 
 jobs:
   build:
-    name: Build WinUI3 Application
+    name: Build (${{ matrix.platform }})
     runs-on: windows-latest
     permissions:
       contents: read
-    
+
+    strategy:
+      matrix:
+        platform: [x64, ARM64]
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v5
       with:
         fetch-depth: 0
-    
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v5
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-    
+
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
-    
+
     - name: Cache NuGet packages
       uses: actions/cache@v4
       with:
         path: ~/.nuget/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json', '**/*.csproj') }}
+        key: ${{ runner.os }}-nuget-${{ matrix.platform }}-${{ hashFiles('**/packages.lock.json', '**/*.csproj') }}
         restore-keys: |
+          ${{ runner.os }}-nuget-${{ matrix.platform }}-
           ${{ runner.os }}-nuget-
-    
+
     - name: Restore dependencies
-      run: dotnet restore ${{ env.SOLUTION_PATH }}
-    
+      run: dotnet restore ${{ env.SOLUTION_PATH }} -p:Platform=${{ matrix.platform }}
+
     - name: Build solution
-      run: dotnet build ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-restore
-    
+      run: dotnet build ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-restore -p:Platform=${{ matrix.platform }}
+
     - name: Upload build artifacts
       if: success()
       uses: actions/upload-artifact@v6
       with:
-        name: build-artifacts
+        name: build-${{ matrix.platform }}
         path: |
-          **/bin/${{ env.CONFIGURATION }}/**
-          !**/bin/${{ env.CONFIGURATION }}/**/ref/**
-          !**/bin/${{ env.CONFIGURATION }}/**/*.pdb
+          **/bin/${{ matrix.platform }}/${{ env.CONFIGURATION }}/**
+          !**/bin/${{ matrix.platform }}/${{ env.CONFIGURATION }}/**/ref/**
+          !**/bin/${{ matrix.platform }}/${{ env.CONFIGURATION }}/**/*.pdb
         retention-days: 7
 
   format-check:
@@ -63,19 +68,19 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: read
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v5
-    
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v5
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-    
+
     - name: Restore dependencies
       run: dotnet restore ${{ env.SOLUTION_PATH }}
-    
+
     - name: Check code formatting
       run: dotnet format ${{ env.SOLUTION_PATH }} --verify-no-changes --verbosity diagnostic
 
@@ -85,18 +90,18 @@ jobs:
     needs: build
     permissions:
       contents: read
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v5
-    
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v5
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-    
+
     - name: Restore dependencies
       run: dotnet restore ${{ env.SOLUTION_PATH }}
-    
+
     - name: Build with analyzers
       run: dotnet build ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-restore /p:TreatWarningsAsErrors=false

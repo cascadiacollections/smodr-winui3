@@ -1,109 +1,81 @@
-using System;
-using System.IO;
-using System.Net.Http;
-using System.Threading.Tasks;
-using Windows.Storage;
+using System.Diagnostics;
 using Windows.Storage.Pickers;
 using smodr.Models;
 
-namespace smodr.Services
+namespace smodr.Services;
+
+public class DownloadService : IDisposable
 {
-    public class DownloadService
+    private readonly HttpClient _httpClient = new();
+    private const int MaxFileNameLength = 200;
+
+    public async Task<bool> DownloadEpisodeAsync(Episode episode, nint windowHandle)
     {
-        private readonly HttpClient _httpClient;
-        private const int MaxFileNameLength = 200;
-
-        public DownloadService()
+        try
         {
-            _httpClient = new HttpClient();
+            if (string.IsNullOrEmpty(episode.MediaUrl))
+                throw new ArgumentException("Episode has no media URL to download.");
+
+            var savePicker = new FileSavePicker();
+            WinRT.Interop.InitializeWithWindow.Initialize(savePicker, windowHandle);
+
+            var fileExtension = GetFileExtension(episode.MediaUrl);
+            savePicker.FileTypeChoices.Add($"{fileExtension.ToUpper()} File", [fileExtension]);
+            savePicker.SuggestedFileName = SanitizeFileName($"{episode.Title}{fileExtension}");
+            savePicker.SuggestedStartLocation = PickerLocationId.MusicLibrary;
+
+            var file = await savePicker.PickSaveFileAsync();
+            if (file is null)
+                return false;
+
+            using var response = await _httpClient.GetAsync(episode.MediaUrl, HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
+
+            using var contentStream = await response.Content.ReadAsStreamAsync();
+            using var fileStream = await file.OpenStreamForWriteAsync();
+
+            await contentStream.CopyToAsync(fileStream);
+
+            return true;
         }
-
-        public async Task<bool> DownloadEpisodeAsync(Episode episode, nint windowHandle)
+        catch (Exception ex)
         {
-            try
-            {
-                if (string.IsNullOrEmpty(episode.MediaUrl))
-                {
-                    throw new ArgumentException("Episode has no media URL to download.");
-                }
-
-                // Create a file picker to let the user choose where to save
-                var savePicker = new FileSavePicker();
-                
-                // Initialize the picker with the provided window
-                WinRT.Interop.InitializeWithWindow.Initialize(savePicker, windowHandle);
-
-                // Set the file type and default name
-                var fileExtension = GetFileExtension(episode.MediaUrl);
-                savePicker.FileTypeChoices.Add($"{fileExtension.ToUpper()} File", new[] { fileExtension });
-                savePicker.SuggestedFileName = SanitizeFileName($"{episode.Title}{fileExtension}");
-                savePicker.SuggestedStartLocation = PickerLocationId.MusicLibrary;
-
-                // Show the file picker
-                var file = await savePicker.PickSaveFileAsync();
-                if (file == null)
-                {
-                    // User cancelled
-                    return false;
-                }
-
-                // Download the episode
-                using var response = await _httpClient.GetAsync(episode.MediaUrl, HttpCompletionOption.ResponseHeadersRead);
-                response.EnsureSuccessStatusCode();
-
-                using var contentStream = await response.Content.ReadAsStreamAsync();
-                using var fileStream = await file.OpenStreamForWriteAsync();
-                
-                await contentStream.CopyToAsync(fileStream);
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error downloading episode: {ex.Message}");
-                throw;
-            }
-        }
-
-        private string GetFileExtension(string url)
-        {
-            try
-            {
-                var uri = new Uri(url);
-                var extension = Path.GetExtension(uri.LocalPath);
-                
-                // Default to .mp3 if no extension found
-                return string.IsNullOrEmpty(extension) ? ".mp3" : extension;
-            }
-            catch
-            {
-                return ".mp3";
-            }
-        }
-
-        private string SanitizeFileName(string fileName)
-        {
-            // Remove invalid characters from the file name
-            var invalidChars = Path.GetInvalidFileNameChars();
-            foreach (var invalidChar in invalidChars)
-            {
-                fileName = fileName.Replace(invalidChar, '_');
-            }
-            
-            // Limit length
-            if (fileName.Length > MaxFileNameLength)
-            {
-                var extension = Path.GetExtension(fileName);
-                var nameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
-                fileName = nameWithoutExtension.Substring(0, MaxFileNameLength - extension.Length) + extension;
-            }
-
-            return fileName;
-        }
-
-        public void Dispose()
-        {
-            _httpClient?.Dispose();
+            Debug.WriteLine($"Error downloading episode: {ex.Message}");
+            throw;
         }
     }
+
+    private static string GetFileExtension(string url)
+    {
+        try
+        {
+            var uri = new Uri(url);
+            var extension = Path.GetExtension(uri.LocalPath);
+            return string.IsNullOrEmpty(extension) ? ".mp3" : extension;
+        }
+        catch
+        {
+            return ".mp3";
+        }
+    }
+
+    private static string SanitizeFileName(string fileName)
+    {
+        var invalidChars = Path.GetInvalidFileNameChars();
+        foreach (var invalidChar in invalidChars)
+        {
+            fileName = fileName.Replace(invalidChar, '_');
+        }
+
+        if (fileName.Length > MaxFileNameLength)
+        {
+            var extension = Path.GetExtension(fileName);
+            var nameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
+            fileName = nameWithoutExtension[..(MaxFileNameLength - extension.Length)] + extension;
+        }
+
+        return fileName;
+    }
+
+    public void Dispose() => _httpClient?.Dispose();
 }
