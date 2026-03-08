@@ -1,36 +1,57 @@
 using System.Diagnostics;
-using smodr.Models;
 using Windows.Media.Core;
 using Windows.Media.Playback;
+using smodr.Models;
 
 namespace smodr.Services;
 
-public class AudioService : IDisposable
+public partial class AudioService : IDisposable
 {
-    private MediaPlayer? _mediaPlayer;
-    private Episode? _currentEpisode;
     private bool _isInitialized;
+    private MediaPlayer? _mediaPlayer;
 
-    public event EventHandler<Episode>? EpisodeChanged;
-    public event EventHandler<MediaPlaybackState>? PlaybackStateChanged;
-    public event EventHandler<TimeSpan>? PositionChanged;
-    public event EventHandler<TimeSpan>? DurationChanged;
+    public Episode? CurrentEpisode { get; private set; }
 
-    public Episode? CurrentEpisode => _currentEpisode;
     public MediaPlaybackState PlaybackState => _mediaPlayer?.PlaybackSession?.PlaybackState ?? MediaPlaybackState.None;
     public TimeSpan Position => _mediaPlayer?.PlaybackSession?.Position ?? TimeSpan.Zero;
     public TimeSpan Duration => _mediaPlayer?.PlaybackSession?.NaturalDuration ?? TimeSpan.Zero;
     public bool IsPlaying => PlaybackState == MediaPlaybackState.Playing;
     public bool IsPaused => PlaybackState == MediaPlaybackState.Paused;
 
+    public void Dispose()
+    {
+        if (_mediaPlayer is not null)
+        {
+            _mediaPlayer.PlaybackSession.PlaybackStateChanged -= PlaybackSession_PlaybackStateChanged;
+            _mediaPlayer.PlaybackSession.PositionChanged -= PlaybackSession_PositionChanged;
+            _mediaPlayer.PlaybackSession.NaturalDurationChanged -= PlaybackSession_NaturalDurationChanged;
+            _mediaPlayer.MediaFailed -= MediaPlayer_MediaFailed;
+            _mediaPlayer.MediaEnded -= MediaPlayer_MediaEnded;
+
+            _mediaPlayer.Pause();
+            _mediaPlayer.Dispose();
+            _mediaPlayer = null;
+        }
+
+        _isInitialized = false;
+        GC.SuppressFinalize(this);
+    }
+
+    public event EventHandler<Episode>? EpisodeChanged;
+    public event EventHandler<MediaPlaybackState>? PlaybackStateChanged;
+    public event EventHandler<TimeSpan>? PositionChanged;
+    public event EventHandler<TimeSpan>? DurationChanged;
+
     public void Initialize()
     {
-        if (_isInitialized) return;
+        if (_isInitialized)
+        {
+            return;
+        }
 
         _mediaPlayer = new MediaPlayer
         {
-            AudioCategory = MediaPlayerAudioCategory.Media,
-            AudioDeviceType = MediaPlayerAudioDeviceType.Multimedia
+            AudioCategory = MediaPlayerAudioCategory.Media, AudioDeviceType = MediaPlayerAudioDeviceType.Multimedia
         };
 
         _mediaPlayer.PlaybackSession.PlaybackStateChanged += PlaybackSession_PlaybackStateChanged;
@@ -45,14 +66,18 @@ public class AudioService : IDisposable
     public Task PlayEpisodeAsync(Episode episode)
     {
         if (!_isInitialized)
+        {
             Initialize();
+        }
 
         if (string.IsNullOrEmpty(episode.MediaUrl))
+        {
             throw new ArgumentException("Episode has no media URL to play.");
+        }
 
         try
         {
-            if (string.Equals(_currentEpisode?.MediaUrl, episode.MediaUrl, StringComparison.Ordinal))
+            if (string.Equals(CurrentEpisode?.MediaUrl, episode.MediaUrl, StringComparison.Ordinal))
             {
                 _mediaPlayer?.Play();
                 return Task.CompletedTask;
@@ -60,7 +85,7 @@ public class AudioService : IDisposable
 
             _mediaPlayer?.Pause();
 
-            _currentEpisode = episode;
+            CurrentEpisode = episode;
             EpisodeChanged?.Invoke(this, episode);
 
             var mediaSource = MediaSource.CreateFromUri(new Uri(episode.MediaUrl));
@@ -132,23 +157,4 @@ public class AudioService : IDisposable
 
     private void MediaPlayer_MediaEnded(MediaPlayer sender, object args) =>
         Debug.WriteLine("Media playback ended");
-
-    public void Dispose()
-    {
-        if (_mediaPlayer is not null)
-        {
-            _mediaPlayer.PlaybackSession.PlaybackStateChanged -= PlaybackSession_PlaybackStateChanged;
-            _mediaPlayer.PlaybackSession.PositionChanged -= PlaybackSession_PositionChanged;
-            _mediaPlayer.PlaybackSession.NaturalDurationChanged -= PlaybackSession_NaturalDurationChanged;
-            _mediaPlayer.MediaFailed -= MediaPlayer_MediaFailed;
-            _mediaPlayer.MediaEnded -= MediaPlayer_MediaEnded;
-
-            _mediaPlayer.Pause();
-            _mediaPlayer.Dispose();
-            _mediaPlayer = null;
-        }
-
-        _isInitialized = false;
-        GC.SuppressFinalize(this);
-    }
 }

@@ -6,11 +6,17 @@ using smodr.Models;
 
 namespace smodr.Services;
 
-public class DataService : IDisposable
+public partial class DataService : IDisposable
 {
-    private readonly HttpClient _httpClient = new();
-    private readonly CacheService _cacheService = new();
     private const string UserAgent = "smodr/1.0 (+https://github.com/cascadiacollections/smodr-winui3)";
+    private readonly CacheService _cacheService = new();
+    private readonly HttpClient _httpClient = new();
+
+    public void Dispose()
+    {
+        _httpClient.Dispose();
+        GC.SuppressFinalize(this);
+    }
 
     public async Task<List<Episode>> GetEpisodesAsync(string podcastId, string feedUrl, bool forceRefresh = false)
     {
@@ -60,7 +66,8 @@ public class DataService : IDisposable
         }
     }
 
-    private async Task<(List<Episode> Episodes, string? ETag, DateTimeOffset? LastModified)> FetchEpisodesFromRssAsync(string podcastId, string feedUrl)
+    private async Task<(List<Episode> Episodes, string? ETag, DateTimeOffset? LastModified)> FetchEpisodesFromRssAsync(
+        string podcastId, string feedUrl)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, feedUrl);
         request.Headers.UserAgent.ParseAdd(UserAgent);
@@ -90,7 +97,8 @@ public class DataService : IDisposable
 
         // Stream directly into the XML reader instead of buffering the full string
         using var stream = await response.Content.ReadAsStreamAsync();
-        using var xmlReader = XmlReader.Create(stream, new XmlReaderSettings { Async = true, DtdProcessing = DtdProcessing.Prohibit });
+        using var xmlReader = XmlReader.Create(stream,
+            new XmlReaderSettings { Async = true, DtdProcessing = DtdProcessing.Prohibit });
         var feed = SyndicationFeed.Load(xmlReader);
 
         var episodes = feed.Items.Select(item => new Episode
@@ -132,10 +140,14 @@ public class DataService : IDisposable
     private static string GetDescription(SyndicationItem item)
     {
         if (item.Summary?.Text is { } summary)
+        {
             return summary;
+        }
 
         if (item.Content is TextSyndicationContent textContent)
+        {
             return textContent.Text;
+        }
 
         return "No description available";
     }
@@ -144,12 +156,16 @@ public class DataService : IDisposable
     {
         var enclosure = item.Links?.FirstOrDefault(l => l.RelationshipType == "enclosure");
         if (enclosure is not null)
+        {
             return enclosure.Uri.ToString();
+        }
 
         foreach (var extension in item.ElementExtensions)
         {
             if (extension.OuterName is not "enclosure")
+            {
                 continue;
+            }
 
             var reader = extension.GetReader();
             while (reader.Read())
@@ -158,7 +174,9 @@ public class DataService : IDisposable
                 {
                     var url = reader.GetAttribute("url");
                     if (!string.IsNullOrEmpty(url))
+                    {
                         return url;
+                    }
                 }
             }
         }
@@ -184,11 +202,13 @@ public class DataService : IDisposable
     {
         foreach (var extension in item.ElementExtensions)
         {
-            if (extension.OuterName == "duration" && extension.OuterNamespace.Contains("itunes", StringComparison.Ordinal))
+            if (extension.OuterName == "duration" &&
+                extension.OuterNamespace.Contains("itunes", StringComparison.Ordinal))
             {
                 return extension.GetObject<string>();
             }
         }
+
         return string.Empty;
     }
 
@@ -201,12 +221,16 @@ public class DataService : IDisposable
     private static string ExtractEpisodeNumber(string title)
     {
         if (string.IsNullOrEmpty(title))
+        {
             return string.Empty;
+        }
 
         var span = title.AsSpan();
         var hashIndex = span.IndexOf('#');
         if (hashIndex < 0)
+        {
             return string.Empty;
+        }
 
         var afterHash = span[(hashIndex + 1)..];
         var spaceIndex = afterHash.IndexOf(' ');
@@ -225,11 +249,5 @@ public class DataService : IDisposable
             Debug.WriteLine($"Error getting cached episodes: {ex.Message}");
             return null;
         }
-    }
-
-    public void Dispose()
-    {
-        _httpClient?.Dispose();
-        GC.SuppressFinalize(this);
     }
 }

@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
-using smodr.Models;
 using Windows.Storage;
+using smodr.Models;
 
 namespace smodr.Services;
 
@@ -27,8 +27,8 @@ public sealed class ImageCacheService
     }
 
     /// <summary>
-    /// Resolves the best artwork for a podcast: iTunes Lookup API → fallback ImageUrl.
-    /// Downloads and caches the image locally.
+    ///     Resolves the best artwork for a podcast: iTunes Lookup API → fallback ImageUrl.
+    ///     Downloads and caches the image locally.
     /// </summary>
     public async Task<StorageFile?> GetPodcastArtworkAsync(Podcast podcast)
     {
@@ -42,7 +42,9 @@ public sealed class ImageCacheService
                 {
                     var file = await GetOrDownloadImageAsync(artworkUrl);
                     if (file is not null)
+                    {
                         return file;
+                    }
                 }
             }
 
@@ -63,13 +65,17 @@ public sealed class ImageCacheService
     public async Task<StorageFile?> GetOrDownloadImageAsync(string imageUrl)
     {
         if (string.IsNullOrEmpty(imageUrl))
+        {
             return null;
+        }
 
         try
         {
             await EnsureInitializedAsync();
             if (_cacheFolder is null)
+            {
                 return null;
+            }
 
             var fileName = GetCacheFileName(imageUrl);
 
@@ -100,7 +106,10 @@ public sealed class ImageCacheService
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(url)))[..16];
         var extension = Path.GetExtension(new Uri(url).AbsolutePath);
         if (string.IsNullOrEmpty(extension))
+        {
             extension = ".img";
+        }
+
         return $"{hash}{extension}";
     }
 }

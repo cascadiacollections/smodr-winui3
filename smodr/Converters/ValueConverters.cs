@@ -7,13 +7,15 @@ using smodr.Services;
 
 namespace smodr.Converters;
 
-public class BoolToVisibilityConverter : IValueConverter
+public partial class BoolToVisibilityConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         var boolValue = (bool)value;
-        if (parameter?.ToString() == "True")
+        if (parameter.ToString() == "True")
+        {
             boolValue = !boolValue;
+        }
 
         return boolValue ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -34,7 +36,7 @@ public class BoolNegationConverter : IValueConverter
 public class StringToVisibilityConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language) =>
-        string.IsNullOrEmpty(value?.ToString()) ? Visibility.Collapsed : Visibility.Visible;
+        string.IsNullOrEmpty(value.ToString()) ? Visibility.Collapsed : Visibility.Visible;
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) =>
         throw new NotSupportedException("ConvertBack is not supported for StringToVisibilityConverter.");
@@ -46,7 +48,7 @@ public class PlayPauseIconConverter : IValueConverter
         (bool)value ? "⏸" : "▶";
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) =>
-        value?.ToString() == "⏸";
+        value.ToString() == "⏸";
 }
 
 public sealed class CachedImageConverter : IValueConverter
@@ -56,12 +58,17 @@ public sealed class CachedImageConverter : IValueConverter
     public object? Convert(object value, Type targetType, object parameter, string language)
     {
         if (value is not string url || string.IsNullOrEmpty(url))
+        {
             return null;
+        }
 
         var bitmap = new BitmapImage();
         _ = LoadImageAsync(bitmap, url);
         return bitmap;
     }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) =>
+        throw new NotSupportedException();
 
     private static async Task LoadImageAsync(BitmapImage bitmap, string url)
     {
@@ -79,15 +86,12 @@ public sealed class CachedImageConverter : IValueConverter
             Debug.WriteLine($"Failed to load cached image: {ex.Message}");
         }
     }
-
-    public object ConvertBack(object value, Type targetType, object parameter, string language) =>
-        throw new NotSupportedException();
 }
 
 /// <summary>
-/// Resolves podcast artwork via iTunes Lookup API with local caching,
-/// falling back to the static <see cref="Podcast.ImageUrl"/>.
-/// Bind to the <see cref="Podcast"/> object (no path).
+///     Resolves podcast artwork via iTunes Lookup API with local caching,
+///     falling back to the static <see cref="Podcast.ImageUrl" />.
+///     Bind to the <see cref="Podcast" /> object (no path).
 /// </summary>
 public sealed class PodcastArtworkConverter : IValueConverter
 {
@@ -96,12 +100,17 @@ public sealed class PodcastArtworkConverter : IValueConverter
     public object? Convert(object value, Type targetType, object parameter, string language)
     {
         if (value is not Podcast podcast)
+        {
             return null;
+        }
 
         var bitmap = new BitmapImage();
         _ = LoadArtworkAsync(bitmap, podcast);
         return bitmap;
     }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) =>
+        throw new NotSupportedException();
 
     private static async Task LoadArtworkAsync(BitmapImage bitmap, Podcast podcast)
     {
@@ -119,7 +128,4 @@ public sealed class PodcastArtworkConverter : IValueConverter
             Debug.WriteLine($"Failed to load podcast artwork: {ex.Message}");
         }
     }
-
-    public object ConvertBack(object value, Type targetType, object parameter, string language) =>
-        throw new NotSupportedException();
 }

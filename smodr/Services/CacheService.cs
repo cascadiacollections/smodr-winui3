@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
-using smodr.Models;
 using Windows.Storage;
+using smodr.Models;
 
 namespace smodr.Services;
 
@@ -11,8 +11,7 @@ public class CacheService
     private const int DefaultCacheExpiryHours = 6;
     private static readonly JsonSerializerOptions _writeOptions = new() { WriteIndented = true };
 
-    private static string EpisodesCacheFileName(string podcastId) => $"{podcastId}_episodes.json";
-    private static string MetadataCacheFileName(string podcastId) => $"{podcastId}_metadata.json";
+    private StorageFolder? _cacheFolder;
 
     private static int CacheExpiryHours
     {
@@ -28,7 +27,8 @@ public class CacheService
         }
     }
 
-    private StorageFolder? _cacheFolder;
+    private static string EpisodesCacheFileName(string podcastId) => $"{podcastId}_episodes.json";
+    private static string MetadataCacheFileName(string podcastId) => $"{podcastId}_metadata.json";
 
     public async Task InitializeAsync()
     {
@@ -46,7 +46,9 @@ public class CacheService
     private async Task EnsureInitializedAsync()
     {
         if (_cacheFolder is null)
+        {
             await InitializeAsync();
+        }
     }
 
     public async Task<List<Episode>?> GetCachedEpisodesAsync(string podcastId)
@@ -55,13 +57,19 @@ public class CacheService
         {
             await EnsureInitializedAsync();
             if (_cacheFolder is null)
+            {
                 return null;
+            }
 
             if (!await IsCacheValidAsync(podcastId))
+            {
                 return null;
+            }
 
             if (await _cacheFolder.TryGetItemAsync(EpisodesCacheFileName(podcastId)) is not StorageFile episodesFile)
+            {
                 return null;
+            }
 
             var jsonContent = await FileIO.ReadTextAsync(episodesFile);
             var episodes = JsonSerializer.Deserialize<List<Episode>>(jsonContent);
@@ -76,16 +84,20 @@ public class CacheService
         }
     }
 
-    public async Task<bool> CacheEpisodesAsync(string podcastId, List<Episode> episodes, string? etag = null, DateTimeOffset? lastModified = null)
+    public async Task<bool> CacheEpisodesAsync(string podcastId, List<Episode> episodes, string? etag = null,
+        DateTimeOffset? lastModified = null)
     {
         try
         {
             await EnsureInitializedAsync();
             if (_cacheFolder is null)
+            {
                 return false;
+            }
 
             var jsonContent = JsonSerializer.Serialize(episodes, _writeOptions);
-            var episodesFile = await _cacheFolder.CreateFileAsync(EpisodesCacheFileName(podcastId), CreationCollisionOption.ReplaceExisting);
+            var episodesFile = await _cacheFolder.CreateFileAsync(EpisodesCacheFileName(podcastId),
+                CreationCollisionOption.ReplaceExisting);
             await FileIO.WriteTextAsync(episodesFile, jsonContent);
 
             var metadata = new CacheMetadata
@@ -97,7 +109,8 @@ public class CacheService
             };
 
             var metadataJson = JsonSerializer.Serialize(metadata, _writeOptions);
-            var metadataFile = await _cacheFolder.CreateFileAsync(MetadataCacheFileName(podcastId), CreationCollisionOption.ReplaceExisting);
+            var metadataFile = await _cacheFolder.CreateFileAsync(MetadataCacheFileName(podcastId),
+                CreationCollisionOption.ReplaceExisting);
             await FileIO.WriteTextAsync(metadataFile, metadataJson);
 
             Debug.WriteLine($"Cached {episodes.Count} episodes successfully");
@@ -115,16 +128,22 @@ public class CacheService
         try
         {
             if (_cacheFolder is null)
+            {
                 return false;
+            }
 
             if (await _cacheFolder.TryGetItemAsync(MetadataCacheFileName(podcastId)) is not StorageFile metadataFile)
+            {
                 return false;
+            }
 
             var metadataJson = await FileIO.ReadTextAsync(metadataFile);
             var metadata = JsonSerializer.Deserialize<CacheMetadata>(metadataJson);
 
             if (metadata is null)
+            {
                 return false;
+            }
 
             var timeSinceLastUpdate = DateTime.UtcNow - metadata.LastUpdated;
             var isValid = timeSinceLastUpdate.TotalHours < CacheExpiryHours;
@@ -145,10 +164,14 @@ public class CacheService
         {
             await EnsureInitializedAsync();
             if (_cacheFolder is null)
+            {
                 return null;
+            }
 
             if (await _cacheFolder.TryGetItemAsync(MetadataCacheFileName(podcastId)) is not StorageFile metadataFile)
+            {
                 return null;
+            }
 
             var metadataJson = await FileIO.ReadTextAsync(metadataFile);
             return JsonSerializer.Deserialize<CacheMetadata>(metadataJson);
@@ -166,7 +189,9 @@ public class CacheService
         {
             await EnsureInitializedAsync();
             if (_cacheFolder is null)
+            {
                 return false;
+            }
 
             var files = await _cacheFolder.GetFilesAsync();
             foreach (var file in files)
@@ -190,7 +215,9 @@ public class CacheService
         {
             await EnsureInitializedAsync();
             if (_cacheFolder is null)
+            {
                 return 0;
+            }
 
             long totalSize = 0;
             var files = await _cacheFolder.GetFilesAsync();
@@ -211,7 +238,7 @@ public class CacheService
     }
 }
 
-public record class CacheMetadata
+public record CacheMetadata
 {
     public DateTime LastUpdated { get; init; }
     public int EpisodeCount { get; init; }

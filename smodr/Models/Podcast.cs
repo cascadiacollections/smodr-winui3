@@ -1,6 +1,6 @@
 namespace smodr.Models;
 
-public record class Podcast
+public record Podcast
 {
     public required string Id { get; init; }
     public required string Name { get; init; }
@@ -9,15 +9,6 @@ public record class Podcast
     public string ImageUrl { get; init; } = string.Empty;
     public string Hosts { get; init; } = string.Empty;
     public long? ApplePodcastId { get; init; }
-
-    public virtual bool Equals(Podcast? other)
-    {
-        if (other is null) return false;
-        if (ReferenceEquals(this, other)) return true;
-        return string.Equals(Id, other.Id, StringComparison.Ordinal);
-    }
-
-    public override int GetHashCode() => Id.GetHashCode(StringComparison.Ordinal);
 
     public static IReadOnlyList<Podcast> Catalog { get; } =
     [
@@ -37,7 +28,8 @@ public record class Podcast
             Name = "Hollywood Babble-On",
             Description = "Live show covering Hollywood news and pop culture.",
             FeedUrl = "https://feeds.feedburner.com/HollywoodBabbleOn",
-            ImageUrl = "https://is1-ssl.mzstatic.com/image/thumb/Podcasts123/v4/62/88/07/62880736-f815-844d-1368-0d8aa135b897/mza_6363975001724393925.png/600x600bb.jpg",
+            ImageUrl =
+                "https://is1-ssl.mzstatic.com/image/thumb/Podcasts123/v4/62/88/07/62880736-f815-844d-1368-0d8aa135b897/mza_6363975001724393925.png/600x600bb.jpg",
             Hosts = "Kevin Smith & Ralph Garman",
             ApplePodcastId = 389193138
         },
@@ -67,7 +59,8 @@ public record class Podcast
             Name = "Tell 'Em Steve-Dave!",
             Description = "Three guys from New Jersey discuss life, work, and the absurd.",
             FeedUrl = "https://feeds.feedburner.com/TellEmSteveDave",
-            ImageUrl = "https://megaphone.imgix.net/podcasts/38dc55da-5cb9-11ee-b82f-cf4026c6a8c7/image/1478271567245-SP7E52DRBWKN5JSW9GLA.jpeg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+            ImageUrl =
+                "https://megaphone.imgix.net/podcasts/38dc55da-5cb9-11ee-b82f-cf4026c6a8c7/image/1478271567245-SP7E52DRBWKN5JSW9GLA.jpeg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
             Hosts = "Bryan Johnson, Walt Flanagan & Brian Quinn",
             ApplePodcastId = 357537542
         },
@@ -79,6 +72,23 @@ public record class Podcast
             FeedUrl = "https://feeds.feedburner.com/Smoviemakers",
             ImageUrl = "https://i1.sndcdn.com/avatars-000099184010-sffeux-original.jpg",
             Hosts = "Kevin Smith"
-        },
+        }
     ];
+
+    public virtual bool Equals(Podcast? other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        return string.Equals(Id, other.Id, StringComparison.Ordinal);
+    }
+
+    public override int GetHashCode() => Id.GetHashCode(StringComparison.Ordinal);
 }

@@ -12,14 +12,12 @@ public sealed class PodcastDirectoryService
     private const int CacheExpiryDays = 7;
 
     private static readonly HttpClient _httpClient = new();
-    private static readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
+
+    private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
+
     private static readonly JsonSerializerOptions _writeOptions = new()
     {
-        PropertyNameCaseInsensitive = true,
-        WriteIndented = true
+        PropertyNameCaseInsensitive = true, WriteIndented = true
     };
 
     private Dictionary<long, PodcastLookupResult>? _cache;
@@ -43,7 +41,7 @@ public sealed class PodcastDirectoryService
     }
 
     /// <summary>
-    /// Looks up multiple podcasts in a single iTunes API call and caches the results.
+    ///     Looks up multiple podcasts in a single iTunes API call and caches the results.
     /// </summary>
     public async Task<Dictionary<long, PodcastLookupResult>> LookupAsync(IEnumerable<long> applePodcastIds)
     {
@@ -87,7 +85,9 @@ public sealed class PodcastDirectoryService
                 foreach (var item in items)
                 {
                     if (item.TrackId is 0 || string.IsNullOrEmpty(item.ArtworkUrl600))
+                    {
                         continue;
+                    }
 
                     var result = new PodcastLookupResult
                     {
@@ -113,7 +113,7 @@ public sealed class PodcastDirectoryService
     }
 
     /// <summary>
-    /// Gets the artwork URL for a single podcast, using the cache if available.
+    ///     Gets the artwork URL for a single podcast, using the cache if available.
     /// </summary>
     public async Task<string?> GetArtworkUrlAsync(long applePodcastId)
     {
@@ -126,10 +126,14 @@ public sealed class PodcastDirectoryService
         try
         {
             if (_cacheFolder is null)
+            {
                 return null;
+            }
 
             if (await _cacheFolder.TryGetItemAsync(CacheFileName) is not StorageFile file)
+            {
                 return null;
+            }
 
             var json = await FileIO.ReadTextAsync(file);
             return JsonSerializer.Deserialize<Dictionary<long, PodcastLookupResult>>(json, _jsonOptions);
@@ -146,7 +150,9 @@ public sealed class PodcastDirectoryService
         try
         {
             if (_cacheFolder is null || _cache is null)
+            {
                 return;
+            }
 
             var file = await _cacheFolder.CreateFileAsync(CacheFileName, CreationCollisionOption.ReplaceExisting);
             var json = JsonSerializer.Serialize(_cache, _writeOptions);
@@ -159,7 +165,7 @@ public sealed class PodcastDirectoryService
     }
 }
 
-public sealed record class PodcastLookupResult
+public sealed record PodcastLookupResult
 {
     public long TrackId { get; init; }
     public string TrackName { get; init; } = string.Empty;
@@ -167,23 +173,18 @@ public sealed record class PodcastLookupResult
     public DateTime RetrievedAt { get; init; }
 }
 
-file sealed class ITunesLookupResponse
+sealed file class ITunesLookupResponse
 {
-    [JsonPropertyName("resultCount")]
-    public int ResultCount { get; init; }
+    [JsonPropertyName("resultCount")] public int ResultCount { get; init; }
 
-    [JsonPropertyName("results")]
-    public List<ITunesLookupItem>? Results { get; init; }
+    [JsonPropertyName("results")] public List<ITunesLookupItem>? Results { get; init; }
 }
 
-file sealed class ITunesLookupItem
+sealed file class ITunesLookupItem
 {
-    [JsonPropertyName("trackId")]
-    public long TrackId { get; init; }
+    [JsonPropertyName("trackId")] public long TrackId { get; }
 
-    [JsonPropertyName("trackName")]
-    public string? TrackName { get; init; }
+    [JsonPropertyName("trackName")] public string? TrackName { get; }
 
-    [JsonPropertyName("artworkUrl600")]
-    public string? ArtworkUrl600 { get; init; }
+    [JsonPropertyName("artworkUrl600")] public string? ArtworkUrl600 { get; }
 }

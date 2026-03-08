@@ -1,23 +1,32 @@
 using System.Diagnostics;
-using smodr.Models;
 using Windows.Storage.Pickers;
+using smodr.Models;
+using WinRT.Interop;
 
 namespace smodr.Services;
 
-public class DownloadService : IDisposable
+public partial class DownloadService : IDisposable
 {
-    private readonly HttpClient _httpClient = new();
     private const int MaxFileNameLength = 200;
+    private readonly HttpClient _httpClient = new();
+
+    public void Dispose()
+    {
+        _httpClient.Dispose();
+        GC.SuppressFinalize(this);
+    }
 
     public async Task<bool> DownloadEpisodeAsync(Episode episode, nint windowHandle)
     {
         try
         {
             if (string.IsNullOrEmpty(episode.MediaUrl))
+            {
                 throw new ArgumentException("Episode has no media URL to download.");
+            }
 
             var savePicker = new FileSavePicker();
-            WinRT.Interop.InitializeWithWindow.Initialize(savePicker, windowHandle);
+            InitializeWithWindow.Initialize(savePicker, windowHandle);
 
             var fileExtension = GetFileExtension(episode.MediaUrl);
             savePicker.FileTypeChoices.Add($"{fileExtension.ToUpperInvariant()} File", [fileExtension]);
@@ -26,9 +35,12 @@ public class DownloadService : IDisposable
 
             var file = await savePicker.PickSaveFileAsync();
             if (file is null)
+            {
                 return false;
+            }
 
-            using var response = await _httpClient.GetAsync(new Uri(episode.MediaUrl), HttpCompletionOption.ResponseHeadersRead);
+            using var response =
+                await _httpClient.GetAsync(new Uri(episode.MediaUrl), HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
 
             using var contentStream = await response.Content.ReadAsStreamAsync();
@@ -82,11 +94,5 @@ public class DownloadService : IDisposable
         }
 
         return fileName;
-    }
-
-    public void Dispose()
-    {
-        _httpClient?.Dispose();
-        GC.SuppressFinalize(this);
     }
 }
