@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media.Imaging;
 using smodr.Models;
+using smodr.Services;
 using smodr.ViewModels;
 using Windows.Storage;
 
@@ -18,6 +19,7 @@ public sealed partial class MainWindow : Window
     private const string LastPodcastIdKey = "LastPodcastId";
 
     private bool _updatingSliderProgrammatically;
+    private readonly ImageCacheService _imageCacheService = new();
 
     public MainViewModel ViewModel { get; }
 
@@ -95,7 +97,7 @@ public sealed partial class MainWindow : Window
         {
             MediaControlsPanel.Visibility = Visibility.Visible;
             CurrentEpisodeTitle.Text = episode.Title;
-            CurrentEpisodeImage.Source = new BitmapImage(new Uri(episode.ImageUrl));
+            _ = LoadNowPlayingImageAsync(episode.ImageUrl);
         }
         else
         {
@@ -105,6 +107,25 @@ public sealed partial class MainWindow : Window
 
     private void UpdatePlayPauseButton() =>
         PlayPauseIcon.Glyph = ViewModel.IsPlaying ? "\uE769" : "\uE768";
+
+    private async Task LoadNowPlayingImageAsync(string imageUrl)
+    {
+        try
+        {
+            var file = await _imageCacheService.GetOrDownloadImageAsync(imageUrl);
+            if (file is not null)
+            {
+                var bitmap = new BitmapImage();
+                using var stream = await file.OpenReadAsync();
+                await bitmap.SetSourceAsync(stream);
+                CurrentEpisodeImage.Source = bitmap;
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Failed to load now-playing image: {ex.Message}");
+        }
+    }
 
     private void UpdateSeekPosition()
     {

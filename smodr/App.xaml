@@ -17,7 +17,8 @@
             <converters:BoolNegationConverter x:Key="BoolNegationConverter" />
             <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
             <converters:PlayPauseIconConverter x:Key="PlayPauseIconConverter" />
-            
+            <converters:CachedImageConverter x:Key="CachedImageConverter" />
+
             <!-- Other app resources here -->
         </ResourceDictionary>
     </Application.Resources>

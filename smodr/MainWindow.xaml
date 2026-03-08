@@ -114,7 +114,7 @@
 
                                 <Border CornerRadius="8"
                                        Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
-                                    <Image Source="{Binding ImageUrl}" Stretch="UniformToFill"/>
+                                    <Image Source="{Binding ImageUrl, Converter={StaticResource CachedImageConverter}}" Stretch="UniformToFill"/>
                                 </Border>
 
                                 <TextBlock Grid.Row="1"
@@ -268,7 +268,7 @@
                                 <Border Grid.Column="0" CornerRadius="6"
                                        Width="48" Height="48"
                                        Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
-                                    <Image Source="{Binding ImageUrl}" Stretch="UniformToFill"/>
+                                    <Image Source="{Binding ImageUrl, Converter={StaticResource CachedImageConverter}}" Stretch="UniformToFill"/>
                                 </Border>
 
                                 <!-- Episode details -->
