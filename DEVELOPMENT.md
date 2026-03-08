@@ -55,7 +55,7 @@ For local development with full control:
    - GitHub Copilot has project-specific instructions
 
 **What's Included in the Dev Container:**
-- ✅ .NET 9.0 SDK
+- ✅ .NET 10.0 SDK
 - ✅ dotnet-format (code formatter)
 - ✅ dotnet-outdated-tool (dependency checker)
 - ✅ Git and GitHub CLI
@@ -73,18 +73,18 @@ If you prefer not to use containers or need to run the application:
 ### Prerequisites
 
 - **Windows 10** version 1809 (build 17763) or later
-- **Visual Studio 2022** or later with the following workloads:
+- **Visual Studio 2022 17.14+** or **Visual Studio 2026** with the following workloads:
   - .NET Desktop Development
-  - Universal Windows Platform development
-- **.NET 9.0 SDK** ([Download](https://dotnet.microsoft.com/download/dotnet/9.0))
-- **Windows SDK** version 10.0.19041.0 or later
+  - Windows application development
+- **.NET 10.0 SDK** ([Download](https://dotnet.microsoft.com/download/dotnet/10.0))
+- **Windows SDK** version 10.0.22621.0 or later
 
 ### Visual Studio Setup
 
-1. **Install Visual Studio 2022**
+1. **Install Visual Studio 2022 17.14+ or Visual Studio 2026**
    - Select ".NET Desktop Development" workload
-   - Select "Universal Windows Platform development" workload
-   - Ensure Windows 10 SDK (10.0.19041.0) is included
+   - Select "Windows application development" workload
+   - Ensure Windows 10 SDK (10.0.22621.0) is included
 
 2. **Clone the repository**
    ```bash
@@ -115,8 +115,8 @@ If you prefer VS Code on Windows:
 1. **Install VS Code**
    - Download from [code.visualstudio.com](https://code.visualstudio.com/)
 
-2. **Install .NET 9.0 SDK**
-   - Download from [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/9.0)
+2. **Install .NET 10.0 SDK**
+   - Download from [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/10.0)
 
 3. **Open the project**
    ```bash
@@ -146,7 +146,8 @@ smodr-winui3/
 │   ├── devcontainer.json   # Container settings
 │   └── Dockerfile          # Container image
 ├── .github/                # GitHub-specific files
-│   └── copilot-instructions.md  # Copilot guidelines
+│   ├── copilot-instructions.md  # Copilot guidelines
+│   └── workflows/          # CI/CD workflows
 ├── .vscode/                # VS Code settings
 │   ├── extensions.json     # Recommended extensions
 │   ├── settings.json       # Editor settings
@@ -160,6 +161,7 @@ smodr-winui3/
 │   ├── Services/           # Business logic
 │   ├── Converters/         # XAML converters
 │   └── Assets/             # Images and resources
+├── www/                    # GitHub Pages website
 ├── .editorconfig           # Code style rules
 ├── .gitignore              # Git ignore rules
 ├── smodr.sln               # Visual Studio solution
@@ -252,7 +254,7 @@ VS Code Terminal (Ctrl+`) automatically connects
 - **Solution**: Restore manually: `dotnet restore smodr.sln`
 
 **Problem**: Windows SDK not found (on Windows)
-- **Solution**: Install Windows SDK 10.0.19041.0 or later
+- **Solution**: Install Windows SDK 10.0.22621.0 or later
 - **Solution**: Visual Studio Installer → Modify → Individual Components → Windows SDK
 
 **Problem**: WinUI3 packages not found

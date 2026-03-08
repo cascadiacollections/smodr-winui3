@@ -2,16 +2,17 @@
 
 ## Project Overview
 
-**smodr** is a WinUI3 desktop application for Windows built with .NET 9.0. It's a podcast/media player application that supports RSS feed parsing, episode playback, caching, and downloads.
+**smodr** is a WinUI3 desktop application for Windows built with .NET 10.0 and C# 14 (preview). It's a podcast/media player application that supports RSS feed parsing, episode playback, caching, and downloads.
 
 ## Technology Stack
 
-- **Framework**: .NET 9.0 with WinUI3 (Windows App SDK)
-- **Platform**: Windows 10.0.19041.0 (minimum 10.0.17763.0)
+- **Framework**: .NET 10.0 with WinUI 3 (Windows App SDK 1.8)
+- **Platform**: Windows 10.0.22621.0 (minimum 10.0.17763.0)
 - **Architecture**: MVVM (Model-View-ViewModel)
+- **Language**: C# 14 (preview) with `ImplicitUsings`, `Nullable`, `LangVersion=preview`
 - **Key Dependencies**:
-  - Microsoft.WindowsAppSDK
-  - CommunityToolkit.Mvvm
+  - Microsoft.WindowsAppSDK 1.8 (stable, MSFT validated)
+  - CommunityToolkit.Mvvm 8.4 (`ObservableObject`, `[ObservableProperty]`, `[RelayCommand]`)
   - System.ServiceModel.Syndication (RSS parsing)
 
 ## Project Structure
@@ -103,9 +104,9 @@ smodr/
 
 ### Prerequisites (Windows)
 
-- Visual Studio 2022 or later with WinUI3 workload
-- .NET 9.0 SDK
-- Windows 10 SDK (10.0.19041.0 or later)
+- Visual Studio 2022 17.14+ or Visual Studio 2026 with WinUI 3 workload
+- .NET 10.0 SDK
+- Windows SDK (10.0.22621.0 or later)
 
 ### Build Commands
 
@@ -143,44 +144,28 @@ The application must be run on Windows as it's a WinUI3 desktop app. It cannot r
 
 ## Common Patterns to Follow
 
-### Property Change Notification
+### Property Change Notification (CommunityToolkit.Mvvm)
 
 ```csharp
+[ObservableProperty]
 private string _title = string.Empty;
-public string Title
-{
-    get => _title;
-    set => SetProperty(ref _title, value);
-}
 ```
 
-### Async Command Handling
+### Async Command Handling (CommunityToolkit.Mvvm)
 
 ```csharp
-public ICommand LoadCommand { get; }
-
-public MainViewModel()
+[RelayCommand]
+public async Task LoadAsync()
 {
-    LoadCommand = new AsyncRelayCommand(LoadAsync);
-}
-
-private async Task LoadAsync()
-{
-    // Async operation
+    // Async operation — generates LoadCommand automatically
 }
 ```
 
 ### Service Usage
 
 ```csharp
-private readonly DataService _dataService;
-private readonly AudioService _audioService;
-
-public MainViewModel()
-{
-    _dataService = new DataService();
-    _audioService = new AudioService();
-}
+private readonly DataService _dataService = new();
+private readonly AudioService _audioService = new();
 
 public void Dispose()
 {
@@ -210,7 +195,8 @@ public void Dispose()
 
 This project uses GitHub Actions for continuous integration:
 
-- **Build Workflow**: Builds the solution on Windows runners
+- **Build Workflow**: Matrix builds for x64 and ARM64 on Windows runners
+- **GitHub Pages**: Project website deployed from `www/`
 - **CodeQL Analysis**: Security scanning for vulnerabilities
 - **Format Check**: Validates code formatting against `.editorconfig`
 - **Dev Container Test**: Validates dev container configuration
@@ -242,7 +228,7 @@ The project includes a fully configured dev container that works with:
 ### Available Tools
 
 Pre-installed in the dev container:
-- .NET 9.0 SDK
+- .NET 10.0 SDK
 - dotnet-format (code formatter)
 - dotnet-outdated-tool (dependency checker)
 - GitHub CLI (gh)

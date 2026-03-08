@@ -163,6 +163,12 @@ csharp_style_unused_value_expression_statement_preference = discard_variable:sil
 # 'using' directive preferences
 csharp_using_directive_placement = outside_namespace:suggestion
 
+# Namespace preferences
+csharp_style_namespace_declarations = file_scoped:suggestion
+
+# Collection expression preferences
+dotnet_style_prefer_collection_expression = true:suggestion
+
 #### C# Formatting Rules ####
 
 # New line preferences
