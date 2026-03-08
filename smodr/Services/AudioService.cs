@@ -42,7 +42,7 @@ public class AudioService : IDisposable
         _isInitialized = true;
     }
 
-    public async Task PlayEpisodeAsync(Episode episode)
+    public Task PlayEpisodeAsync(Episode episode)
     {
         if (!_isInitialized)
             Initialize();
@@ -52,10 +52,10 @@ public class AudioService : IDisposable
 
         try
         {
-            if (_currentEpisode?.MediaUrl == episode.MediaUrl)
+            if (string.Equals(_currentEpisode?.MediaUrl, episode.MediaUrl, StringComparison.Ordinal))
             {
                 _mediaPlayer?.Play();
-                return;
+                return Task.CompletedTask;
             }
 
             _mediaPlayer?.Pause();
@@ -80,6 +80,8 @@ public class AudioService : IDisposable
             Debug.WriteLine($"Error playing episode: {ex.Message}");
             throw;
         }
+
+        return Task.CompletedTask;
     }
 
     public void Play() => _mediaPlayer?.Play();

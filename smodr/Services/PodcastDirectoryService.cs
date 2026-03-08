@@ -80,7 +80,7 @@ public sealed class PodcastDirectoryService
 
             Debug.WriteLine($"iTunes lookup: fetching {idsToFetch.Count} podcast(s)");
             var json = await _httpClient.GetStringAsync(new Uri(url));
-            var response = JsonSerializer.Deserialize<iTunesLookupResponse>(json, _jsonOptions);
+            var response = JsonSerializer.Deserialize<ITunesLookupResponse>(json, _jsonOptions);
 
             if (response?.Results is { } items)
             {
@@ -167,16 +167,16 @@ public sealed record class PodcastLookupResult
     public DateTime RetrievedAt { get; init; }
 }
 
-file sealed class iTunesLookupResponse
+file sealed class ITunesLookupResponse
 {
     [JsonPropertyName("resultCount")]
     public int ResultCount { get; init; }
 
     [JsonPropertyName("results")]
-    public List<iTunesLookupItem>? Results { get; init; }
+    public List<ITunesLookupItem>? Results { get; init; }
 }
 
-file sealed class iTunesLookupItem
+file sealed class ITunesLookupItem
 {
     [JsonPropertyName("trackId")]
     public long TrackId { get; init; }

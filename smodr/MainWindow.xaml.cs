@@ -396,7 +396,7 @@ public sealed partial class MainWindow : Window
             Title = title,
             Content = content,
             CloseButtonText = "OK",
-            XamlRoot = this.Content.XamlRoot
+            XamlRoot = Content.XamlRoot
         };
 
         await dialog.ShowAsync();

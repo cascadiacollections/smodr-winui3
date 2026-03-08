@@ -293,6 +293,6 @@ dotnet_diagnostic.CA2234.severity = warning        # Pass System.Uri objects ins
 dotnet_diagnostic.IDE0005.severity = warning       # Remove unnecessary usings
 dotnet_diagnostic.IDE0051.severity = warning       # Remove unused private members
 dotnet_diagnostic.IDE0052.severity = warning       # Remove unread private members
-dotnet_diagnostic.IDE0060.severity = warning       # Remove unused parameter
+dotnet_diagnostic.IDE0060.severity = suggestion     # Unused params — suggestion only (XAML event handlers require fixed signatures)
 dotnet_diagnostic.IDE0161.severity = warning       # Use file-scoped namespace
 dotnet_diagnostic.IDE0090.severity = warning       # Simplify new expression
