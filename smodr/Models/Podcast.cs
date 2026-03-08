@@ -17,7 +17,7 @@ public record class Podcast
             Name = "SModcast",
             Description = "The flagship podcast of the SModcast network.",
             FeedUrl = "https://feeds.feedburner.com/SModcasts",
-            ImageUrl = "https://smodcast.com/wp-content/blogs.dir/1/files_mf/smodcast1400.jpg",
+            ImageUrl = "https://i1.sndcdn.com/avatars-000375494753-odz2eo-original.jpg",
             Hosts = "Kevin Smith & Scott Mosier"
         },
         new()
@@ -26,7 +26,7 @@ public record class Podcast
             Name = "Hollywood Babble-On",
             Description = "Live show covering Hollywood news and pop culture.",
             FeedUrl = "https://feeds.feedburner.com/HollywoodBabbleOn",
-            ImageUrl = "https://smodcast.com/wp-content/blogs.dir/1/files_mf/hollywoodbabbleon1400.jpg",
+            ImageUrl = "https://is1-ssl.mzstatic.com/image/thumb/Podcasts123/v4/62/88/07/62880736-f815-844d-1368-0d8aa135b897/mza_6363975001724393925.png/600x600bb.jpg",
             Hosts = "Kevin Smith & Ralph Garman"
         },
         new()
@@ -35,7 +35,7 @@ public record class Podcast
             Name = "Jay & Silent Bob Get Old",
             Description = "Podcast therapy keeping Jason Mewes on the straight and narrow.",
             FeedUrl = "https://feeds.feedburner.com/JayAndSilentBobGetOld",
-            ImageUrl = "https://smodcast.com/wp-content/blogs.dir/1/files_mf/jsbgetold1400.jpg",
+            ImageUrl = "https://i1.sndcdn.com/avatars-000309983285-92en5d-original.jpg",
             Hosts = "Kevin Smith & Jason Mewes"
         },
         new()
@@ -44,7 +44,7 @@ public record class Podcast
             Name = "Fatman Beyond",
             Description = "Deep dives into superhero movies, TV, and geek culture.",
             FeedUrl = "https://feeds.feedburner.com/FatmanOnBatman",
-            ImageUrl = "https://smodcast.com/wp-content/blogs.dir/1/files_mf/fatmanonbatman1400.jpg",
+            ImageUrl = "https://i1.sndcdn.com/avatars-000607513431-dg9ub7-original.jpg",
             Hosts = "Kevin Smith & Marc Bernardin"
         },
         new()
@@ -53,7 +53,7 @@ public record class Podcast
             Name = "Tell 'Em Steve-Dave!",
             Description = "Three guys from New Jersey discuss life, work, and the absurd.",
             FeedUrl = "https://feeds.feedburner.com/TellEmSteveDave",
-            ImageUrl = "https://smodcast.com/wp-content/blogs.dir/1/files_mf/tellemstevedave1400.jpg",
+            ImageUrl = "https://megaphone.imgix.net/podcasts/38dc55da-5cb9-11ee-b82f-cf4026c6a8c7/image/1478271567245-SP7E52DRBWKN5JSW9GLA.jpeg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
             Hosts = "Bryan Johnson, Walt Flanagan & Brian Quinn"
         },
         new()
@@ -62,7 +62,7 @@ public record class Podcast
             Name = "SMoviemakers",
             Description = "Conversations about the art and craft of filmmaking.",
             FeedUrl = "https://feeds.feedburner.com/Smoviemakers",
-            ImageUrl = "https://smodcast.com/wp-content/blogs.dir/1/files_mf/smoviemakers1400.jpg",
+            ImageUrl = "https://i1.sndcdn.com/avatars-000099184010-sffeux-original.jpg",
             Hosts = "Kevin Smith"
         },
     ];
