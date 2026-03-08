@@ -2,9 +2,9 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Windows.Media.Playback;
 using smodr.Models;
 using smodr.Services;
+using Windows.Media.Playback;
 
 namespace smodr.ViewModels;
 
@@ -15,33 +15,33 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly AudioService _audioService = new();
 
     [ObservableProperty]
-    private bool _isLoading;
+    public partial bool IsLoading { get; set; }
 
     [ObservableProperty]
-    private string _loadingMessage = "Loading episodes...";
+    public partial string LoadingMessage { get; set; } = "Loading episodes...";
 
     [ObservableProperty]
-    private Episode? _selectedEpisode;
+    public partial Episode? SelectedEpisode { get; set; }
 
     [ObservableProperty]
-    private Episode? _currentPlayingEpisode;
+    public partial Episode? CurrentPlayingEpisode { get; set; }
 
     [ObservableProperty]
-    private bool _isPlaying;
+    public partial bool IsPlaying { get; set; }
 
     [ObservableProperty]
-    private bool _isPaused;
+    public partial bool IsPaused { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FormattedPosition))]
-    private TimeSpan _currentPosition;
+    public partial TimeSpan CurrentPosition { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FormattedDuration))]
-    private TimeSpan _duration;
+    public partial TimeSpan Duration { get; set; }
 
     [ObservableProperty]
-    private string _playbackStatus = "Stopped";
+    public partial string PlaybackStatus { get; set; } = "Stopped";
 
     public string FormattedPosition => $"{CurrentPosition:mm\\:ss}";
     public string FormattedDuration => $"{Duration:mm\\:ss}";
