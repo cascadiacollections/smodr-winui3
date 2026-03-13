@@ -9,7 +9,7 @@ on:
 
 env:
   DOTNET_VERSION: '10.0.x'
-  SOLUTION_PATH: 'smodr.sln'
+  SOLUTION_PATH: 'smodr.slnx'
   CONFIGURATION: 'Release'
 
 jobs:
@@ -26,8 +26,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v5
@@ -41,16 +39,16 @@ jobs:
       uses: actions/cache@v5
       with:
         path: ~/.nuget/packages
-        key: ${{ runner.os }}-nuget-${{ matrix.platform }}-${{ hashFiles('**/packages.lock.json', '**/*.csproj') }}
+        key: ${{ runner.os }}-nuget-${{ matrix.platform }}-${{ hashFiles('**/packages.lock.json') }}
         restore-keys: |
           ${{ runner.os }}-nuget-${{ matrix.platform }}-
           ${{ runner.os }}-nuget-
 
     - name: Restore dependencies
-      run: dotnet restore ${{ env.SOLUTION_PATH }} -p:Platform=${{ matrix.platform }}
+      run: dotnet restore ${{ env.SOLUTION_PATH }} -p:Platform=${{ matrix.platform }} --locked-mode
 
     - name: Build solution
-      run: dotnet build ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-restore -p:Platform=${{ matrix.platform }}
+      run: dotnet build ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-restore -p:Platform=${{ matrix.platform }} -warnaserror
 
     - name: Upload build artifacts
       if: success()
@@ -79,29 +77,7 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: Restore dependencies
-      run: dotnet restore ${{ env.SOLUTION_PATH }}
+      run: dotnet restore ${{ env.SOLUTION_PATH }} --locked-mode
 
     - name: Check code formatting
       run: dotnet format ${{ env.SOLUTION_PATH }} --verify-no-changes --verbosity diagnostic
-
-  analyze:
-    name: Code Quality Analysis
-    runs-on: windows-latest
-    needs: build
-    permissions:
-      contents: read
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v5
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
-
-    - name: Restore dependencies
-      run: dotnet restore ${{ env.SOLUTION_PATH }}
-
-    - name: Build with analyzers
-      run: dotnet build ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-restore -warnaserror

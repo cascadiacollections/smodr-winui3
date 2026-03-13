@@ -32,4 +32,4 @@ jobs:
         push: never
         runCmd: |
           dotnet --version
-          dotnet restore smodr.sln || echo "Expected restore to fail on Linux for WinUI3 project"
+          dotnet restore smodr.slnx || echo "Expected restore to fail on Linux for WinUI3 project"

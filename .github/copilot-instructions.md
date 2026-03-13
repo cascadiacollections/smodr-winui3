@@ -20,15 +20,18 @@
 ```
 smodr/
 ├── App.xaml(.cs)           # Application entry point
+├── AppConstants.cs         # Shared constants (UserAgent, etc.)
 ├── MainWindow.xaml(.cs)    # Main application window
-├── Models/                 # Data models (Episode, etc.)
+├── Models/                 # Data models (Episode, Podcast)
 ├── ViewModels/             # MVVM ViewModels
 ├── Services/               # Business logic services
 │   ├── AudioService.cs     # Media playback
-│   ├── DataService.cs      # RSS feed fetching
 │   ├── CacheService.cs     # Episode caching
-│   └── DownloadService.cs  # Episode downloads
-├── Converters/             # XAML value converters
+│   ├── DataService.cs      # RSS feed fetching
+│   ├── DownloadService.cs  # Episode downloads
+│   ├── ImageCacheService.cs    # Image download + local caching
+│   └── PodcastDirectoryService.cs  # iTunes Lookup API
+├── Converters/             # XAML value converters (one per file)
 └── Assets/                 # Application assets
 ```
 
@@ -112,13 +115,13 @@ smodr/
 
 ```bash
 # Restore dependencies
-dotnet restore smodr.sln
+dotnet restore smodr.slnx
 
 # Build the solution
-dotnet build smodr.sln
+dotnet build smodr.slnx
 
 # Clean build artifacts
-dotnet clean smodr.sln
+dotnet clean smodr.slnx
 ```
 
 ### Running the Application

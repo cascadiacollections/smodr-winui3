@@ -5,7 +5,7 @@ using WinRT.Interop;
 
 namespace smodr.Services;
 
-public partial class DownloadService : IDisposable
+public class DownloadService : IDisposable
 {
     private const int MaxFileNameLength = 200;
     private readonly HttpClient _httpClient = new();
@@ -65,7 +65,7 @@ public partial class DownloadService : IDisposable
             var extension = Path.GetExtension(uri.LocalPath);
             return string.IsNullOrEmpty(extension) ? ".mp3" : extension;
         }
-        catch
+        catch (UriFormatException)
         {
             return ".mp3";
         }

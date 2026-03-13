@@ -48,8 +48,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty] public partial Podcast? SelectedPodcast { get; set; }
 
-    public string FormattedPosition => $"{CurrentPosition:mm\\:ss}";
-    public string FormattedDuration => $"{Duration:mm\\:ss}";
+    public string FormattedPosition => CurrentPosition.TotalHours >= 1
+        ? $"{CurrentPosition:h\\:mm\\:ss}"
+        : $"{CurrentPosition:mm\\:ss}";
+
+    public string FormattedDuration => Duration.TotalHours >= 1
+        ? $"{Duration:h\\:mm\\:ss}"
+        : $"{Duration:mm\\:ss}";
 
     public ObservableCollection<Episode> Episodes { get; } = [];
 

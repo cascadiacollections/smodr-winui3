@@ -15,7 +15,7 @@
     "vscode": {
       "settings": {
         "terminal.integrated.defaultProfile.linux": "zsh",
-        "dotnet.defaultSolution": "smodr.sln",
+        "dotnet.defaultSolution": "smodr.slnx",
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
           "source.fixAll": "explicit",

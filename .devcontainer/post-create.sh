@@ -10,7 +10,7 @@ git config --global --add safe.directory /workspaces/smodr-winui3 || true
 
 # Restore NuGet packages (will fail on Linux for WinUI3, but useful for IntelliSense)
 echo "📥 Restoring NuGet packages..."
-dotnet restore smodr.sln || echo "⚠️  Note: Package restore expected to fail on Linux for WinUI3 project"
+dotnet restore smodr.slnx || echo "⚠️  Note: Package restore expected to fail on Linux for WinUI3 project"
 
 # Install .NET global tools
 echo "🛠️  Installing .NET global tools..."

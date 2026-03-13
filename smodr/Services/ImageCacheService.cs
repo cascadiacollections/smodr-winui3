@@ -16,8 +16,7 @@ public sealed class ImageCacheService
 
     static ImageCacheService()
     {
-        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
-            "smodr/1.0 (+https://github.com/cascadiacollections/smodr-winui3)");
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(AppConstants.UserAgent);
     }
 
     private async Task EnsureInitializedAsync()

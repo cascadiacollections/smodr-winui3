@@ -6,9 +6,9 @@ using smodr.Models;
 
 namespace smodr.Services;
 
-public partial class DataService : IDisposable
+public class DataService : IDisposable
 {
-    private const string UserAgent = "smodr/1.0 (+https://github.com/cascadiacollections/smodr-winui3)";
+    private const long MaxResponseSizeBytes = 10 * 1024 * 1024; // 10 MB
     private readonly CacheService _cacheService = new();
     private readonly HttpClient _httpClient = new();
 
@@ -70,7 +70,7 @@ public partial class DataService : IDisposable
         string podcastId, string feedUrl)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, feedUrl);
-        request.Headers.UserAgent.ParseAdd(UserAgent);
+        request.Headers.UserAgent.ParseAdd(AppConstants.UserAgent);
 
         // Use conditional requests to respect server caching (ETag / Last-Modified)
         var metadata = await _cacheService.GetCacheMetadataAsync(podcastId);
@@ -94,6 +94,12 @@ public partial class DataService : IDisposable
         }
 
         response.EnsureSuccessStatusCode();
+
+        if (response.Content.Headers.ContentLength is > MaxResponseSizeBytes)
+        {
+            throw new InvalidOperationException(
+                $"RSS feed for {podcastId} exceeds maximum allowed size of {MaxResponseSizeBytes / (1024 * 1024)} MB.");
+        }
 
         // Stream directly into the XML reader instead of buffering the full string
         using var stream = await response.Content.ReadAsStreamAsync();

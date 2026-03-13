@@ -5,7 +5,7 @@ using Windows.Media.Playback;
 
 namespace smodr.Services;
 
-public partial class AudioService : IDisposable
+public class AudioService : IDisposable
 {
     private bool _isInitialized;
     private MediaPlayer? _mediaPlayer;
