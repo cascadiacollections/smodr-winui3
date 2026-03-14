@@ -9,6 +9,8 @@
     <IsTestProject>true</IsTestProject>
     <UseWinUI>true</UseWinUI>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <SelfContained>false</SelfContained>
     <NoWarn>$(NoWarn);CA1707;MSTEST0037</NoWarn>
   </PropertyGroup>
 

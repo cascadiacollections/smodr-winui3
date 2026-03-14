@@ -84,4 +84,6 @@ jobs:
       run: dotnet restore ${{ env.SOLUTION_PATH }} --locked-mode
 
     - name: Check code formatting
-      run: dotnet format ${{ env.SOLUTION_PATH }} --verify-no-changes --verbosity diagnostic
+      run: |
+        dotnet format smodr/smodr.csproj --verify-no-changes --verbosity diagnostic
+        dotnet format smodr.Tests/smodr.Tests.csproj --verify-no-changes --verbosity diagnostic
