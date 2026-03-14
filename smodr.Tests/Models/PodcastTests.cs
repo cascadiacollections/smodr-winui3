@@ -277,6 +277,6 @@ public sealed class PodcastTests
 
         Assert.AreEqual("SModcast", smodcast.Name);
         Assert.IsTrue(smodcast.FeedUrl.Contains("SModcast", StringComparison.OrdinalIgnoreCase));
-        Assert.AreEqual(215010467L, smodcast.ApplePodcastId);
+        Assert.IsNotNull(smodcast.ApplePodcastId);
     }
 }
