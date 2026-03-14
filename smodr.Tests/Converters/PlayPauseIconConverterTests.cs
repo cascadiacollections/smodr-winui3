@@ -28,7 +28,7 @@ public sealed class PlayPauseIconConverterTests
     {
         var result = _converter.ConvertBack("⏸", typeof(bool), null!, string.Empty);
 
-        Assert.AreEqual(true, result);
+        Assert.IsTrue((bool)result);
     }
 
     [TestMethod]
@@ -36,7 +36,7 @@ public sealed class PlayPauseIconConverterTests
     {
         var result = _converter.ConvertBack("▶", typeof(bool), null!, string.Empty);
 
-        Assert.AreEqual(false, result);
+        Assert.IsFalse((bool)result);
     }
 
     [TestMethod]
@@ -44,6 +44,6 @@ public sealed class PlayPauseIconConverterTests
     {
         var result = _converter.ConvertBack("unknown", typeof(bool), null!, string.Empty);
 
-        Assert.AreEqual(false, result);
+        Assert.IsFalse((bool)result);
     }
 }

@@ -12,7 +12,7 @@ public sealed class BoolNegationConverterTests
     {
         var result = _converter.Convert(true, typeof(bool), null!, string.Empty);
 
-        Assert.AreEqual(false, result);
+        Assert.IsFalse((bool)result);
     }
 
     [TestMethod]
@@ -20,7 +20,7 @@ public sealed class BoolNegationConverterTests
     {
         var result = _converter.Convert(false, typeof(bool), null!, string.Empty);
 
-        Assert.AreEqual(true, result);
+        Assert.IsTrue((bool)result);
     }
 
     [TestMethod]
@@ -28,7 +28,7 @@ public sealed class BoolNegationConverterTests
     {
         var result = _converter.ConvertBack(true, typeof(bool), null!, string.Empty);
 
-        Assert.AreEqual(false, result);
+        Assert.IsFalse((bool)result);
     }
 
     [TestMethod]
@@ -36,6 +36,6 @@ public sealed class BoolNegationConverterTests
     {
         var result = _converter.ConvertBack(false, typeof(bool), null!, string.Empty);
 
-        Assert.AreEqual(true, result);
+        Assert.IsTrue((bool)result);
     }
 }

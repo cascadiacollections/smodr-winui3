@@ -9,6 +9,7 @@
     <IsTestProject>true</IsTestProject>
     <UseWinUI>true</UseWinUI>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <NoWarn>$(NoWarn);CA1707;MSTEST0037</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

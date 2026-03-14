@@ -31,6 +31,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="smodr.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
     <PackageReference Include="Microsoft.WindowsAppSDK" />

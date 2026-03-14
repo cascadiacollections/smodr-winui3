@@ -18,8 +18,8 @@ public sealed class EpisodeTests
         var result = episode.FormattedPublishDate;
 
         Assert.IsFalse(string.IsNullOrEmpty(result));
-        StringAssert.Contains(result, "15");
-        StringAssert.Contains(result, "2024");
+        StringAssert.Contains(result, "15", StringComparison.Ordinal);
+        StringAssert.Contains(result, "2024", StringComparison.Ordinal);
     }
 
     [TestMethod]
@@ -112,7 +112,7 @@ public sealed class EpisodeTests
             PublishDate = new DateTime(2024, 6, 15, 0, 0, 0, DateTimeKind.Utc)
         };
 
-        StringAssert.Contains(episode.MetadataLine, "Unknown");
+        StringAssert.Contains(episode.MetadataLine, "Unknown", StringComparison.Ordinal);
     }
 
     [TestMethod]

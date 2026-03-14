@@ -45,7 +45,7 @@ public sealed class BoolToVisibilityConverterTests
     {
         var result = _converter.ConvertBack(Visibility.Visible, typeof(bool), null!, string.Empty);
 
-        Assert.AreEqual(true, result);
+        Assert.IsTrue((bool)result);
     }
 
     [TestMethod]
@@ -53,6 +53,6 @@ public sealed class BoolToVisibilityConverterTests
     {
         var result = _converter.ConvertBack(Visibility.Collapsed, typeof(bool), null!, string.Empty);
 
-        Assert.AreEqual(false, result);
+        Assert.IsFalse((bool)result);
     }
 }

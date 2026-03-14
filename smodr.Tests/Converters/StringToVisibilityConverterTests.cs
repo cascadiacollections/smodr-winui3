@@ -27,7 +27,7 @@ public sealed class StringToVisibilityConverterTests
     [TestMethod]
     public void ConvertBack_ThrowsNotSupportedException()
     {
-        Assert.ThrowsException<NotSupportedException>(
+        Assert.ThrowsExactly<NotSupportedException>(
             () => _converter.ConvertBack(Visibility.Visible, typeof(string), null!, string.Empty));
     }
 }

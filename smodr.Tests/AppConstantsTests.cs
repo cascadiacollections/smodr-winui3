@@ -12,12 +12,12 @@ public sealed class AppConstantsTests
     [TestMethod]
     public void UserAgent_ContainsAppName()
     {
-        StringAssert.Contains(AppConstants.UserAgent, "smodr");
+        StringAssert.Contains(AppConstants.UserAgent, "smodr", StringComparison.Ordinal);
     }
 
     [TestMethod]
     public void UserAgent_ContainsGitHubUrl()
     {
-        StringAssert.Contains(AppConstants.UserAgent, "github.com");
+        StringAssert.Contains(AppConstants.UserAgent, "github.com", StringComparison.Ordinal);
     }
 }
