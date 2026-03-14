@@ -9,4 +9,7 @@
     <PackageVersion Include="Microsoft.WindowsAppSDK" Version="1.8.260209005" />
     <PackageVersion Include="System.ServiceModel.Syndication" Version="10.0.5" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageVersion Include="MSTest" Version="4.0.1" />
+  </ItemGroup>
 </Project>
