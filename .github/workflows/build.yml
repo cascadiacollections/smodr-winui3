@@ -50,6 +50,10 @@ jobs:
     - name: Build solution
       run: dotnet build ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-restore -p:Platform=${{ matrix.platform }} -warnaserror
 
+    - name: Run tests
+      if: matrix.platform == 'x64'
+      run: dotnet test ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-build -p:Platform=${{ matrix.platform }} --logger "trx;LogFileName=test-results.trx"
+
     - name: Upload build artifacts
       if: success()
       uses: actions/upload-artifact@v7
@@ -80,4 +84,6 @@ jobs:
       run: dotnet restore ${{ env.SOLUTION_PATH }} --locked-mode
 
     - name: Check code formatting
-      run: dotnet format ${{ env.SOLUTION_PATH }} --verify-no-changes --verbosity diagnostic
+      run: |
+        dotnet format smodr/smodr.csproj --verify-no-changes --verbosity diagnostic
+        dotnet format smodr.Tests/smodr.Tests.csproj --verify-no-changes --verbosity diagnostic

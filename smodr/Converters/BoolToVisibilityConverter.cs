@@ -8,7 +8,7 @@ public partial class BoolToVisibilityConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         var boolValue = (bool)value;
-        if (parameter.ToString() == "True")
+        if (parameter?.ToString() == "True")
         {
             boolValue = !boolValue;
         }
