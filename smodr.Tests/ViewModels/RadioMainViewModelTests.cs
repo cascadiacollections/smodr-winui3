@@ -263,6 +263,87 @@ public sealed class RadioMainViewModelTests
         Assert.AreEqual("Playing, but recent stations could not be saved.", viewModel.Status);
     }
 
+    [TestMethod]
+    public async Task NewSelectionReportsOnceButResumeDoesNot()
+    {
+        var station = new RadioStation { Id = "bdb9fa3b-5672-4e0e-9b75-dcb19295c483", Name = "Example" };
+        var reporter = new StubReporter();
+        var player = new StubPlayer(playbackRequested: false);
+        using var viewModel = new RadioMainViewModel(player,
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            new StubLibrary(), action => action(), playReporter: reporter,
+            privacySettings: new StubPrivacy(true));
+
+        await viewModel.TogglePlaybackAsync(station);
+        viewModel.CurrentStation = station;
+        await viewModel.TogglePlaybackAsync(station);
+        viewModel.PlayPause();
+
+        Assert.AreEqual(1, reporter.Count);
+    }
+
+    [TestMethod]
+    public async Task RapidSecondClickBeforeUiDispatchDoesNotReportAgain()
+    {
+        var station = new RadioStation { Id = "bdb9fa3b-5672-4e0e-9b75-dcb19295c483" };
+        var reporter = new StubReporter();
+        var player = new StubPlayer(playbackRequested: true);
+        using var viewModel = new RadioMainViewModel(player,
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            new StubLibrary(), action => action(), playReporter: reporter,
+            privacySettings: new StubPrivacy(true));
+
+        await viewModel.TogglePlaybackAsync(station);
+        await viewModel.TogglePlaybackAsync(station);
+
+        Assert.AreEqual(1, reporter.Count);
+    }
+
+    [TestMethod]
+    public async Task OptOutAndFailedPlayNeverReport()
+    {
+        var station = new RadioStation { Id = "bdb9fa3b-5672-4e0e-9b75-dcb19295c483", Name = "Example" };
+        var reporter = new StubReporter();
+        var privacy = new StubPrivacy(false);
+        using var viewModel = new RadioMainViewModel(new StubPlayer(),
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            new StubLibrary(), action => action(), playReporter: reporter, privacySettings: privacy);
+
+        await viewModel.TogglePlaybackAsync(station);
+        Assert.AreEqual(0, reporter.Count);
+        await viewModel.SetPlayReportingEnabledAsync(true);
+        Assert.IsTrue(viewModel.IsPlayReportingEnabled);
+
+        using var failingViewModel = new RadioMainViewModel(
+            new StubPlayer(playStation: _ => throw new InvalidOperationException()),
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            new StubLibrary(), action => action(), playReporter: reporter, privacySettings: privacy);
+        await failingViewModel.TogglePlaybackAsync(station);
+        Assert.AreEqual(0, reporter.Count);
+    }
+
+    private sealed class StubReporter : IStationPlayReporter
+    {
+        public int Count { get; private set; }
+        public Task ReportPlayAsync(string stationId, CancellationToken cancellationToken = default)
+        {
+            Count++;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class StubPrivacy(bool enabled) : IRadioPrivacySettings
+    {
+        private bool _enabled = enabled;
+        public bool IsPlayReportingEnabled => _enabled;
+        public Task SetPlayReportingEnabledAsync(bool value)
+        {
+            _enabled = value;
+            return Task.CompletedTask;
+        }
+        public Task FlushAsync() => Task.CompletedTask;
+    }
+
     private sealed class StubDirectory(
         Func<string, CancellationToken, Task<IReadOnlyList<RadioStation>>> search,
         Func<CancellationToken, Task<IReadOnlyList<RadioStation>>>? popular = null) : IRadioDirectoryService
@@ -318,7 +399,7 @@ public sealed class RadioMainViewModelTests
         bool playbackRequested = false,
         Action? pause = null) : IRadioPlayer
     {
-        public RadioStation? CurrentStation => null;
+        public RadioStation? CurrentStation { get; private set; }
         public bool IsPlaying => false;
         public bool IsPlaybackRequested => playbackRequested;
         public event EventHandler<RadioStation?>? StationChanged
@@ -336,10 +417,18 @@ public sealed class RadioMainViewModelTests
             add { }
             remove { }
         }
-        public Task PlayStationAsync(RadioStation station) =>
-            playStation?.Invoke(station) ?? Task.CompletedTask;
+        public Task PlayStationAsync(RadioStation station)
+        {
+            var operation = playStation?.Invoke(station) ?? Task.CompletedTask;
+            CurrentStation = station;
+            return operation;
+        }
         public void Play() => play?.Invoke();
         public void Pause() => pause?.Invoke();
-        public void StopStation() => stopStation?.Invoke();
+        public void StopStation()
+        {
+            stopStation?.Invoke();
+            CurrentStation = null;
+        }
     }
 }

@@ -17,6 +17,7 @@ public sealed partial class MainWindow : Window
     private bool _closingAfterFlush;
     private bool _closeAfterFlush;
     private bool _closed;
+    private bool _settingsReady;
 
     public RadioMainViewModel ViewModel { get; }
 
@@ -24,6 +25,8 @@ public sealed partial class MainWindow : Window
     {
         ViewModel = viewModel;
         InitializeComponent();
+        PlayReportingSwitch.IsOn = ViewModel.IsPlayReportingEnabled;
+        _settingsReady = true;
         ConfigureWindow();
 
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
@@ -83,7 +86,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var pending = Task.WhenAll(ViewModel.FlushLibraryAsync(), ViewModel.FlushDirectoryCacheAsync());
+        var pending = Task.WhenAll(ViewModel.FlushLibraryAsync(), ViewModel.FlushDirectoryCacheAsync(), ViewModel.FlushPrivacySettingsAsync());
         if (pending.IsCompleted)
         {
             return;
@@ -101,7 +104,7 @@ public sealed partial class MainWindow : Window
             do
             {
                 await pending;
-                pending = Task.WhenAll(ViewModel.FlushLibraryAsync(), ViewModel.FlushDirectoryCacheAsync());
+                pending = Task.WhenAll(ViewModel.FlushLibraryAsync(), ViewModel.FlushDirectoryCacheAsync(), ViewModel.FlushPrivacySettingsAsync());
             } while (!pending.IsCompleted);
         }
         catch (Exception exception)
@@ -218,6 +221,20 @@ public sealed partial class MainWindow : Window
 
     private void PlayPauseButton_Click(object sender, RoutedEventArgs e) => ViewModel.PlayPause();
     private void StopButton_Click(object sender, RoutedEventArgs e) => ViewModel.Stop();
+
+    private async void PlayReportingSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (!_settingsReady) return;
+        try { await ViewModel.SetPlayReportingEnabledAsync(PlayReportingSwitch.IsOn); }
+        catch (Exception exception)
+        {
+            AppDiagnostics.Record("privacy.write", exception);
+            StatusInfoBar.Severity = InfoBarSeverity.Error;
+            StatusInfoBar.Title = "Setting not saved";
+            StatusInfoBar.Message = "Your play-reporting choice could not be saved on this device.";
+            StatusInfoBar.IsOpen = true;
+        }
+    }
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {

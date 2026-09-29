@@ -96,6 +96,51 @@ public sealed class RadioDirectoryServiceTests
         Assert.AreEqual(1, requests);
     }
 
+    [TestMethod]
+    public async Task DiscoveryUsesIosClickRanking()
+    {
+        var requests = new List<Uri>();
+        using var handler = new StubHandler(request =>
+        {
+            requests.Add(request.RequestUri!);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
+        });
+        using var client = new HttpClient(handler, disposeHandler: false);
+        var service = new RadioDirectoryService(client, (Uri[])[new Uri("https://first.example/")]);
+
+        await service.GetPopularStationsAsync();
+        await service.SearchAsync("jazz");
+        await service.SearchGenreAsync("jazz");
+
+        StringAssert.Contains(requests[0].AbsolutePath, "/topclick/", StringComparison.Ordinal);
+        StringAssert.Contains(requests[1].Query, "order=clickcount", StringComparison.Ordinal);
+        StringAssert.Contains(requests[2].Query, "order=clickcount", StringComparison.Ordinal);
+    }
+
+    [TestMethod]
+    public async Task ReportPlaySendsOnlyRadioBrowserUuidAndFallsBack()
+    {
+        var requests = new List<Uri>();
+        using var handler = new StubHandler(request =>
+        {
+            requests.Add(request.RequestUri!);
+            return new HttpResponseMessage(request.RequestUri!.Host == "first.example"
+                ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.OK);
+        });
+        using var client = new HttpClient(handler, disposeHandler: false);
+        var service = new RadioDirectoryService(client,
+            (Uri[])[new Uri("https://first.example/"), new Uri("https://second.example/")]);
+
+        await service.ReportPlayAsync("bundled-kexp");
+        Assert.IsEmpty(requests);
+        await service.ReportPlayAsync("bdb9fa3b-5672-4e0e-9b75-dcb19295c483");
+
+        Assert.HasCount(2, requests);
+        Assert.AreEqual("/json/url/bdb9fa3b-5672-4e0e-9b75-dcb19295c483", requests[0].AbsolutePath);
+        Assert.AreEqual("second.example", requests[1].Host);
+        Assert.IsTrue(client.DefaultRequestHeaders.UserAgent.Count > 0);
+    }
+
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(

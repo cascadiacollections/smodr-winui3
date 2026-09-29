@@ -4,7 +4,11 @@ This branch is a Windows ARM64 adaptation of the [Shoutkit iOS app](https://gith
 
 Listen Now shows popular stations and recently played stations. Search supports station names and genre browsing. Favorites and the 20 most recent stations are saved in the user's local app data. Playback uses Windows MediaPlayer and the mini-player is shared across views. Station artwork is downloaded with timeout, size, format, concurrency, and cache limits before WinUI receives it. A second launch activates the existing window instead of opening a second player.
 
+Radio Browser discovery now follows the iOS app's click-based ranking: popular stations use `topclick`, and search and genres sort by `clickcount`. Starting a new Radio Browser station reports its UUID to Radio Browser's `/json/url/{stationuuid}` endpoint to contribute to the community play count. This is on by default, matching iOS, and can be turned off in **Settings → Privacy → Report plays to Radio Browser**. Bundled/non-UUID stations, playback retries, and resume do not send a report. Reporting is best-effort and never delays or prevents playback; Radio Browser receives the request's normal network metadata, including your IP address and the app's User-Agent. The choice is saved locally in `%LOCALAPPDATA%\CascadiaCollections\ShoutkitWindows\privacy-settings.json`. A damaged existing settings file fails closed (reporting off).
+
 After the first successful fetch, popular stations load from `%LOCALAPPDATA%\CascadiaCollections\ShoutkitWindows\directory-cache.json` before the directory request finishes. Genre and submitted-search results use the same bounded snapshot cache; search keys are hashes rather than saved query text. A failed refresh keeps saved stations visible. Popular snapshots expire after 30 days, and search/genre snapshots after 7 days. Station artwork also survives restarts in a 48-file, 30-day disk cache. A first-ever install still needs the network. After a successful popular refresh, the app gently prefetches the seven visible genre chips while it remains open, but only on an unrestricted Windows connection with Energy Saver off. The unpackaged preview does not register a persistent Windows background task; that requires MSIX package identity.
+
+The Windows snapshot policy intentionally differs from iOS's six-hour stable landing snapshot and non-persisted search/genre results: the longer-lived Windows copies support the requested offline/warm browsing behavior. A cached list from an earlier build may briefly retain vote-based ordering until the first successful refresh replaces it.
 
 Live radio bounds a stalled or initial buffer to 30 seconds, then rejoins the stream with up to three backed-off retries (2, 4, and 8 seconds). A resume that never reaches Playing is rejoined after 2 seconds. Pausing, stopping, or switching stations cancels stale recovery work; a finished finite stream is not looped. After the retry budget is spent, playback stops with an explicit Play-to-retry message. These timings match the iOS playback controller's defaults and are covered by headless recovery tests; real station/network behavior still needs interactive validation.
 
@@ -17,6 +21,8 @@ dotnet test smodr.slnx -c Release --no-build --no-restore -p:Platform=ARM64
 dotnet publish smodr/smodr.csproj -c Release --no-restore -p:Platform=ARM64 -r win-arm64 --self-contained true -o out/shoutkit-arm64
 ./out/shoutkit-arm64/smodr.exe
 ```
+
+If the corporate network blocks NuGet's vulnerability feed but packages are already cached, use `-p:NuGetAudit=false --ignore-failed-sources` for the local restore. This skips the vulnerability lookup; run a normal audited restore in CI or on an unrestricted network before release.
 
 Keep the published folder together: the `.exe` alone is not sufficient. No separate .NET Desktop Runtime or Windows App SDK runtime installation is required. This preview is not signed or packaged for Store distribution. If `api.nuget.org` is blocked on the host, add `--source https://www.nuget.org/api/v2/` to the restore command.
 

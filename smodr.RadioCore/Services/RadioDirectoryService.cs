@@ -3,7 +3,7 @@ using smodr.Models;
 
 namespace smodr.Services;
 
-public sealed class RadioDirectoryService : IRadioDirectoryService
+public sealed class RadioDirectoryService : IRadioDirectoryService, IStationPlayReporter
 {
     private const string UserAgent = "ShoutkitWindows/0.1 (+https://github.com/cascadiacollections/smodr-winui3)";
     private static readonly Uri[] _defaultServers =
@@ -34,7 +34,7 @@ public sealed class RadioDirectoryService : IRadioDirectoryService
     public Task<IReadOnlyList<RadioStation>> GetPopularStationsAsync(
         int limit = 50,
         CancellationToken cancellationToken = default) =>
-        GetStationsAsync($"json/stations/topvote/{Math.Clamp(limit, 1, 100)}?hidebroken=true", cancellationToken);
+        GetStationsAsync($"json/stations/topclick/{Math.Clamp(limit, 1, 100)}?hidebroken=true", cancellationToken);
 
     public Task<IReadOnlyList<RadioStation>> SearchAsync(
         string query,
@@ -48,7 +48,7 @@ public sealed class RadioDirectoryService : IRadioDirectoryService
 
         var encodedQuery = Uri.EscapeDataString(query.Trim());
         return GetStationsAsync(
-            $"json/stations/search?name={encodedQuery}&limit={Math.Clamp(limit, 1, 100)}&order=votes&reverse=true&hidebroken=true",
+            $"json/stations/search?name={encodedQuery}&limit={Math.Clamp(limit, 1, 100)}&order=clickcount&reverse=true&hidebroken=true",
             cancellationToken);
     }
 
@@ -64,8 +64,37 @@ public sealed class RadioDirectoryService : IRadioDirectoryService
 
         var encodedGenre = Uri.EscapeDataString(genre.Trim());
         return GetStationsAsync(
-            $"json/stations/bytag/{encodedGenre}?limit={Math.Clamp(limit, 1, 100)}&order=votes&reverse=true&hidebroken=true",
+            $"json/stations/bytag/{encodedGenre}?limit={Math.Clamp(limit, 1, 100)}&order=clickcount&reverse=true&hidebroken=true",
             cancellationToken);
+    }
+
+    public async Task ReportPlayAsync(string stationId, CancellationToken cancellationToken = default)
+    {
+        // Bundled and third-party stations do not have Radio Browser UUIDs.
+        if (!Guid.TryParseExact(stationId, "D", out var stationUuid)) return;
+
+        Exception? lastError = null;
+        foreach (var server in _servers)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                using var response = await _httpClient.GetAsync(
+                    new Uri(server, $"json/url/{stationUuid:D}"), cancellationToken).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+                return;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+            {
+                lastError = exception;
+            }
+        }
+
+        if (lastError is not null) AppDiagnostics.Record("directory.play-report", lastError);
     }
 
     private async Task<IReadOnlyList<RadioStation>> GetStationsAsync(string path, CancellationToken cancellationToken)

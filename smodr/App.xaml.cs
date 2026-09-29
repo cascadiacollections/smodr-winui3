@@ -58,8 +58,11 @@ public partial class App : Application
         services.AddSingleton<IRadioPlayer, AudioService>();
         services.AddSingleton<IRadioLibraryService, RadioLibraryService>();
         services.AddSingleton<IRadioDirectorySnapshotCache, RadioDirectorySnapshotCache>();
-        services.AddHttpClient<IRadioDirectoryService, RadioDirectoryService>(client =>
+        services.AddSingleton<IRadioPrivacySettings, RadioPrivacySettings>();
+        services.AddHttpClient<RadioDirectoryService>(client =>
             client.Timeout = TimeSpan.FromSeconds(8));
+        services.AddTransient<IRadioDirectoryService>(provider => provider.GetRequiredService<RadioDirectoryService>());
+        services.AddTransient<IStationPlayReporter>(provider => provider.GetRequiredService<RadioDirectoryService>());
         services.AddSingleton<RadioMainViewModel>();
         _services = services.BuildServiceProvider(validateScopes: true);
     }

@@ -15,6 +15,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     private readonly IRadioDirectoryService _directory;
     private readonly IRadioLibraryService _library;
     private readonly IRadioDirectorySnapshotCache? _cache;
+    private readonly IStationPlayReporter? _playReporter;
+    private readonly IRadioPrivacySettings? _privacySettings;
     private readonly Action<Action> _dispatch;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private CancellationTokenSource? _searchCancellation;
@@ -28,7 +30,9 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         IRadioDirectoryService directory,
         IRadioLibraryService library,
         Action<Action>? dispatch = null,
-        IRadioDirectorySnapshotCache? cache = null)
+        IRadioDirectorySnapshotCache? cache = null,
+        IStationPlayReporter? playReporter = null,
+        IRadioPrivacySettings? privacySettings = null)
     {
         if (dispatch is null)
         {
@@ -44,6 +48,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _directory = directory;
         _library = library;
         _cache = cache;
+        _playReporter = playReporter;
+        _privacySettings = privacySettings;
         _audio.StationChanged += Audio_StationChanged;
         _audio.PlaybackStateChanged += Audio_PlaybackStateChanged;
         _audio.PlaybackFailed += Audio_PlaybackFailed;
@@ -59,6 +65,13 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     [ObservableProperty] public partial bool IsPlaying { get; set; }
     [ObservableProperty] public partial bool IsLoading { get; set; }
     [ObservableProperty] public partial string Status { get; set; } = "Tuning in…";
+    public bool IsPlayReportingEnabled => _privacySettings?.IsPlayReportingEnabled ?? false;
+
+    public Task SetPlayReportingEnabledAsync(bool enabled) =>
+        _privacySettings?.SetPlayReportingEnabledAsync(enabled) ?? Task.CompletedTask;
+
+    public Task FlushPrivacySettingsAsync() =>
+        _privacySettings?.FlushAsync() ?? Task.CompletedTask;
 
     public async Task LoadPopularAsync()
     {
@@ -233,7 +246,10 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            if (CurrentStation is not null && RadioStationIdentity.Matches(CurrentStation, station))
+            // The player changes station synchronously, while the UI property may
+            // still be waiting on the dispatcher after a fast second click.
+            var activeStation = _audio.CurrentStation ?? CurrentStation;
+            if (activeStation is not null && RadioStationIdentity.Matches(activeStation, station))
             {
                 if (_audio.IsPlaybackRequested)
                 {
@@ -248,6 +264,10 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             }
 
             await _audio.PlayStationAsync(station);
+            if (_privacySettings?.IsPlayReportingEnabled == true && _playReporter is not null)
+            {
+                _ = ReportPlayBestEffortAsync(station.Id);
+            }
             try
             {
                 await _library.LogRecentAsync(station);
@@ -292,6 +312,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         try
         {
             _audio.StopStation();
+            CurrentStation = null;
             IsPlaying = false;
         }
         catch (Exception ex)
@@ -414,5 +435,11 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     {
         AppDiagnostics.Record("station.control", exception);
         Status = "Unable to play this station. Try another station.";
+    }
+
+    private async Task ReportPlayBestEffortAsync(string stationId)
+    {
+        try { await _playReporter!.ReportPlayAsync(stationId).ConfigureAwait(false); }
+        catch (Exception exception) { AppDiagnostics.Record("directory.play-report", exception); }
     }
 }

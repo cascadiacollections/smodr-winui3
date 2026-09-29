@@ -153,6 +153,11 @@
                 <Grid x:Name="SettingsView" Visibility="Collapsed" Padding="28,20">
                     <StackPanel Spacing="18" MaxWidth="680" HorizontalAlignment="Left">
                         <TextBlock Text="Settings" Style="{ThemeResource TitleLargeTextBlockStyle}"/>
+                        <TextBlock Text="Privacy" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                        <ToggleSwitch x:Name="PlayReportingSwitch" Header="Report plays to Radio Browser"
+                                      OnContent="On" OffContent="Off" Toggled="PlayReportingSwitch_Toggled"/>
+                        <TextBlock Text="When enabled, starting a Radio Browser station sends its station ID to Radio Browser to contribute to the community play count. Playback retries and resume do not send another report."
+                                   TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         <TextBlock Text="About" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                         <TextBlock Text="Shoutkit for Windows · Native ARM64 preview"/>
                         <TextBlock Text="Favorites and recent stations are saved on this device. Station listings come from Radio Browser."
