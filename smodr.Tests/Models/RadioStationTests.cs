@@ -34,4 +34,10 @@ public sealed class RadioStationTests
 
         Assert.AreEqual(string.Empty, station.Details);
     }
+
+    [TestMethod]
+    public void EmptyStationIdentitiesDoNotMatch()
+    {
+        Assert.IsFalse(RadioStationIdentity.Matches(new RadioStation(), new RadioStation()));
+    }
 }

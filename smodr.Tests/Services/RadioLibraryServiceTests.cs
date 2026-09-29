@@ -63,6 +63,8 @@ public sealed class RadioLibraryServiceTests
 
             Assert.IsEmpty(library.Favorites);
             Assert.IsEmpty(library.Recents);
+            Assert.HasCount(1, Directory.GetFiles(Path.GetDirectoryName(filePath)!,
+                $"{Path.GetFileName(filePath)}.corrupt-*"));
         }
         finally
         {
@@ -70,6 +72,51 @@ public sealed class RadioLibraryServiceTests
             {
                 File.Delete(filePath);
             }
+            foreach (var backup in Directory.GetFiles(Path.GetDirectoryName(filePath)!,
+                $"{Path.GetFileName(filePath)}.corrupt-*"))
+            {
+                File.Delete(backup);
+            }
+        }
+    }
+
+    [TestMethod]
+    public void FailedSaveRollsBackFavoriteChange()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"shoutkit-library-{Guid.NewGuid():N}");
+        var filePath = Path.Combine(root, "library.json");
+        Directory.CreateDirectory(filePath);
+        try
+        {
+            var library = new RadioLibraryService(filePath);
+            var station = new RadioStation { Id = "one", StreamUrl = "https://example.com/live" };
+
+            Assert.ThrowsExactly<UnauthorizedAccessException>(() => library.ToggleFavorite(station));
+            Assert.IsFalse(library.IsFavorite(station));
+        }
+        finally
+        {
+            Directory.Delete(filePath);
+            Directory.Delete(root);
+        }
+    }
+
+    [TestMethod]
+    public void NewerLibraryFormatIsPreservedReadOnly()
+    {
+        var filePath = Path.Combine(Path.GetTempPath(), $"shoutkit-library-{Guid.NewGuid():N}.json");
+        var futureData = """{"SchemaVersion":999,"Favorites":[],"Recents":[]}""";
+        try
+        {
+            File.WriteAllText(filePath, futureData);
+            var library = new RadioLibraryService(filePath);
+
+            Assert.ThrowsExactly<IOException>(() => library.LogRecent(new RadioStation()));
+            Assert.AreEqual(futureData, File.ReadAllText(filePath));
+        }
+        finally
+        {
+            File.Delete(filePath);
         }
     }
 }

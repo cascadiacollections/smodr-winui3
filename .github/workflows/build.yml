@@ -8,7 +8,6 @@ on:
   workflow_dispatch:
 
 env:
-  DOTNET_VERSION: '10.0.x'
   SOLUTION_PATH: 'smodr.slnx'
   CONFIGURATION: 'Release'
 
@@ -21,7 +20,11 @@ jobs:
 
     strategy:
       matrix:
-        platform: [x64, ARM64]
+        include:
+          - platform: x64
+            rid: win-x64
+          - platform: ARM64
+            rid: win-arm64
 
     steps:
     - name: Checkout code
@@ -30,7 +33,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
+        global-json-file: global.json
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v3
@@ -52,17 +55,20 @@ jobs:
 
     - name: Run tests
       if: matrix.platform == 'x64'
-      run: dotnet test ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-build -p:Platform=${{ matrix.platform }} --logger "trx;LogFileName=test-results.trx"
+      run: dotnet test ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-build --no-restore -p:Platform=${{ matrix.platform }} --logger "trx;LogFileName=test-results.trx"
+
+    - name: Publish self-contained app
+      run: dotnet publish smodr/smodr.csproj --configuration ${{ env.CONFIGURATION }} --no-restore -p:Platform=${{ matrix.platform }} -r ${{ matrix.rid }} --self-contained true -o out/shoutkit-${{ matrix.platform }}
+
+    - name: Validate unsigned MSIX packaging
+      run: dotnet msbuild smodr/smodr.csproj -restore -p:RestoreLockedMode=true -p:Configuration=${{ env.CONFIGURATION }} -p:Platform=${{ matrix.platform }} -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=false -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageDir=out/msix-${{ matrix.platform }}/ -v:q
 
     - name: Upload build artifacts
       if: success()
       uses: actions/upload-artifact@v7
       with:
-        name: build-${{ matrix.platform }}
-        path: |
-          **/bin/${{ matrix.platform }}/${{ env.CONFIGURATION }}/**
-          !**/bin/${{ matrix.platform }}/${{ env.CONFIGURATION }}/**/ref/**
-          !**/bin/${{ matrix.platform }}/${{ env.CONFIGURATION }}/**/*.pdb
+        name: shoutkit-${{ matrix.platform }}-unsigned-preview
+        path: out/shoutkit-${{ matrix.platform }}/
         retention-days: 7
 
   format-check:
@@ -78,12 +84,13 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
+        global-json-file: global.json
 
     - name: Restore dependencies
       run: dotnet restore ${{ env.SOLUTION_PATH }} --locked-mode
 
     - name: Check code formatting
       run: |
+        dotnet format smodr.RadioCore/smodr.RadioCore.csproj --verify-no-changes --verbosity diagnostic
         dotnet format smodr/smodr.csproj --verify-no-changes --verbosity diagnostic
         dotnet format smodr.Tests/smodr.Tests.csproj --verify-no-changes --verbosity diagnostic

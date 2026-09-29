@@ -15,7 +15,7 @@
   <mp:PhoneIdentity PhoneProductId="791b9f2a-7675-4564-88ea-3cf4789f711b" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>smodr</DisplayName>
+    <DisplayName>Shoutkit</DisplayName>
     <PublisherDisplayName>excel</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
@@ -34,8 +34,8 @@
       Executable="$targetnametoken$.exe"
       EntryPoint="$targetentrypoint$">
       <uap:VisualElements
-        DisplayName="smodr"
-        Description="smodr"
+        DisplayName="Shoutkit"
+        Description="Live radio for Windows"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">

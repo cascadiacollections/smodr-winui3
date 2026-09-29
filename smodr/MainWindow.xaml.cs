@@ -3,6 +3,7 @@ using System.ComponentModel;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using smodr.Models;
 using smodr.ViewModels;
@@ -11,10 +12,11 @@ namespace smodr;
 
 public sealed partial class MainWindow : Window
 {
-    public RadioMainViewModel ViewModel { get; } = new();
+    public RadioMainViewModel ViewModel { get; }
 
-    public MainWindow()
+    public MainWindow(RadioMainViewModel viewModel)
     {
+        ViewModel = viewModel;
         InitializeComponent();
         ConfigureWindow();
 
@@ -168,6 +170,7 @@ public sealed partial class MainWindow : Window
                 break;
             case nameof(ViewModel.IsPlaying):
                 PlayPauseIcon.Glyph = ViewModel.IsPlaying ? "\uE769" : "\uE768";
+                AutomationProperties.SetName(PlayPauseButton, ViewModel.IsPlaying ? "Pause" : "Play");
                 break;
             case nameof(ViewModel.IsLoading):
                 LoadingRing.IsActive = ViewModel.IsLoading;
@@ -191,7 +194,10 @@ public sealed partial class MainWindow : Window
         NowPlayingTitle.Text = station.Name;
         NowPlayingSubtitle.Text = string.IsNullOrWhiteSpace(ViewModel.Status) ? station.Details : ViewModel.Status;
         NowPlayingArtwork.ArtworkUrl = station.ArtworkUrl;
-        FavoriteNowPlayingIcon.Glyph = ViewModel.IsFavorite(station) ? "\uEB52" : "\uEB51";
+        var isFavorite = ViewModel.IsFavorite(station);
+        FavoriteNowPlayingIcon.Glyph = isFavorite ? "\uEB52" : "\uEB51";
+        AutomationProperties.SetName(FavoriteNowPlayingButton,
+            isFavorite ? $"Remove {station.Name} from favorites" : $"Add {station.Name} to favorites");
     }
 
     private void UpdateStatus()

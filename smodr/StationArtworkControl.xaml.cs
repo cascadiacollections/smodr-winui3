@@ -87,8 +87,8 @@ public sealed partial class StationArtworkControl : UserControl, IDisposable
             await image.SetSourceAsync(stream);
             if (!cancellationToken.IsCancellationRequested)
             {
-                ArtworkImage.Source = image;
-                Placeholder.Visibility = Visibility.Collapsed;
+                this.ArtworkImage.Source = image;
+                this.Placeholder.Visibility = Visibility.Collapsed;
             }
         }
         catch (Exception)

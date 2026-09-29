@@ -7,7 +7,7 @@ Listen Now shows popular stations and recently played stations. Search supports 
 Build and run on Windows ARM64 with the [.NET 11 RC1 ARM64 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/11.0). The repository's `global.json` pins `11.0.100-rc.1.26425.128`; .NET 10 alone will not build this version:
 
 ```powershell
-dotnet restore smodr.slnx -p:Platform=ARM64 -r win-arm64
+dotnet restore smodr.slnx -p:Platform=ARM64 --locked-mode
 dotnet build smodr.slnx -c Release --no-restore -p:Platform=ARM64 -warnaserror
 dotnet test smodr.slnx -c Release --no-build --no-restore -p:Platform=ARM64
 dotnet publish smodr/smodr.csproj -c Release --no-restore -p:Platform=ARM64 -r win-arm64 --self-contained true -o out/shoutkit-arm64
@@ -16,7 +16,9 @@ dotnet publish smodr/smodr.csproj -c Release --no-restore -p:Platform=ARM64 -r w
 
 Keep the published folder together: the `.exe` alone is not sufficient. No separate .NET Desktop Runtime or Windows App SDK runtime installation is required. This preview is not signed or packaged for Store distribution. If `api.nuget.org` is blocked on the host, add `--source https://www.nuget.org/api/v2/` to the restore command.
 
-Favorites and recents are stored at `%LOCALAPPDATA%\\CascadiaCollections\\ShoutkitWindows\\library.json`. Library writes use a temporary file and replacement to reduce corruption from interrupted saves. Station metadata comes from [Radio Browser](https://www.radio-browser.info/); audio and artwork are fetched from station-provided URLs. An internet connection is required for discovery and playback. A directory or stream failure is shown in the app.
+Favorites and recents are stored at `%LOCALAPPDATA%\CascadiaCollections\ShoutkitWindows\library.json`. Versioned library writes use a temporary file and replacement to reduce corruption from interrupted saves; failed saves roll back in-memory changes. Local error categories (not station URLs) are recorded in `%LOCALAPPDATA%\CascadiaCollections\ShoutkitWindows\diagnostics.log`, rotated at 1 MB. Station metadata comes from [Radio Browser](https://www.radio-browser.info/) with fallback API hosts; audio and artwork are fetched from station-provided URLs. An internet connection is required for discovery and playback. A directory or stream failure is shown in the app.
+
+`smodr.RadioCore/` is a UI-independent .NET library for station models, discovery, local data, and diagnostics. `RadioMainViewModel` depends on radio player, directory, and library interfaces. The WinUI app composes these with Microsoft.Extensions dependency injection and a typed `HttpClient`. The UI can therefore be tested against local fakes without making real network requests. See [RELEASE.md](RELEASE.md) for the production packaging, signing, and validation gates.
 
 The verified target is `net11.0-windows10.0.22621.0`, with Windows App SDK 2.4 and a minimum Windows build of 17763. The .NET 11 RC1 SDK was installed side-by-side for this local build; the app was restored, built, tested, published, and launched on ARM64. RC releases can still change before general availability, so revalidate when updating the SDK or Windows App SDK.
 

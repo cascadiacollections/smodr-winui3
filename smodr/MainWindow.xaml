@@ -38,11 +38,11 @@
                                     <TextBlock Text="Live radio picked for right now" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </StackPanel>
                                 <Button HorizontalAlignment="Right" VerticalAlignment="Top" Click="RefreshButton_Click"
-                                        ToolTipService.ToolTip="Refresh stations"><FontIcon Glyph="&#xE72C;"/></Button>
+                                        ToolTipService.ToolTip="Refresh stations" AutomationProperties.Name="Refresh stations"><FontIcon Glyph="&#xE72C;"/></Button>
                             </Grid>
                             <StackPanel x:Name="RecentSection" Spacing="12" Visibility="Collapsed">
                                 <TextBlock Text="Recently Played" Style="{ThemeResource SubtitleTextBlockStyle}"/>
-                                <ListView ItemsSource="{x:Bind ViewModel.Recents, Mode=OneWay}" SelectionMode="None"
+                                <ListView ItemsSource="{x:Bind ViewModel.Recents, Mode=OneWay}" SelectionMode="None" AutomationProperties.Name="Recently played stations"
                                           ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Hidden"
                                           ScrollViewer.VerticalScrollMode="Disabled">
                                     <ListView.ItemsPanel><ItemsPanelTemplate><ItemsStackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ListView.ItemsPanel>
@@ -68,7 +68,7 @@
                             </StackPanel>
                             <StackPanel Spacing="12">
                                 <TextBlock Text="Popular Stations" Style="{ThemeResource SubtitleTextBlockStyle}"/>
-                                <GridView ItemsSource="{x:Bind ViewModel.PopularStations, Mode=OneWay}"
+                                <GridView ItemsSource="{x:Bind ViewModel.PopularStations, Mode=OneWay}" AutomationProperties.Name="Popular stations"
                                           IsItemClickEnabled="True" ItemClick="StationGrid_ItemClick" SelectionMode="None">
                                     <GridView.ItemTemplate>
                                         <DataTemplate x:DataType="models:RadioStation">
@@ -98,7 +98,7 @@
                         <TextBlock Text="Stations and genres" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                     <StackPanel Grid.Row="1" Padding="28,4,28,16" Spacing="14">
-                        <AutoSuggestBox x:Name="StationSearchBox" PlaceholderText="Stations, genres" QueryIcon="Find"
+                        <AutoSuggestBox x:Name="StationSearchBox" PlaceholderText="Stations, genres" QueryIcon="Find" AutomationProperties.Name="Search stations"
                                         QuerySubmitted="StationSearchBox_QuerySubmitted"/>
                         <StackPanel x:Name="GenreSection" Spacing="10">
                             <TextBlock Text="Browse by Genre" Style="{ThemeResource SubtitleTextBlockStyle}"/>
@@ -114,7 +114,7 @@
                             </ItemsControl>
                         </StackPanel>
                     </StackPanel>
-                    <ListView x:Name="SearchResultsList" Grid.Row="2" Padding="20,0,20,20"
+                    <ListView x:Name="SearchResultsList" Grid.Row="2" Padding="20,0,20,20" AutomationProperties.Name="Search results"
                               ItemsSource="{x:Bind ViewModel.SearchResults, Mode=OneWay}" IsItemClickEnabled="True"
                               ItemClick="StationList_ItemClick" SelectionMode="None" Visibility="Collapsed">
                         <ListView.ItemTemplate><DataTemplate x:DataType="models:RadioStation"><local:StationRowControl Station="{x:Bind}" FavoriteRequested="StationRow_FavoriteRequested"/></DataTemplate></ListView.ItemTemplate>
@@ -162,7 +162,7 @@
                 </Grid>
                 <ProgressRing x:Name="LoadingRing" Width="42" Height="42" IsActive="False" Visibility="Collapsed"
                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <InfoBar x:Name="StatusInfoBar" IsOpen="False" Severity="Informational"
+                <InfoBar x:Name="StatusInfoBar" IsOpen="False" Severity="Informational" AutomationProperties.LiveSetting="Polite"
                          HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="16"/>
             </Grid>
         </NavigationView>
@@ -178,13 +178,13 @@
                 <TextBlock x:Name="NowPlayingSubtitle" Style="{ThemeResource CaptionTextBlockStyle}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
             </StackPanel>
-            <Button Grid.Column="2" Click="FavoriteNowPlayingButton_Click" Background="Transparent" BorderThickness="0"
+            <Button x:Name="FavoriteNowPlayingButton" Grid.Column="2" Click="FavoriteNowPlayingButton_Click" Background="Transparent" BorderThickness="0" AutomationProperties.Name="Add to favorites"
                     ToolTipService.ToolTip="Add to Favorites"><FontIcon x:Name="FavoriteNowPlayingIcon" Glyph="&#xEB51;"/></Button>
-            <Button Grid.Column="3" Click="PlayPauseButton_Click" Style="{ThemeResource AccentButtonStyle}"
+            <Button x:Name="PlayPauseButton" Grid.Column="3" Click="PlayPauseButton_Click" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.Name="Play"
                     Width="42" Height="42" Padding="0" CornerRadius="21" ToolTipService.ToolTip="Play or pause">
                 <FontIcon x:Name="PlayPauseIcon" Glyph="&#xE768;"/>
             </Button>
-            <Button Grid.Column="4" Click="StopButton_Click" Background="Transparent" BorderThickness="0"
+            <Button Grid.Column="4" Click="StopButton_Click" Background="Transparent" BorderThickness="0" AutomationProperties.Name="Stop playback"
                     ToolTipService.ToolTip="Stop"><FontIcon Glyph="&#xE71A;"/></Button>
         </Grid>
     </Grid>

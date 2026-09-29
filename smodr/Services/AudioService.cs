@@ -5,7 +5,7 @@ using Windows.Media.Playback;
 
 namespace smodr.Services;
 
-public class AudioService : IDisposable
+public class AudioService : IRadioPlayer, IDisposable
 {
     private bool _isInitialized;
     private MediaPlayer? _mediaPlayer;
@@ -39,7 +39,7 @@ public class AudioService : IDisposable
     }
 
     public event EventHandler<Episode>? EpisodeChanged;
-    public event EventHandler<RadioStation>? StationChanged;
+    public event EventHandler<RadioStation?>? StationChanged;
     public event EventHandler<string>? PlaybackFailed;
     public event EventHandler<MediaPlaybackState>? PlaybackStateChanged;
     public event EventHandler<TimeSpan>? PositionChanged;
@@ -128,10 +128,6 @@ public class AudioService : IDisposable
         }
 
         _mediaPlayer?.Pause();
-        CurrentEpisode = null;
-        CurrentStation = station;
-        StationChanged?.Invoke(this, station);
-
         var mediaSource = MediaSource.CreateFromUri(streamUri);
         mediaSource.CustomProperties["Title"] = station.Name;
         mediaSource.CustomProperties["Artist"] = station.Details;
@@ -139,6 +135,9 @@ public class AudioService : IDisposable
 
         _mediaPlayer!.Source = mediaSource;
         _mediaPlayer.Play();
+        CurrentEpisode = null;
+        CurrentStation = station;
+        StationChanged?.Invoke(this, station);
 
         Debug.WriteLine($"Started playing station: {station.Name}");
         return Task.CompletedTask;
@@ -155,6 +154,22 @@ public class AudioService : IDisposable
         {
             session.Position = TimeSpan.Zero;
         }
+    }
+
+    public void StopStation()
+    {
+        if (CurrentStation is null)
+        {
+            return;
+        }
+
+        if (_mediaPlayer is not null)
+        {
+            _mediaPlayer.Source = null;
+        }
+
+        CurrentStation = null;
+        StationChanged?.Invoke(this, null);
     }
 
     public void SetPosition(TimeSpan position)
@@ -193,7 +208,8 @@ public class AudioService : IDisposable
             ? args.Error.ToString()
             : args.ErrorMessage;
         Debug.WriteLine($"Media failed: {args.Error} - {message}");
-        PlaybackFailed?.Invoke(this, message);
+        AppDiagnostics.Record("station.media-failed", new InvalidOperationException(args.Error.ToString()));
+        PlaybackFailed?.Invoke(this, "This stream could not be played. Try another station.");
     }
 
     private void MediaPlayer_MediaEnded(MediaPlayer sender, object args) =>
