@@ -102,6 +102,45 @@ public sealed class RadioLibraryServiceTests
     }
 
     [TestMethod]
+    public async Task BusyLibraryFileIsRetried()
+    {
+        var filePath = Path.Combine(Path.GetTempPath(), $"shoutkit-library-{Guid.NewGuid():N}.json");
+        var firstStation = new RadioStation { Id = "first", StreamUrl = "https://example.com/first" };
+        var secondStation = new RadioStation { Id = "second", StreamUrl = "https://example.com/second" };
+        try
+        {
+            var library = new RadioLibraryService(filePath);
+            library.LogRecent(firstStation);
+            await using (var hold = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            {
+                var release = Task.Run(async () =>
+                {
+                    await Task.Delay(60);
+                    await hold.DisposeAsync();
+                });
+
+                try
+                {
+                    library.LogRecent(secondStation);
+                }
+                finally
+                {
+                    await release;
+                }
+            }
+
+            Assert.AreEqual("second", new RadioLibraryService(filePath).Recents[0].Id);
+        }
+        finally
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+        }
+    }
+
+    [TestMethod]
     public void NewerLibraryFormatIsPreservedReadOnly()
     {
         var filePath = Path.Combine(Path.GetTempPath(), $"shoutkit-library-{Guid.NewGuid():N}.json");

@@ -14,7 +14,7 @@ env:
 jobs:
   build:
     name: Build (${{ matrix.platform }})
-    runs-on: windows-latest
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
 
@@ -23,8 +23,12 @@ jobs:
         include:
           - platform: x64
             rid: win-x64
+            runner: windows-latest
+            architecture: x64
           - platform: ARM64
             rid: win-arm64
+            runner: windows-11-vs2026-arm
+            architecture: arm64
 
     steps:
     - name: Checkout code
@@ -34,9 +38,12 @@ jobs:
       uses: actions/setup-dotnet@v6
       with:
         global-json-file: global.json
+        architecture: ${{ matrix.architecture }}
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v3
+      with:
+        msbuild-architecture: ${{ matrix.architecture }}
 
     - name: Cache NuGet packages
       uses: actions/cache@v6
@@ -54,7 +61,6 @@ jobs:
       run: dotnet build ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-restore -p:Platform=${{ matrix.platform }} -warnaserror
 
     - name: Run tests
-      if: matrix.platform == 'x64'
       run: dotnet test ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-build --no-restore -p:Platform=${{ matrix.platform }} --logger "trx;LogFileName=test-results.trx"
 
     - name: Publish self-contained app

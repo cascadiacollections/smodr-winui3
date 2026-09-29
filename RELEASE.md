@@ -4,7 +4,7 @@ The downloadable CI artifacts are **unsigned, unpackaged previews**, not install
 
 ## Automated checks
 
-The GitHub Actions build uses the exact .NET 11 RC SDK in `global.json`, locked NuGet restores, warning-free x64 and ARM64 builds, x64 unit tests, formatting checks, self-contained publish artifacts, and unsigned MSIX package validation for both architectures. ARM64 tests and launch checks still require a native Windows ARM64 host; an x64 runner cannot prove ARM64 runtime behavior.
+The GitHub Actions build uses the exact .NET 11 RC SDK in `global.json`, locked NuGet restores, warning-free x64 and native ARM64 builds and unit tests, formatting checks, self-contained publish artifacts, and unsigned MSIX package validation for both architectures. The ARM64 lane uses GitHub's Windows 11 ARM64 runner with Visual Studio 2026. Launch and live-playback checks still require an interactive Windows host; CI unit tests do not prove those behaviors.
 
 To validate a package locally without a signing certificate, run `dotnet msbuild smodr/smodr.csproj -restore -p:Configuration=Release -p:Platform=ARM64 -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=false -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly`. The generated MSIX is unsigned and cannot be installed on ordinary machines until signed with the chosen publisher identity.
 
@@ -21,4 +21,4 @@ The current local package build warns that `mspdbcmf.exe` is unavailable, so it 
 6. Review `diagnostics.log` on failure. It intentionally stores error categories rather than station URLs or response bodies. Define a user-consented crash-reporting policy before adding any remote telemetry.
 7. Move from .NET 11 RC to a serviced GA version when available; republish both architectures and repeat the release gate.
 
-References: [Windows packaging choices](https://learn.microsoft.com/windows/apps/package-and-deploy/packaging/), [MSIX signing](https://learn.microsoft.com/windows/msix/package/sign-msix-package-guide), and [WinUI testing](https://learn.microsoft.com/windows/apps/develop/testing/).
+References: [Windows packaging choices](https://learn.microsoft.com/windows/apps/package-and-deploy/packaging/), [MSIX signing](https://learn.microsoft.com/windows/msix/package/sign-msix-package-guide), [WinUI testing](https://learn.microsoft.com/windows/apps/develop/testing/), and [GitHub-hosted Windows ARM64 runners](https://docs.github.com/actions/reference/runners/github-hosted-runners).
