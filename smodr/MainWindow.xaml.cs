@@ -33,7 +33,15 @@ public sealed partial class MainWindow : Window
         AppNavigation.SelectedItem = ListenNowItem;
         UpdateLibraryVisibility();
         Closed += MainWindow_Closed;
-        _ = ViewModel.LoadPopularAsync();
+        _ = LoadAndWarmAsync();
+    }
+
+    private async Task LoadAndWarmAsync()
+    {
+        await ViewModel.LoadPopularAsync();
+        if (_closed || ViewModel.PopularStations.Count == 0 || ViewModel.Status.Length != 0) return;
+        await Task.Delay(TimeSpan.FromSeconds(5));
+        if (!_closed && WindowsWarmupPolicy.CanPrefetch()) await ViewModel.WarmGenresAsync();
     }
 
     private void ConfigureWindow()
@@ -75,7 +83,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var pending = ViewModel.FlushLibraryAsync();
+        var pending = Task.WhenAll(ViewModel.FlushLibraryAsync(), ViewModel.FlushDirectoryCacheAsync());
         if (pending.IsCompleted)
         {
             return;
@@ -93,7 +101,7 @@ public sealed partial class MainWindow : Window
             do
             {
                 await pending;
-                pending = ViewModel.FlushLibraryAsync();
+                pending = Task.WhenAll(ViewModel.FlushLibraryAsync(), ViewModel.FlushDirectoryCacheAsync());
             } while (!pending.IsCompleted);
         }
         catch (Exception exception)

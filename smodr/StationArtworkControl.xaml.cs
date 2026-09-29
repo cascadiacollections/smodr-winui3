@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
+using smodr.Services;
 using Windows.Storage.Streams;
 
 namespace smodr;
@@ -14,6 +15,7 @@ public sealed partial class StationArtworkControl : UserControl, IDisposable
     private static readonly SemaphoreSlim _downloads = new(4);
     private static readonly ConcurrentDictionary<string, byte[]> _cache = new(StringComparer.Ordinal);
     private static readonly ConcurrentQueue<string> _cacheOrder = new();
+    private static readonly StationArtworkDiskCache _diskCache = new();
     private CancellationTokenSource? _loadCancellation;
 
     public static readonly DependencyProperty ArtworkUrlProperty = DependencyProperty.Register(
@@ -104,6 +106,13 @@ public sealed partial class StationArtworkControl : UserControl, IDisposable
             return cached;
         }
 
+        var saved = await _diskCache.TryReadAsync(uri, cancellationToken);
+        if (saved is not null)
+        {
+            Remember(uri, saved);
+            return saved;
+        }
+
         await _downloads.WaitAsync(cancellationToken);
         try
         {
@@ -130,19 +139,23 @@ public sealed partial class StationArtworkControl : UserControl, IDisposable
             }
 
             var bytes = buffer.ToArray();
-            if (_cache.TryAdd(uri.AbsoluteUri, bytes))
-            {
-                _cacheOrder.Enqueue(uri.AbsoluteUri);
-                while (_cache.Count > MaxCachedArtwork && _cacheOrder.TryDequeue(out var oldest))
-                {
-                    _cache.TryRemove(oldest, out _);
-                }
-            }
+            Remember(uri, bytes);
+            await _diskCache.StoreAsync(uri, bytes, cancellationToken);
             return bytes;
         }
         finally
         {
             _downloads.Release();
+        }
+    }
+
+    private static void Remember(Uri uri, byte[] bytes)
+    {
+        if (!_cache.TryAdd(uri.AbsoluteUri, bytes)) return;
+        _cacheOrder.Enqueue(uri.AbsoluteUri);
+        while (_cache.Count > MaxCachedArtwork && _cacheOrder.TryDequeue(out var oldest))
+        {
+            _cache.TryRemove(oldest, out _);
         }
     }
 

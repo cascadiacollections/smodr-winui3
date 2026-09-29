@@ -9,9 +9,12 @@ namespace smodr.ViewModels;
 
 public partial class RadioMainViewModel : ObservableObject, IDisposable
 {
+    private static readonly string[] _warmGenres =
+        ["alternative", "classical", "electronic", "hip hop", "jazz", "news", "rock"];
     private readonly IRadioPlayer _audio;
     private readonly IRadioDirectoryService _directory;
     private readonly IRadioLibraryService _library;
+    private readonly IRadioDirectorySnapshotCache? _cache;
     private readonly Action<Action> _dispatch;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private CancellationTokenSource? _searchCancellation;
@@ -24,7 +27,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         IRadioPlayer audio,
         IRadioDirectoryService directory,
         IRadioLibraryService library,
-        Action<Action>? dispatch = null)
+        Action<Action>? dispatch = null,
+        IRadioDirectorySnapshotCache? cache = null)
     {
         if (dispatch is null)
         {
@@ -39,6 +43,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _audio = audio;
         _directory = directory;
         _library = library;
+        _cache = cache;
         _audio.StationChanged += Audio_StationChanged;
         _audio.PlaybackStateChanged += Audio_PlaybackStateChanged;
         _audio.PlaybackFailed += Audio_PlaybackFailed;
@@ -67,6 +72,14 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         Status = "Tuning in…";
         try
         {
+            var cached = await GetCachedAsync(RadioDirectorySnapshotCache.PopularKey(60), TimeSpan.FromDays(30));
+            var showedCache = cached is { Count: > 0 } && !_lifetimeCancellation.IsCancellationRequested;
+            if (showedCache)
+            {
+                Replace(PopularStations, cached!);
+                Status = "Showing saved stations · Refreshing…";
+            }
+
             var stations = await _directory.GetPopularStationsAsync(60, _lifetimeCancellation.Token);
             if (_lifetimeCancellation.IsCancellationRequested)
             {
@@ -75,6 +88,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
 
             Replace(PopularStations, stations);
             Status = PopularStations.Count == 0 ? "Nothing here yet" : string.Empty;
+            await StoreCachedAsync(RadioDirectorySnapshotCache.PopularKey(60), stations);
         }
         catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested)
         {
@@ -84,7 +98,9 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             if (!_lifetimeCancellation.IsCancellationRequested)
             {
                 AppDiagnostics.Record("popular.load", ex);
-                Status = $"Directory unavailable: {ex.Message}";
+                Status = PopularStations.Count > 0
+                    ? "Showing saved stations · Directory offline"
+                    : $"Directory unavailable: {ex.Message}";
             }
         }
         finally
@@ -96,15 +112,45 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
 
     public Task SearchAsync(string query) => SearchCoreAsync(
         token => _directory.SearchAsync(query, cancellationToken: token),
-        string.IsNullOrWhiteSpace(query) ? "Browse by genre" : "Searching…");
+        string.IsNullOrWhiteSpace(query) ? "Browse by genre" : "Searching…",
+        string.IsNullOrWhiteSpace(query)
+            ? RadioDirectorySnapshotCache.PopularKey(50)
+            : RadioDirectorySnapshotCache.SearchKey(query));
 
     public Task SearchGenreAsync(string genre) => SearchCoreAsync(
         token => _directory.SearchGenreAsync(genre, cancellationToken: token),
-        $"Browsing {genre}…");
+        $"Browsing {genre}…",
+        RadioDirectorySnapshotCache.GenreKey(genre));
+
+    public async Task WarmGenresAsync()
+    {
+        if (_cache is null) return;
+        foreach (var genre in _warmGenres)
+        {
+            if (_lifetimeCancellation.IsCancellationRequested) return;
+            var key = RadioDirectorySnapshotCache.GenreKey(genre);
+            if (await GetCachedAsync(key, TimeSpan.FromDays(7)) is not null) continue;
+            try
+            {
+                var stations = await _directory.SearchGenreAsync(genre, cancellationToken: _lifetimeCancellation.Token);
+                await StoreCachedAsync(key, stations);
+            }
+            catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception exception)
+            {
+                AppDiagnostics.Record("directory.warmup", exception);
+                return; // No more speculative requests if the directory is down.
+            }
+        }
+    }
 
     private async Task SearchCoreAsync(
         Func<CancellationToken, Task<IReadOnlyList<RadioStation>>> search,
-        string loadingStatus)
+        string loadingStatus,
+        string cacheKey)
     {
         var version = Interlocked.Increment(ref _searchVersion);
         if (_lifetimeCancellation.IsCancellationRequested)
@@ -136,8 +182,18 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _loadingSearch = true;
         UpdateLoading();
         Status = loadingStatus;
+        SearchResults.Clear();
         try
         {
+            var cached = await GetCachedAsync(cacheKey, TimeSpan.FromDays(7));
+            if (cached is { Count: > 0 }
+                && !cancellation.IsCancellationRequested
+                && version == Volatile.Read(ref _searchVersion))
+            {
+                Replace(SearchResults, cached);
+                Status = "Showing saved stations · Refreshing…";
+            }
+
             var stations = await search(cancellation.Token);
             if (cancellation.IsCancellationRequested || version != Volatile.Read(ref _searchVersion))
             {
@@ -146,6 +202,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
 
             Replace(SearchResults, stations);
             Status = SearchResults.Count == 0 ? "No matching stations" : string.Empty;
+            await StoreCachedAsync(cacheKey, stations);
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
@@ -155,7 +212,9 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             if (!cancellation.IsCancellationRequested && version == Volatile.Read(ref _searchVersion))
             {
                 AppDiagnostics.Record("directory.search", ex);
-                Status = $"Search unavailable: {ex.Message}";
+                Status = SearchResults.Count > 0
+                    ? "Showing saved stations · Directory offline"
+                    : $"Search unavailable: {ex.Message}";
             }
         }
         finally
@@ -176,7 +235,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         {
             if (CurrentStation is not null && RadioStationIdentity.Matches(CurrentStation, station))
             {
-                if (_audio.IsPlaying)
+                if (_audio.IsPlaybackRequested)
                 {
                     _audio.Pause();
                 }
@@ -213,7 +272,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            if (_audio.IsPlaying)
+            if (_audio.IsPlaybackRequested)
             {
                 _audio.Pause();
             }
@@ -263,6 +322,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
 
     public Task FlushLibraryAsync() => _library.FlushAsync();
 
+    public Task FlushDirectoryCacheAsync() => _cache?.FlushAsync() ?? Task.CompletedTask;
+
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0)
@@ -294,7 +355,9 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     private void Audio_PlaybackStateChanged(object? sender, MediaPlaybackState state) =>
         _dispatch(() =>
         {
-            IsPlaying = state == MediaPlaybackState.Playing;
+            // Buffering/reconnect still represents an active listening intent;
+            // the transport button must offer Pause, not start another Play.
+            IsPlaying = _audio.IsPlaybackRequested;
             Status = state switch
             {
                 MediaPlaybackState.Opening => "Loading…",
@@ -306,7 +369,11 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         });
 
     private void Audio_PlaybackFailed(object? sender, string message) =>
-        _dispatch(() => Status = $"Unable to play this station: {message}");
+        _dispatch(() =>
+        {
+            IsPlaying = false;
+            Status = $"Unable to play this station: {message}";
+        });
 
     private void RefreshLibraryCollections()
     {
@@ -324,6 +391,24 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     }
 
     private void UpdateLoading() => IsLoading = _loadingPopular || _loadingSearch;
+
+    private async Task<IReadOnlyList<RadioStation>?> GetCachedAsync(string key, TimeSpan maxAge)
+    {
+        if (_cache is null) return null;
+        try { return await _cache.GetAsync(key, maxAge); }
+        catch (Exception exception)
+        {
+            AppDiagnostics.Record("directory.cache-read", exception);
+            return null;
+        }
+    }
+
+    private async Task StoreCachedAsync(string key, IReadOnlyList<RadioStation> stations)
+    {
+        if (_cache is null) return;
+        try { await _cache.StoreAsync(key, stations); }
+        catch (Exception exception) { AppDiagnostics.Record("directory.cache-write", exception); }
+    }
 
     private void ReportPlaybackFailure(Exception exception)
     {

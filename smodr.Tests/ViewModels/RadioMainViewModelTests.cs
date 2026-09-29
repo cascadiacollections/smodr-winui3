@@ -55,6 +55,65 @@ public sealed class RadioMainViewModelTests
     }
 
     [TestMethod]
+    public async Task PopularSnapshotAppearsBeforeNetworkCompletes()
+    {
+        var response = new TaskCompletionSource<IReadOnlyList<RadioStation>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var cache = new StubCache((RadioStation[])[new RadioStation { Id = "saved", Name = "Saved" }]);
+        using var viewModel = new RadioMainViewModel(
+            new StubPlayer(),
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([]), _ => response.Task),
+            new StubLibrary(), action => action(), cache);
+
+        var loading = viewModel.LoadPopularAsync();
+        Assert.HasCount(1, viewModel.PopularStations);
+        Assert.AreEqual("Saved", viewModel.PopularStations[0].Name);
+        Assert.IsFalse(loading.IsCompleted);
+
+        response.SetResult((RadioStation[])[new RadioStation { Id = "fresh", Name = "Fresh" }]);
+        await loading;
+        Assert.AreEqual("Fresh", viewModel.PopularStations[0].Name);
+        Assert.AreEqual(1, cache.StoreCalls);
+    }
+
+    [TestMethod]
+    public async Task SavedStationsRemainVisibleWhenOffline()
+    {
+        var cache = new StubCache((RadioStation[])[new RadioStation { Id = "saved", Name = "Saved" }]);
+        using var viewModel = new RadioMainViewModel(
+            new StubPlayer(),
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([]),
+                _ => throw new HttpRequestException("offline")),
+            new StubLibrary(), action => action(), cache);
+
+        await viewModel.LoadPopularAsync();
+
+        Assert.HasCount(1, viewModel.PopularStations);
+        StringAssert.Contains(viewModel.Status, "Directory offline", StringComparison.Ordinal);
+    }
+
+    [TestMethod]
+    public async Task GenreWarmupPopulatesOnlyMissingSnapshots()
+    {
+        var requests = 0;
+        var cache = new StubCache(Array.Empty<RadioStation>());
+        using var viewModel = new RadioMainViewModel(
+            new StubPlayer(),
+            new StubDirectory((_, _) =>
+            {
+                requests++;
+                return Task.FromResult<IReadOnlyList<RadioStation>>([]);
+            }),
+            new StubLibrary(), action => action(), cache);
+
+        await viewModel.WarmGenresAsync();
+
+        Assert.AreEqual(7, requests);
+        Assert.AreEqual(7, cache.StoreCalls);
+        Assert.IsEmpty(viewModel.SearchResults);
+    }
+
+    [TestMethod]
     public async Task DisposedViewModelIgnoresLatePopularResponse()
     {
         var response = new TaskCompletionSource<IReadOnlyList<RadioStation>>(
@@ -144,6 +203,29 @@ public sealed class RadioMainViewModelTests
     }
 
     [TestMethod]
+    public async Task TogglingBufferingStationPausesInsteadOfStartingAnotherPlay()
+    {
+        var station = new RadioStation { Id = "same", Name = "Example" };
+        var pauseCalls = 0;
+        var player = new StubPlayer(
+            play: () => Assert.Fail("Buffering is an active playback request."),
+            playbackRequested: true,
+            pause: () => pauseCalls++);
+        using var viewModel = new RadioMainViewModel(
+            player,
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            new StubLibrary(),
+            action => action())
+        {
+            CurrentStation = station
+        };
+
+        await viewModel.TogglePlaybackAsync(station);
+
+        Assert.AreEqual(1, pauseCalls);
+    }
+
+    [TestMethod]
     public async Task FavoriteSaveIsAwaitedAndFailureIsReported()
     {
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -216,13 +298,29 @@ public sealed class RadioMainViewModelTests
         public Task FlushAsync() => Task.CompletedTask;
     }
 
+    private sealed class StubCache(IReadOnlyList<RadioStation> stations) : IRadioDirectorySnapshotCache
+    {
+        public int StoreCalls { get; private set; }
+        public Task<IReadOnlyList<RadioStation>?> GetAsync(string key, TimeSpan maxAge) =>
+            Task.FromResult<IReadOnlyList<RadioStation>?>(stations.Count == 0 ? null : stations);
+        public Task StoreAsync(string key, IReadOnlyList<RadioStation> values)
+        {
+            StoreCalls++;
+            return Task.CompletedTask;
+        }
+        public Task FlushAsync() => Task.CompletedTask;
+    }
+
     private sealed class StubPlayer(
         Func<RadioStation, Task>? playStation = null,
         Action? stopStation = null,
-        Action? play = null) : IRadioPlayer
+        Action? play = null,
+        bool playbackRequested = false,
+        Action? pause = null) : IRadioPlayer
     {
         public RadioStation? CurrentStation => null;
         public bool IsPlaying => false;
+        public bool IsPlaybackRequested => playbackRequested;
         public event EventHandler<RadioStation?>? StationChanged
         {
             add { }
@@ -241,7 +339,7 @@ public sealed class RadioMainViewModelTests
         public Task PlayStationAsync(RadioStation station) =>
             playStation?.Invoke(station) ?? Task.CompletedTask;
         public void Play() => play?.Invoke();
-        public void Pause() { }
+        public void Pause() => pause?.Invoke();
         public void StopStation() => stopStation?.Invoke();
     }
 }

@@ -57,6 +57,7 @@ public partial class App : Application
         var services = new ServiceCollection();
         services.AddSingleton<IRadioPlayer, AudioService>();
         services.AddSingleton<IRadioLibraryService, RadioLibraryService>();
+        services.AddSingleton<IRadioDirectorySnapshotCache, RadioDirectorySnapshotCache>();
         services.AddHttpClient<IRadioDirectoryService, RadioDirectoryService>(client =>
             client.Timeout = TimeSpan.FromSeconds(8));
         services.AddSingleton<RadioMainViewModel>();

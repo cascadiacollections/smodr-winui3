@@ -7,6 +7,7 @@ public interface IRadioPlayer
 {
     RadioStation? CurrentStation { get; }
     bool IsPlaying { get; }
+    bool IsPlaybackRequested { get; }
     event EventHandler<RadioStation?>? StationChanged;
     event EventHandler<MediaPlaybackState>? PlaybackStateChanged;
     event EventHandler<string>? PlaybackFailed;
