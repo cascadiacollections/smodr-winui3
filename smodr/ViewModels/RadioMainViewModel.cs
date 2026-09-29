@@ -17,6 +17,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     private readonly IRadioDirectorySnapshotCache? _cache;
     private readonly IStationPlayReporter? _playReporter;
     private readonly IRadioPrivacySettings? _privacySettings;
+    private readonly PlaybackSleepTimer _sleepTimer;
     private readonly Action<Action> _dispatch;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private CancellationTokenSource? _searchCancellation;
@@ -32,7 +33,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         Action<Action>? dispatch = null,
         IRadioDirectorySnapshotCache? cache = null,
         IStationPlayReporter? playReporter = null,
-        IRadioPrivacySettings? privacySettings = null)
+        IRadioPrivacySettings? privacySettings = null,
+        PlaybackSleepTimer? sleepTimer = null)
     {
         if (dispatch is null)
         {
@@ -50,6 +52,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _cache = cache;
         _playReporter = playReporter;
         _privacySettings = privacySettings;
+        _sleepTimer = sleepTimer ?? new PlaybackSleepTimer();
+        _sleepTimer.Elapsed += SleepTimer_Elapsed;
         _audio.StationChanged += Audio_StationChanged;
         _audio.PlaybackStateChanged += Audio_PlaybackStateChanged;
         _audio.PlaybackFailed += Audio_PlaybackFailed;
@@ -72,6 +76,21 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
 
     public Task FlushPrivacySettingsAsync() =>
         _privacySettings?.FlushAsync() ?? Task.CompletedTask;
+
+    public DateTimeOffset? SleepTimerEndsAt => _sleepTimer.EndsAt;
+    public TimeSpan? SleepTimerRemaining => _sleepTimer.Remaining;
+
+    public void StartSleepTimer(TimeSpan duration)
+    {
+        _sleepTimer.Start(duration);
+        OnPropertyChanged(nameof(SleepTimerEndsAt));
+    }
+
+    public void CancelSleepTimer()
+    {
+        _sleepTimer.Cancel();
+        OnPropertyChanged(nameof(SleepTimerEndsAt));
+    }
 
     public async Task LoadPopularAsync()
     {
@@ -355,6 +374,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _audio.StationChanged -= Audio_StationChanged;
         _audio.PlaybackStateChanged -= Audio_PlaybackStateChanged;
         _audio.PlaybackFailed -= Audio_PlaybackFailed;
+        _sleepTimer.Elapsed -= SleepTimer_Elapsed;
+        _sleepTimer.Dispose();
         _lifetimeCancellation.Cancel();
         var currentSearch = Interlocked.Exchange(ref _searchCancellation, null);
         try
@@ -394,6 +415,16 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         {
             IsPlaying = false;
             Status = $"Unable to play this station: {message}";
+        });
+
+    private void SleepTimer_Elapsed(object? sender, EventArgs args) =>
+        _dispatch(() =>
+        {
+            if (Volatile.Read(ref _disposed) != 0 || _sleepTimer.EndsAt is not null) return;
+            OnPropertyChanged(nameof(SleepTimerEndsAt));
+            if (_audio.CurrentStation is null || !_audio.IsPlaybackRequested) return;
+            try { _audio.Pause(); }
+            catch (Exception exception) { ReportPlaybackFailure(exception); }
         });
 
     private void RefreshLibraryCollections()

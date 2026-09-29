@@ -18,6 +18,7 @@ public sealed partial class MainWindow : Window
     private bool _closeAfterFlush;
     private bool _closed;
     private bool _settingsReady;
+    private readonly DispatcherTimer _sleepCountdownTimer = new() { Interval = TimeSpan.FromSeconds(30) };
 
     public RadioMainViewModel ViewModel { get; }
 
@@ -27,6 +28,8 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         PlayReportingSwitch.IsOn = ViewModel.IsPlayReportingEnabled;
         _settingsReady = true;
+        _sleepCountdownTimer.Tick += SleepCountdownTimer_Tick;
+        UpdateSleepTimer();
         ConfigureWindow();
 
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
@@ -69,6 +72,8 @@ public sealed partial class MainWindow : Window
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
         _closed = true;
+        _sleepCountdownTimer.Stop();
+        _sleepCountdownTimer.Tick -= SleepCountdownTimer_Tick;
         if (_appWindow is not null)
         {
             _appWindow.Closing -= AppWindow_Closing;
@@ -222,6 +227,40 @@ public sealed partial class MainWindow : Window
     private void PlayPauseButton_Click(object sender, RoutedEventArgs e) => ViewModel.PlayPause();
     private void StopButton_Click(object sender, RoutedEventArgs e) => ViewModel.Stop();
 
+    private void SleepTimerDuration_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem { Tag: string minutesText }
+            && int.TryParse(minutesText, out var minutes))
+        {
+            ViewModel.StartSleepTimer(TimeSpan.FromMinutes(minutes));
+        }
+    }
+
+    private void CancelSleepTimer_Click(object sender, RoutedEventArgs e) => ViewModel.CancelSleepTimer();
+
+    private void SleepCountdownTimer_Tick(object? sender, object e) => UpdateSleepTimer();
+
+    private void UpdateSleepTimer()
+    {
+        var remaining = ViewModel.SleepTimerRemaining;
+        if (remaining is null)
+        {
+            _sleepCountdownTimer.Stop();
+            SleepTimerButton.Content = "Sleep";
+            CancelSleepTimerItem.IsEnabled = false;
+            AutomationProperties.SetName(SleepTimerButton, "Set sleep timer");
+            ToolTipService.SetToolTip(SleepTimerButton, "Set a sleep timer");
+            return;
+        }
+
+        _sleepCountdownTimer.Start();
+        var minutes = Math.Max(1, (int)Math.Ceiling(remaining.Value.TotalMinutes));
+        SleepTimerButton.Content = $"Sleep · {minutes}m";
+        CancelSleepTimerItem.IsEnabled = true;
+        AutomationProperties.SetName(SleepTimerButton, $"Sleep timer, {minutes} minutes remaining");
+        ToolTipService.SetToolTip(SleepTimerButton, $"Playback pauses in {minutes} minutes");
+    }
+
     private async void PlayReportingSwitch_Toggled(object sender, RoutedEventArgs e)
     {
         if (!_settingsReady) return;
@@ -253,6 +292,9 @@ public sealed partial class MainWindow : Window
                 break;
             case nameof(ViewModel.Status):
                 UpdateStatus();
+                break;
+            case nameof(ViewModel.SleepTimerEndsAt):
+                UpdateSleepTimer();
                 break;
         }
     }

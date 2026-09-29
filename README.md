@@ -2,7 +2,7 @@
 
 This branch is a Windows ARM64 adaptation of the [Shoutkit iOS app](https://github.com/cascadiacollections/shoutkit), built in the `smodr-winui3` host. It is an unpackaged, self-contained desktop preview, not a direct SwiftUI port or a complete feature-equivalent release. The current window is radio-first; the original podcast services remain in the repository but are not exposed in this preview's navigation.
 
-Listen Now shows popular stations and recently played stations. Search supports station names and genre browsing. Favorites and the 20 most recent stations are saved in the user's local app data. Playback uses Windows MediaPlayer and the mini-player is shared across views. Station artwork is downloaded with timeout, size, format, concurrency, and cache limits before WinUI receives it. A second launch activates the existing window instead of opening a second player.
+Listen Now shows popular stations and recently played stations. Search supports station names and genre browsing. Favorites and the 20 most recent stations are saved in the user's local app data. Playback uses Windows MediaPlayer and the mini-player is shared across views. Windows media controls receive explicit station title/details, and their Play/Pause commands go through the app's recovery-aware player. The mini-player's Sleep menu offers 15, 30, 45, or 60 minutes plus Cancel; expiry pauses the current station without removing it, even if the station changed while the timer ran. Station artwork is downloaded with timeout, size, format, concurrency, and cache limits before WinUI receives it. A second launch activates the existing window instead of opening a second player.
 
 Radio Browser discovery now follows the iOS app's click-based ranking: popular stations use `topclick`, and search and genres sort by `clickcount`. Starting a new Radio Browser station reports its UUID to Radio Browser's `/json/url/{stationuuid}` endpoint to contribute to the community play count. This is on by default, matching iOS, and can be turned off in **Settings → Privacy → Report plays to Radio Browser**. Bundled/non-UUID stations, playback retries, and resume do not send a report. Reporting is best-effort and never delays or prevents playback; Radio Browser receives the request's normal network metadata, including your IP address and the app's User-Agent. The choice is saved locally in `%LOCALAPPDATA%\CascadiaCollections\ShoutkitWindows\privacy-settings.json`. A damaged existing settings file fails closed (reporting off).
 
@@ -32,7 +32,7 @@ Favorites and recents are stored at `%LOCALAPPDATA%\CascadiaCollections\Shoutkit
 
 The verified target is `net11.0-windows10.0.22621.0`, with Windows App SDK 2.4 and a minimum Windows build of 17763. The .NET 11 RC1 SDK was installed side-by-side for this local build; the app was restored, built, tested, published, and launched on ARM64. RC releases can still change before general availability, so revalidate when updating the SDK or Windows App SDK.
 
-This is a local preview. Shoutkit's iOS-specific features such as Siri, CarPlay, widgets, sleep timer, equalizer, and track history have not yet been ported.
+This is a local preview. Shoutkit's iOS-specific features such as Siri, widgets, equalizer, and track history have not yet been ported. The current Windows media controls show station-level metadata; live ICY track titles and artwork remain future work.
 
 ## Original smodr project (archival documentation)
 

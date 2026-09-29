@@ -174,7 +174,7 @@
         <Grid x:Name="MiniPlayer" Grid.Row="2" Visibility="Collapsed"
               Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
               BorderThickness="0,1,0,0" Padding="16,10" ColumnSpacing="12">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="48"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="48"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <Border Width="48" Height="48" CornerRadius="10" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
                 <local:StationArtworkControl x:Name="NowPlayingArtwork"/>
             </Border>
@@ -189,7 +189,21 @@
                     Width="42" Height="42" Padding="0" CornerRadius="21" ToolTipService.ToolTip="Play or pause">
                 <FontIcon x:Name="PlayPauseIcon" Glyph="&#xE768;"/>
             </Button>
-            <Button Grid.Column="4" Click="StopButton_Click" Background="Transparent" BorderThickness="0" AutomationProperties.Name="Stop playback"
+            <Button x:Name="SleepTimerButton" Grid.Column="4" Content="Sleep" Margin="8,0,0,0"
+                    AutomationProperties.Name="Sleep timer" ToolTipService.ToolTip="Set a sleep timer">
+                <Button.Flyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="15 minutes" Tag="15" Click="SleepTimerDuration_Click"/>
+                        <MenuFlyoutItem Text="30 minutes" Tag="30" Click="SleepTimerDuration_Click"/>
+                        <MenuFlyoutItem Text="45 minutes" Tag="45" Click="SleepTimerDuration_Click"/>
+                        <MenuFlyoutItem Text="60 minutes" Tag="60" Click="SleepTimerDuration_Click"/>
+                        <MenuFlyoutSeparator/>
+                        <MenuFlyoutItem x:Name="CancelSleepTimerItem" Text="Cancel sleep timer" IsEnabled="False"
+                                        Click="CancelSleepTimer_Click"/>
+                    </MenuFlyout>
+                </Button.Flyout>
+            </Button>
+            <Button Grid.Column="5" Click="StopButton_Click" Background="Transparent" BorderThickness="0" AutomationProperties.Name="Stop playback"
                     ToolTipService.ToolTip="Stop"><FontIcon Glyph="&#xE71A;"/></Button>
         </Grid>
     </Grid>

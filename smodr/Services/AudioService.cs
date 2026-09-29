@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.UI.Dispatching;
 using smodr.Models;
+using Windows.Media;
 using Windows.Media.Core;
 using Windows.Media.Playback;
 
@@ -11,6 +12,7 @@ public class AudioService : IRadioPlayer, IDisposable
     private bool _isInitialized;
     private bool _radioEnded;
     private MediaPlayer? _mediaPlayer;
+    private MediaSource? _mediaSource;
     private DispatcherQueue? _dispatcher;
     private readonly LiveRadioRecovery _recovery;
 
@@ -77,6 +79,8 @@ public class AudioService : IRadioPlayer, IDisposable
         _mediaPlayer.PlaybackSession.NaturalDurationChanged += PlaybackSession_NaturalDurationChanged;
         _mediaPlayer.MediaFailed += MediaPlayer_MediaFailed;
         _mediaPlayer.MediaEnded += MediaPlayer_MediaEnded;
+        _mediaPlayer.CommandManager.PlayReceived += CommandManager_PlayReceived;
+        _mediaPlayer.CommandManager.PauseReceived += CommandManager_PauseReceived;
     }
 
     private void ReleasePlayer()
@@ -88,8 +92,12 @@ public class AudioService : IRadioPlayer, IDisposable
         player.PlaybackSession.NaturalDurationChanged -= PlaybackSession_NaturalDurationChanged;
         player.MediaFailed -= MediaPlayer_MediaFailed;
         player.MediaEnded -= MediaPlayer_MediaEnded;
+        player.CommandManager.PlayReceived -= CommandManager_PlayReceived;
+        player.CommandManager.PauseReceived -= CommandManager_PauseReceived;
         player.Source = null;
         player.Dispose();
+        _mediaSource?.Dispose();
+        _mediaSource = null;
     }
 
     public Task PlayEpisodeAsync(Episode episode)
@@ -115,22 +123,14 @@ public class AudioService : IRadioPlayer, IDisposable
                 return Task.CompletedTask;
             }
 
-            if (_mediaPlayer is null) CreatePlayer();
-            _mediaPlayer?.Pause();
+            CreatePlayer();
 
             CurrentEpisode = episode;
             CurrentStation = null;
             EpisodeChanged?.Invoke(this, episode);
 
-            var mediaSource = MediaSource.CreateFromUri(new Uri(episode.MediaUrl));
-
-            var displayProperties = mediaSource.CustomProperties;
-            displayProperties["Title"] = episode.Title;
-            displayProperties["Artist"] = "Kevin Smith & Scott Mosier";
-            displayProperties["AlbumTitle"] = "SModcast";
-
-            _mediaPlayer!.Source = mediaSource;
-            _mediaPlayer.Play();
+            SetPlayerSource(new Uri(episode.MediaUrl), NowPlayingMetadata.ForEpisode(episode));
+            _mediaPlayer!.Play();
 
             Debug.WriteLine($"Started playing: {episode.Title}");
         }
@@ -184,13 +184,37 @@ public class AudioService : IRadioPlayer, IDisposable
         // A fresh player gives each stream its own event source. Late callbacks
         // from a retired stream cannot be attributed to a different station.
         CreatePlayer();
-        var mediaSource = MediaSource.CreateFromUri(streamUri);
-        mediaSource.CustomProperties["Title"] = station.Name;
-        mediaSource.CustomProperties["Artist"] = station.Details;
-        mediaSource.CustomProperties["AlbumTitle"] = "Live Radio";
+        SetPlayerSource(streamUri, NowPlayingMetadata.ForStation(station));
+        _mediaPlayer!.Play();
+    }
 
-        _mediaPlayer!.Source = mediaSource;
-        _mediaPlayer.Play();
+    private void SetPlayerSource(Uri uri, NowPlayingMetadata metadata)
+    {
+        var source = MediaSource.CreateFromUri(uri);
+        MediaPlaybackItem? item = null;
+        try
+        {
+            item = CreatePlaybackItem(source, metadata);
+            _mediaPlayer!.Source = item;
+            _mediaSource = source;
+        }
+        catch
+        {
+            source.Dispose();
+            throw;
+        }
+    }
+
+    internal static MediaPlaybackItem CreatePlaybackItem(MediaSource mediaSource, NowPlayingMetadata metadata)
+    {
+        var item = new MediaPlaybackItem(mediaSource);
+        var display = item.GetDisplayProperties();
+        display.Type = MediaPlaybackType.Music;
+        display.MusicProperties.Title = metadata.Title;
+        display.MusicProperties.Artist = metadata.Artist;
+        display.MusicProperties.AlbumTitle = metadata.AlbumTitle;
+        item.ApplyDisplayProperties(display);
+        return item;
     }
 
     public void Play()
@@ -333,6 +357,34 @@ public class AudioService : IRadioPlayer, IDisposable
             PlaybackStateChanged?.Invoke(this, MediaPlaybackState.Paused);
         }
         Debug.WriteLine("Media playback ended");
+    }
+
+    private void CommandManager_PlayReceived(MediaPlaybackCommandManager sender,
+        MediaPlaybackCommandManagerPlayReceivedEventArgs args)
+    {
+        if (!ReferenceEquals(sender, _mediaPlayer?.CommandManager) || CurrentStation is null) return;
+        var deferral = args.GetDeferral();
+        args.Handled = true;
+        if (_dispatcher?.TryEnqueue(() =>
+            {
+                try { if (ReferenceEquals(sender, _mediaPlayer?.CommandManager)) Play(); }
+                catch (Exception exception) { AppDiagnostics.Record("station.system-play", exception); }
+                finally { deferral.Complete(); }
+            }) != true) deferral.Complete();
+    }
+
+    private void CommandManager_PauseReceived(MediaPlaybackCommandManager sender,
+        MediaPlaybackCommandManagerPauseReceivedEventArgs args)
+    {
+        if (!ReferenceEquals(sender, _mediaPlayer?.CommandManager) || CurrentStation is null) return;
+        var deferral = args.GetDeferral();
+        args.Handled = true;
+        if (_dispatcher?.TryEnqueue(() =>
+            {
+                try { if (ReferenceEquals(sender, _mediaPlayer?.CommandManager)) Pause(); }
+                catch (Exception exception) { AppDiagnostics.Record("station.system-pause", exception); }
+                finally { deferral.Complete(); }
+            }) != true) deferral.Complete();
     }
 
     private void RestartCurrentRadio(long epoch) => RunOnPlayerThread(() =>

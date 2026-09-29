@@ -59,6 +59,7 @@ public partial class App : Application
         services.AddSingleton<IRadioLibraryService, RadioLibraryService>();
         services.AddSingleton<IRadioDirectorySnapshotCache, RadioDirectorySnapshotCache>();
         services.AddSingleton<IRadioPrivacySettings, RadioPrivacySettings>();
+        services.AddSingleton<PlaybackSleepTimer>();
         services.AddHttpClient<RadioDirectoryService>(client =>
             client.Timeout = TimeSpan.FromSeconds(8));
         services.AddTransient<IRadioDirectoryService>(provider => provider.GetRequiredService<RadioDirectoryService>());

@@ -322,6 +322,76 @@ public sealed class RadioMainViewModelTests
         Assert.AreEqual(0, reporter.Count);
     }
 
+    [TestMethod]
+    public async Task SleepTimerPausesCurrentStationAfterSwitch()
+    {
+        var delay = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var timer = new PlaybackSleepTimer(delay: (_, _) => delay.Task);
+        var pauses = 0;
+        var paused = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var player = new StubPlayer(playbackRequested: true, pause: () =>
+        {
+            Interlocked.Increment(ref pauses);
+            paused.TrySetResult();
+        });
+        using var viewModel = new RadioMainViewModel(player,
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            new StubLibrary(), action => action(), sleepTimer: timer);
+
+        await viewModel.TogglePlaybackAsync(new RadioStation { Id = "first", Name = "First" });
+        viewModel.StartSleepTimer(TimeSpan.FromMinutes(15));
+        await viewModel.TogglePlaybackAsync(new RadioStation { Id = "second", Name = "Second" });
+        delay.SetResult();
+        await paused.Task.WaitAsync(TimeSpan.FromSeconds(3));
+
+        Assert.AreEqual(1, Volatile.Read(ref pauses));
+        Assert.AreEqual("Second", player.CurrentStation?.Name);
+        Assert.IsNull(viewModel.SleepTimerEndsAt);
+    }
+
+    [TestMethod]
+    public async Task CancelledSleepTimerCannotPausePlayback()
+    {
+        var delay = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var timer = new PlaybackSleepTimer(delay: (_, _) => delay.Task);
+        var pauses = 0;
+        var player = new StubPlayer(playbackRequested: true, pause: () => Interlocked.Increment(ref pauses));
+        using var viewModel = new RadioMainViewModel(player,
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            new StubLibrary(), action => action(), sleepTimer: timer);
+
+        await viewModel.TogglePlaybackAsync(new RadioStation { Id = "first", Name = "First" });
+        viewModel.StartSleepTimer(TimeSpan.FromMinutes(15));
+        viewModel.CancelSleepTimer();
+        delay.SetResult();
+        await Task.Delay(30);
+
+        Assert.AreEqual(0, Volatile.Read(ref pauses));
+        Assert.IsNull(viewModel.SleepTimerEndsAt);
+    }
+
+    [TestMethod]
+    public async Task SleepTimerExpiryAfterStopDoesNotResumeOrPause()
+    {
+        var delay = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var timer = new PlaybackSleepTimer(delay: (_, _) => delay.Task);
+        var pauses = 0;
+        var player = new StubPlayer(playbackRequested: true, pause: () => Interlocked.Increment(ref pauses));
+        using var viewModel = new RadioMainViewModel(player,
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            new StubLibrary(), action => action(), sleepTimer: timer);
+
+        await viewModel.TogglePlaybackAsync(new RadioStation { Id = "first", Name = "First" });
+        viewModel.StartSleepTimer(TimeSpan.FromMinutes(15));
+        viewModel.Stop();
+        delay.SetResult();
+        await Task.Delay(30);
+
+        Assert.AreEqual(0, Volatile.Read(ref pauses));
+        Assert.IsNull(player.CurrentStation);
+        Assert.IsNull(viewModel.SleepTimerEndsAt);
+    }
+
     private sealed class StubReporter : IStationPlayReporter
     {
         public int Count { get; private set; }
