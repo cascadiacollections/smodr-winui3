@@ -1,4 +1,30 @@
-# smodr - WinUI3 Podcast Player
+# Shoutkit for Windows — local preview
+
+This branch is a Windows ARM64 adaptation of the [Shoutkit iOS app](https://github.com/cascadiacollections/shoutkit), built in the `smodr-winui3` host. It is an unpackaged, self-contained desktop preview, not a direct SwiftUI port or a complete feature-equivalent release. The current window is radio-first; the original podcast services remain in the repository but are not exposed in this preview's navigation.
+
+Listen Now shows popular stations and recently played stations. Search supports station names and genre browsing. Favorites and the 20 most recent stations are saved in the user's local app data. Playback uses Windows MediaPlayer and the mini-player is shared across views. Station artwork is downloaded with timeout, size, format, concurrency, and cache limits before WinUI receives it. A second launch activates the existing window instead of opening a second player.
+
+Build and run on Windows ARM64 with the [.NET 11 RC1 ARM64 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/11.0). The repository's `global.json` pins `11.0.100-rc.1.26425.128`; .NET 10 alone will not build this version:
+
+```powershell
+dotnet restore smodr.slnx -p:Platform=ARM64 -r win-arm64
+dotnet build smodr.slnx -c Release --no-restore -p:Platform=ARM64 -warnaserror
+dotnet test smodr.slnx -c Release --no-build --no-restore -p:Platform=ARM64
+dotnet publish smodr/smodr.csproj -c Release --no-restore -p:Platform=ARM64 -r win-arm64 --self-contained true -o out/shoutkit-arm64
+./out/shoutkit-arm64/smodr.exe
+```
+
+Keep the published folder together: the `.exe` alone is not sufficient. No separate .NET Desktop Runtime or Windows App SDK runtime installation is required. This preview is not signed or packaged for Store distribution. If `api.nuget.org` is blocked on the host, add `--source https://www.nuget.org/api/v2/` to the restore command.
+
+Favorites and recents are stored at `%LOCALAPPDATA%\\CascadiaCollections\\ShoutkitWindows\\library.json`. Library writes use a temporary file and replacement to reduce corruption from interrupted saves. Station metadata comes from [Radio Browser](https://www.radio-browser.info/); audio and artwork are fetched from station-provided URLs. An internet connection is required for discovery and playback. A directory or stream failure is shown in the app.
+
+The verified target is `net11.0-windows10.0.22621.0`, with Windows App SDK 2.4 and a minimum Windows build of 17763. The .NET 11 RC1 SDK was installed side-by-side for this local build; the app was restored, built, tested, published, and launched on ARM64. RC releases can still change before general availability, so revalidate when updating the SDK or Windows App SDK.
+
+This is a local preview. Shoutkit's iOS-specific features such as Siri, CarPlay, widgets, sleep timer, equalizer, and track history have not yet been ported.
+
+## Original smodr project (archival documentation)
+
+The following section describes the upstream podcast app, not the active Shoutkit Windows preview. Its runtime requirements and feature list do not apply to the self-contained preview above.
 
 [![Build Status](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/build.yml/badge.svg)](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/build.yml)
 [![Dev Container](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/devcontainer.yml/badge.svg)](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/devcontainer.yml)
@@ -12,6 +38,7 @@ A modern Windows desktop podcast player built with WinUI 3 and .NET 10.
 ## Features
 
 - 🎧 **RSS Feed Parsing**: Automatically fetch and parse podcast RSS feeds
+- 📻 **Live Radio**: Browse and search Radio Browser stations, then play live streams
 - ▶️ **Media Playback**: Play podcast episodes with pause/resume support
 - 💾 **Smart Caching**: Efficient episode caching with configurable expiry
 - 📥 **Downloads**: Download episodes for offline listening

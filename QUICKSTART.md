@@ -1,5 +1,7 @@
 # Quick Start Guide
 
+> For the Shoutkit Windows ARM64 preview, use the current build and run instructions in [README.md](README.md). The guide below describes the original smodr development setup.
+
 Get started with smodr development in under 5 minutes!
 
 ## 🚀 Fastest Path: Dev Container

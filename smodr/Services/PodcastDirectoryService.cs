@@ -117,7 +117,7 @@ public sealed class PodcastDirectoryService
     /// </summary>
     public async Task<string?> GetArtworkUrlAsync(long applePodcastId)
     {
-        var results = await LookupAsync([applePodcastId]);
+        var results = await LookupAsync((long[])[applePodcastId]);
         return results.TryGetValue(applePodcastId, out var result) ? result.ArtworkUrl600 : null;
     }
 

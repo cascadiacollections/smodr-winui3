@@ -1,404 +1,231 @@
-using System.Diagnostics;
+using System.Collections.Specialized;
+using System.ComponentModel;
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Media.Imaging;
 using smodr.Models;
-using smodr.Services;
 using smodr.ViewModels;
-using Windows.Storage;
 
 namespace smodr;
 
-/// <summary>
-/// Main application window for the Smodcast player.
-/// </summary>
 public sealed partial class MainWindow : Window
 {
-    private static readonly ApplicationDataContainer _settings = ApplicationData.Current.LocalSettings;
-    private const string LastPodcastIdKey = "LastPodcastId";
-
-    private bool _updatingSliderProgrammatically;
-    private readonly ImageCacheService _imageCacheService = new();
-
-    public MainViewModel ViewModel { get; }
+    public RadioMainViewModel ViewModel { get; } = new();
 
     public MainWindow()
     {
         InitializeComponent();
-        ViewModel = new MainViewModel();
+        ConfigureWindow();
 
-        // Custom title bar
+        ViewModel.PropertyChanged += ViewModel_PropertyChanged;
+        ViewModel.Recents.CollectionChanged += LibraryCollectionChanged;
+        ViewModel.Favorites.CollectionChanged += LibraryCollectionChanged;
+
+        AppNavigation.SelectedItem = ListenNowItem;
+        UpdateLibraryVisibility();
+        Closed += MainWindow_Closed;
+        _ = ViewModel.LoadPopularAsync();
+    }
+
+    private void ConfigureWindow()
+    {
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
 
-        ViewModel.PropertyChanged += ViewModel_PropertyChanged;
+        var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
+        var appWindow = AppWindow.GetFromWindowId(windowId);
+        appWindow.Resize(new Windows.Graphics.SizeInt32(1120, 780));
 
-        MediaControlsPanel.Visibility = Visibility.Collapsed;
-
-        // Populate podcast catalog
-        PodcastsGridView.ItemsSource = Podcast.Catalog;
-
-        // Restore last-viewed podcast on launch
-        RestoreNavigationState();
-
-        // Clean up on close
-        Closed += MainWindow_Closed;
-    }
-
-    private void RestoreNavigationState()
-    {
-        if (_settings.Values[LastPodcastIdKey] is string lastPodcastId
-            && Podcast.Catalog.FirstOrDefault(p => p.Id == lastPodcastId) is { } podcast)
+        if (AppWindowTitleBar.IsCustomizationSupported())
         {
-            Debug.WriteLine($"Restoring last view: {podcast.Name}");
-            NavigateToEpisodes(podcast);
+            appWindow.TitleBar.ButtonBackgroundColor = Colors.Transparent;
+            appWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
         }
-    }
-
-    private void SaveNavigationState()
-    {
-        _settings.Values[LastPodcastIdKey] = ViewModel.SelectedPodcast?.Id;
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
-        SaveNavigationState();
         ViewModel.Dispose();
     }
 
-    private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    private void AppNavigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    {
+        ListenNowView.Visibility = Visibility.Collapsed;
+        SearchView.Visibility = Visibility.Collapsed;
+        FavoritesView.Visibility = Visibility.Collapsed;
+        SettingsView.Visibility = Visibility.Collapsed;
+
+        if (args.IsSettingsSelected)
+        {
+            SettingsView.Visibility = Visibility.Visible;
+            return;
+        }
+
+        var tag = (args.SelectedItemContainer as NavigationViewItem)?.Tag as string;
+        switch (tag)
+        {
+            case "search":
+                SearchView.Visibility = Visibility.Visible;
+                StationSearchBox.Focus(FocusState.Programmatic);
+                break;
+            case "favorites":
+                FavoritesView.Visibility = Visibility.Visible;
+                UpdateLibraryVisibility();
+                break;
+            default:
+                ListenNowView.Visibility = Visibility.Visible;
+                break;
+        }
+    }
+
+    private async void RefreshButton_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.PopularStations.Clear();
+        await ViewModel.LoadPopularAsync();
+    }
+
+    private async void StationGrid_ItemClick(object sender, ItemClickEventArgs e) =>
+        await PlayStationAsync(e.ClickedItem as RadioStation);
+
+    private async void StationList_ItemClick(object sender, ItemClickEventArgs e) =>
+        await PlayStationAsync(e.ClickedItem as RadioStation);
+
+    private async void StationButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: RadioStation station })
+        {
+            await PlayStationAsync(station);
+        }
+    }
+
+    private async Task PlayStationAsync(RadioStation? station)
+    {
+        if (station is null)
+        {
+            return;
+        }
+
+        await ViewModel.TogglePlaybackAsync(station);
+        UpdateLibraryVisibility();
+    }
+
+    private async void StationSearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    {
+        GenreSection.Visibility = Visibility.Collapsed;
+        SearchResultsList.Visibility = Visibility.Visible;
+        await ViewModel.SearchAsync(args.QueryText);
+    }
+
+    private async void GenreButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string genre })
+        {
+            StationSearchBox.Text = genre;
+            GenreSection.Visibility = Visibility.Collapsed;
+            SearchResultsList.Visibility = Visibility.Visible;
+            await ViewModel.SearchGenreAsync(genre);
+        }
+    }
+
+    private void FavoriteNowPlayingButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.CurrentStation is { } station)
+        {
+            ViewModel.ToggleFavorite(station);
+            UpdateNowPlaying();
+            UpdateLibraryVisibility();
+        }
+    }
+
+    private void StationFavoriteMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem { Tag: RadioStation station })
+        {
+            ToggleFavorite(station);
+        }
+    }
+
+    private void StationRow_FavoriteRequested(object? sender, RadioStation station) => ToggleFavorite(station);
+
+    private void ToggleFavorite(RadioStation station)
+    {
+        ViewModel.ToggleFavorite(station);
+        UpdateNowPlaying();
+        UpdateLibraryVisibility();
+    }
+
+    private void PlayPauseButton_Click(object sender, RoutedEventArgs e) => ViewModel.PlayPause();
+    private void StopButton_Click(object sender, RoutedEventArgs e) => ViewModel.Stop();
+
+    private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         switch (e.PropertyName)
         {
-            case nameof(ViewModel.CurrentPlayingEpisode):
-                UpdateNowPlayingInfo();
+            case nameof(ViewModel.CurrentStation):
+                UpdateNowPlaying();
                 break;
             case nameof(ViewModel.IsPlaying):
-                UpdatePlayPauseButton();
+                PlayPauseIcon.Glyph = ViewModel.IsPlaying ? "\uE769" : "\uE768";
                 break;
-            case nameof(ViewModel.PlaybackStatus):
-                PlaybackStatusText.Text = ViewModel.PlaybackStatus;
+            case nameof(ViewModel.IsLoading):
+                LoadingRing.IsActive = ViewModel.IsLoading;
+                LoadingRing.Visibility = ViewModel.IsLoading ? Visibility.Visible : Visibility.Collapsed;
                 break;
-            case nameof(ViewModel.CurrentPosition):
-                UpdateSeekPosition();
-                PositionText.Text = ViewModel.FormattedPosition;
-                break;
-            case nameof(ViewModel.Duration):
-                SeekSlider.Maximum = Math.Max(1, ViewModel.Duration.TotalSeconds);
-                DurationText.Text = ViewModel.FormattedDuration;
+            case nameof(ViewModel.Status):
+                UpdateStatus();
                 break;
         }
     }
 
-    private void UpdateNowPlayingInfo()
+    private void UpdateNowPlaying()
     {
-        if (ViewModel.CurrentPlayingEpisode is { } episode)
+        if (ViewModel.CurrentStation is not { } station)
         {
-            MediaControlsPanel.Visibility = Visibility.Visible;
-            CurrentEpisodeTitle.Text = episode.Title;
-            _ = LoadNowPlayingImageAsync(episode);
-        }
-        else
-        {
-            MediaControlsPanel.Visibility = Visibility.Collapsed;
-        }
-    }
-
-    private void UpdatePlayPauseButton() =>
-        PlayPauseIcon.Glyph = ViewModel.IsPlaying ? "\uE769" : "\uE768";
-
-    private async Task LoadNowPlayingImageAsync(Episode episode)
-    {
-        try
-        {
-            StorageFile? file = null;
-
-            // Try episode-specific image first
-            if (!string.IsNullOrEmpty(episode.ImageUrl))
-            {
-                file = await _imageCacheService.GetOrDownloadImageAsync(episode.ImageUrl);
-            }
-
-            // Fall back to podcast artwork via iTunes
-            if (file is null && ViewModel.SelectedPodcast is { } podcast)
-            {
-                file = await _imageCacheService.GetPodcastArtworkAsync(podcast);
-            }
-
-            if (file is not null)
-            {
-                var bitmap = new BitmapImage();
-                using var stream = await file.OpenReadAsync();
-                await bitmap.SetSourceAsync(stream);
-                CurrentEpisodeImage.Source = bitmap;
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Failed to load now-playing image: {ex.Message}");
-        }
-    }
-
-    private void UpdateSeekPosition()
-    {
-        _updatingSliderProgrammatically = true;
-        SeekSlider.Value = ViewModel.CurrentPosition.TotalSeconds;
-        _updatingSliderProgrammatically = false;
-    }
-
-    private void SeekSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
-    {
-        if (!_updatingSliderProgrammatically)
-        {
-            ViewModel.Seek(TimeSpan.FromSeconds(e.NewValue));
-        }
-    }
-
-    private void PodcastCard_Click(object sender, ItemClickEventArgs e)
-    {
-        if (e.ClickedItem is Podcast podcast)
-        {
-            NavigateToEpisodes(podcast);
-        }
-    }
-
-    private void BackButton_Click(object sender, RoutedEventArgs e) => NavigateToPodcasts();
-
-    private void NavigateToEpisodes(Podcast podcast)
-    {
-        ViewModel.SelectedPodcast = podcast;
-        EpisodesPodcastTitle.Text = podcast.Name;
-        EpisodesPodcastHosts.Text = podcast.Hosts;
-
-        PodcastsView.Visibility = Visibility.Collapsed;
-        EpisodesView.Visibility = Visibility.Visible;
-
-        SaveNavigationState();
-
-        _ = LoadEpisodesAsync();
-    }
-
-    private void NavigateToPodcasts()
-    {
-        ViewModel.SelectedPodcast = null;
-        ViewModel.Episodes.Clear();
-        EpisodesListView.ItemsSource = null;
-
-        EpisodesView.Visibility = Visibility.Collapsed;
-        PodcastsView.Visibility = Visibility.Visible;
-
-        LoadingPanel.Visibility = Visibility.Collapsed;
-        LoadingRing.IsActive = false;
-
-        SaveNavigationState();
-    }
-
-    private async void RefreshButton_Click(object sender, RoutedEventArgs e) =>
-        await LoadEpisodesAsync(forceRefresh: true);
-
-    private async Task LoadEpisodesAsync(bool forceRefresh = false)
-    {
-        if (ViewModel.SelectedPodcast is not { } podcast)
+            MiniPlayer.Visibility = Visibility.Collapsed;
             return;
-
-        try
-        {
-            if (!forceRefresh)
-            {
-                var cachedEpisodes = await ViewModel.GetCachedEpisodesAsync();
-                if (cachedEpisodes is { Count: > 0 })
-                {
-                    EpisodesListView.ItemsSource = cachedEpisodes;
-                    LoadingPanel.Visibility = Visibility.Collapsed;
-                    EpisodesListView.Visibility = Visibility.Visible;
-                    LoadingRing.IsActive = false;
-                    RefreshButton.IsEnabled = true;
-
-                    ViewModel.Episodes.Clear();
-                    foreach (var episode in cachedEpisodes)
-                    {
-                        ViewModel.Episodes.Add(episode);
-                    }
-
-                    Debug.WriteLine($"Loaded {cachedEpisodes.Count} episodes for {podcast.Id} from cache instantly");
-                    return;
-                }
-            }
-
-            LoadingPanel.Visibility = Visibility.Visible;
-            EpisodesListView.Visibility = Visibility.Collapsed;
-            LoadingRing.IsActive = true;
-            LoadingMessage.Text = forceRefresh
-                ? $"Refreshing {podcast.Name} episodes..."
-                : $"Loading {podcast.Name} episodes...";
-            RefreshButton.IsEnabled = false;
-
-            await ViewModel.LoadEpisodesAsync(forceRefresh);
-
-            EpisodesListView.ItemsSource = ViewModel.Episodes;
-
-            LoadingPanel.Visibility = Visibility.Collapsed;
-            EpisodesListView.Visibility = Visibility.Visible;
-            LoadingRing.IsActive = false;
-
-            if (ViewModel.Episodes.Count == 0)
-            {
-                LoadingMessage.Text = "No episodes found. Please check your internet connection.";
-                LoadingPanel.Visibility = Visibility.Visible;
-                EpisodesListView.Visibility = Visibility.Collapsed;
-            }
         }
-        catch (Exception ex)
-        {
-            LoadingMessage.Text = $"Error loading episodes: {ex.Message}";
-            LoadingPanel.Visibility = Visibility.Visible;
-            EpisodesListView.Visibility = Visibility.Collapsed;
-            LoadingRing.IsActive = false;
-        }
-        finally
-        {
-            RefreshButton.IsEnabled = true;
-        }
+
+        MiniPlayer.Visibility = Visibility.Visible;
+        NowPlayingTitle.Text = station.Name;
+        NowPlayingSubtitle.Text = string.IsNullOrWhiteSpace(ViewModel.Status) ? station.Details : ViewModel.Status;
+        NowPlayingArtwork.ArtworkUrl = station.ArtworkUrl;
+        FavoriteNowPlayingIcon.Glyph = ViewModel.IsFavorite(station) ? "\uEB52" : "\uEB51";
     }
 
-    private void EpisodesListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void UpdateStatus()
     {
-        if (e.AddedItems.Count > 0 && e.AddedItems[0] is Episode episode)
+        if (ViewModel.CurrentStation is not null)
         {
-            ViewModel.SelectEpisode(episode);
+            NowPlayingSubtitle.Text = string.IsNullOrWhiteSpace(ViewModel.Status)
+                ? ViewModel.CurrentStation.Details
+                : ViewModel.Status;
         }
+
+        var isError = ViewModel.Status.Contains("unavailable", StringComparison.OrdinalIgnoreCase)
+            || ViewModel.Status.StartsWith("Unable to play", StringComparison.OrdinalIgnoreCase)
+            || ViewModel.Status.Contains("could not be saved", StringComparison.OrdinalIgnoreCase);
+        StatusInfoBar.IsOpen = isError;
+        StatusInfoBar.Severity = InfoBarSeverity.Error;
+        StatusInfoBar.Title = ViewModel.Status.Contains("could not be saved", StringComparison.OrdinalIgnoreCase)
+            ? "Library save failed"
+            : ViewModel.Status.StartsWith("Unable to play", StringComparison.OrdinalIgnoreCase)
+                ? "Playback failed"
+                : "Radio directory unavailable";
+        StatusInfoBar.Message = isError ? ViewModel.Status : string.Empty;
     }
 
-    private async void PlayButton_Click(object sender, RoutedEventArgs e)
+    private void LibraryCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
+        UpdateLibraryVisibility();
+
+    private void UpdateLibraryVisibility()
     {
-        if (sender is Button { Tag: Episode episode })
-        {
-            try
-            {
-                await ViewModel.PlayEpisodeAsync(episode);
-            }
-            catch (Exception ex)
-            {
-                await ShowErrorDialogAsync("Playback Error", $"Failed to play episode: {ex.Message}");
-            }
-        }
-    }
-
-    private void PlayPauseButton_Click(object sender, RoutedEventArgs e) =>
-        ViewModel.PlayPause();
-
-    private void StopButton_Click(object sender, RoutedEventArgs e) =>
-        ViewModel.Stop();
-
-    private async void DownloadMenuItem_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not MenuFlyoutItem { Tag: Episode episode } menuItem)
-            return;
-
-        try
-        {
-            menuItem.IsEnabled = false;
-            menuItem.Text = "Downloading...";
-
-            var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            await ViewModel.DownloadEpisodeAsync(episode, hWnd);
-
-            await ShowDialogAsync("Download Complete", $"Successfully downloaded: {episode.Title}");
-        }
-        catch (Exception ex)
-        {
-            await ShowErrorDialogAsync("Download Failed", $"Failed to download episode: {ex.Message}");
-        }
-        finally
-        {
-            menuItem.IsEnabled = true;
-            menuItem.Text = "Download Episode";
-        }
-    }
-
-    private async void PlayMenuItem_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is MenuFlyoutItem { Tag: Episode episode })
-        {
-            try
-            {
-                await ViewModel.PlayEpisodeAsync(episode);
-            }
-            catch (Exception ex)
-            {
-                await ShowErrorDialogAsync("Playback Error", $"Failed to play episode: {ex.Message}");
-            }
-        }
-    }
-
-    private async void CacheInfoMenuItem_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var cacheInfo = await ViewModel.GetCacheInfoAsync();
-            var cacheSize = await ViewModel.GetCacheSizeAsync();
-
-            var message = cacheInfo is not null
-                ? $"Episodes: {cacheInfo.EpisodeCount}\n" +
-                  $"Last Updated: {cacheInfo.LastUpdated:yyyy-MM-dd HH:mm:ss}\n" +
-                  $"Cache Size: {(cacheSize > 0 ? $"{cacheSize / 1024.0:F1} KB" : "Unknown")}\n" +
-                  $"Version: {cacheInfo.Version}"
-                : "No cache data available.";
-
-            await ShowDialogAsync("Cache Information", message);
-        }
-        catch (Exception ex)
-        {
-            await ShowErrorDialogAsync("Error", $"Failed to get cache information: {ex.Message}");
-        }
-    }
-
-    private async void ClearCacheMenuItem_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var confirmDialog = new ContentDialog
-            {
-                Title = "Clear Cache",
-                Content = "Are you sure you want to clear the cache? This will force a fresh download of episodes on next refresh.",
-                PrimaryButtonText = "Clear",
-                CloseButtonText = "Cancel",
-                XamlRoot = Content.XamlRoot
-            };
-
-            var result = await confirmDialog.ShowAsync();
-
-            if (result == ContentDialogResult.Primary)
-            {
-                var success = await ViewModel.ClearCacheAsync();
-                await ShowDialogAsync(
-                    success ? "Success" : "Error",
-                    success ? "Cache cleared successfully." : "Failed to clear cache.");
-            }
-        }
-        catch (Exception ex)
-        {
-            await ShowErrorDialogAsync("Error", $"Failed to clear cache: {ex.Message}");
-        }
-    }
-
-    private async void ForceRefreshMenuItem_Click(object sender, RoutedEventArgs e) =>
-        await LoadEpisodesAsync(forceRefresh: true);
-
-    private Task ShowErrorDialogAsync(string title, string message) =>
-        ShowDialogAsync(title, message);
-
-    private async Task ShowDialogAsync(string title, string content)
-    {
-        var dialog = new ContentDialog
-        {
-            Title = title,
-            Content = content,
-            CloseButtonText = "OK",
-            XamlRoot = Content.XamlRoot
-        };
-
-        await dialog.ShowAsync();
+        RecentSection.Visibility = ViewModel.Recents.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        FavoritesSection.Visibility = ViewModel.Favorites.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        HistorySection.Visibility = ViewModel.Recents.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        EmptyLibraryView.Visibility = ViewModel.Favorites.Count == 0 && ViewModel.Recents.Count == 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 }

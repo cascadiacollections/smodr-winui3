@@ -11,7 +11,7 @@ public record Podcast
     public long? ApplePodcastId { get; init; }
 
     public static IReadOnlyList<Podcast> Catalog { get; } =
-    [
+    (List<Podcast>)[
         new()
         {
             Id = "smodcast",

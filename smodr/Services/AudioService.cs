@@ -11,6 +11,7 @@ public class AudioService : IDisposable
     private MediaPlayer? _mediaPlayer;
 
     public Episode? CurrentEpisode { get; private set; }
+    public RadioStation? CurrentStation { get; private set; }
 
     public MediaPlaybackState PlaybackState => _mediaPlayer?.PlaybackSession?.PlaybackState ?? MediaPlaybackState.None;
     public TimeSpan Position => _mediaPlayer?.PlaybackSession?.Position ?? TimeSpan.Zero;
@@ -38,6 +39,8 @@ public class AudioService : IDisposable
     }
 
     public event EventHandler<Episode>? EpisodeChanged;
+    public event EventHandler<RadioStation>? StationChanged;
+    public event EventHandler<string>? PlaybackFailed;
     public event EventHandler<MediaPlaybackState>? PlaybackStateChanged;
     public event EventHandler<TimeSpan>? PositionChanged;
     public event EventHandler<TimeSpan>? DurationChanged;
@@ -87,6 +90,7 @@ public class AudioService : IDisposable
             _mediaPlayer?.Pause();
 
             CurrentEpisode = episode;
+            CurrentStation = null;
             EpisodeChanged?.Invoke(this, episode);
 
             var mediaSource = MediaSource.CreateFromUri(new Uri(episode.MediaUrl));
@@ -107,6 +111,36 @@ public class AudioService : IDisposable
             throw;
         }
 
+        return Task.CompletedTask;
+    }
+
+    public Task PlayStationAsync(RadioStation station)
+    {
+        if (!_isInitialized)
+        {
+            Initialize();
+        }
+
+        if (!Uri.TryCreate(station.StreamUrl, UriKind.Absolute, out var streamUri)
+            || streamUri.Scheme is not ("http" or "https"))
+        {
+            throw new ArgumentException("Station has no valid stream URL to play.", nameof(station));
+        }
+
+        _mediaPlayer?.Pause();
+        CurrentEpisode = null;
+        CurrentStation = station;
+        StationChanged?.Invoke(this, station);
+
+        var mediaSource = MediaSource.CreateFromUri(streamUri);
+        mediaSource.CustomProperties["Title"] = station.Name;
+        mediaSource.CustomProperties["Artist"] = station.Details;
+        mediaSource.CustomProperties["AlbumTitle"] = "Live Radio";
+
+        _mediaPlayer!.Source = mediaSource;
+        _mediaPlayer.Play();
+
+        Debug.WriteLine($"Started playing station: {station.Name}");
         return Task.CompletedTask;
     }
 
@@ -153,8 +187,14 @@ public class AudioService : IDisposable
     private void PlaybackSession_NaturalDurationChanged(MediaPlaybackSession sender, object args) =>
         DurationChanged?.Invoke(this, sender.NaturalDuration);
 
-    private void MediaPlayer_MediaFailed(MediaPlayer sender, MediaPlayerFailedEventArgs args) =>
-        Debug.WriteLine($"Media failed: {args.Error} - {args.ErrorMessage}");
+    private void MediaPlayer_MediaFailed(MediaPlayer sender, MediaPlayerFailedEventArgs args)
+    {
+        var message = string.IsNullOrWhiteSpace(args.ErrorMessage)
+            ? args.Error.ToString()
+            : args.ErrorMessage;
+        Debug.WriteLine($"Media failed: {args.Error} - {message}");
+        PlaybackFailed?.Invoke(this, message);
+    }
 
     private void MediaPlayer_MediaEnded(MediaPlayer sender, object args) =>
         Debug.WriteLine("Media playback ended");

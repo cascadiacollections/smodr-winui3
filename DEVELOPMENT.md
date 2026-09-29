@@ -1,5 +1,7 @@
 # Development Environment Setup
 
+> For the Shoutkit Windows ARM64 preview, use the current build and run instructions in [README.md](README.md). This page describes the original smodr development setup.
+
 This guide helps you set up your development environment for the smodr WinUI3 project.
 
 ## Quick Start with VS Code Dev Container
