@@ -143,6 +143,44 @@ public sealed class RadioMainViewModelTests
         Assert.AreEqual("Unable to play this station. Try another station.", viewModel.Status);
     }
 
+    [TestMethod]
+    public async Task FavoriteSaveIsAwaitedAndFailureIsReported()
+    {
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var library = new StubLibrary(toggleFavorite: async _ =>
+        {
+            await release.Task;
+            throw new IOException("save denied");
+        });
+        using var viewModel = new RadioMainViewModel(
+            new StubPlayer(),
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            library,
+            action => action());
+
+        var saving = viewModel.ToggleFavoriteAsync(new RadioStation { Id = "one" });
+        Assert.IsFalse(saving.IsCompleted);
+        release.SetResult();
+        await saving;
+
+        Assert.AreEqual("Favorites could not be saved.", viewModel.Status);
+    }
+
+    [TestMethod]
+    public async Task RecentSaveFailureDoesNotReportPlaybackFailure()
+    {
+        var library = new StubLibrary(logRecent: _ => throw new IOException("save denied"));
+        using var viewModel = new RadioMainViewModel(
+            new StubPlayer(),
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            library,
+            action => action());
+
+        await viewModel.TogglePlaybackAsync(new RadioStation { Id = "one" });
+
+        Assert.AreEqual("Playing, but recent stations could not be saved.", viewModel.Status);
+    }
+
     private sealed class StubDirectory(
         Func<string, CancellationToken, Task<IReadOnlyList<RadioStation>>> search,
         Func<CancellationToken, Task<IReadOnlyList<RadioStation>>>? popular = null) : IRadioDirectoryService
@@ -160,14 +198,22 @@ public sealed class RadioMainViewModelTests
             search(genre, cancellationToken);
     }
 
-    private sealed class StubLibrary : IRadioLibraryService
+    private sealed class StubLibrary(
+        Func<RadioStation, Task>? toggleFavorite = null,
+        Func<RadioStation, Task>? logRecent = null) : IRadioLibraryService
     {
         public int RecentSaves { get; private set; }
         public IReadOnlyList<RadioStation> Favorites => [];
         public IReadOnlyList<RadioStation> Recents => [];
         public bool IsFavorite(RadioStation station) => false;
-        public void ToggleFavorite(RadioStation station) { }
-        public void LogRecent(RadioStation station) => RecentSaves++;
+        public Task ToggleFavoriteAsync(RadioStation station) =>
+            toggleFavorite?.Invoke(station) ?? Task.CompletedTask;
+        public Task LogRecentAsync(RadioStation station)
+        {
+            RecentSaves++;
+            return logRecent?.Invoke(station) ?? Task.CompletedTask;
+        }
+        public Task FlushAsync() => Task.CompletedTask;
     }
 
     private sealed class StubPlayer(

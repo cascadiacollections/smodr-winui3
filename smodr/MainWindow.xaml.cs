@@ -6,12 +6,18 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using smodr.Models;
+using smodr.Services;
 using smodr.ViewModels;
 
 namespace smodr;
 
 public sealed partial class MainWindow : Window
 {
+    private AppWindow? _appWindow;
+    private bool _closingAfterFlush;
+    private bool _closeAfterFlush;
+    private bool _closed;
+
     public RadioMainViewModel ViewModel { get; }
 
     public MainWindow(RadioMainViewModel viewModel)
@@ -38,6 +44,8 @@ public sealed partial class MainWindow : Window
         var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
         var appWindow = AppWindow.GetFromWindowId(windowId);
+        _appWindow = appWindow;
+        appWindow.Closing += AppWindow_Closing;
         appWindow.Resize(new Windows.Graphics.SizeInt32(1120, 780));
 
         if (AppWindowTitleBar.IsCustomizationSupported())
@@ -49,7 +57,54 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
+        _closed = true;
+        if (_appWindow is not null)
+        {
+            _appWindow.Closing -= AppWindow_Closing;
+        }
+        ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+        ViewModel.Recents.CollectionChanged -= LibraryCollectionChanged;
+        ViewModel.Favorites.CollectionChanged -= LibraryCollectionChanged;
         ViewModel.Dispose();
+    }
+
+    private async void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        if (_closeAfterFlush)
+        {
+            return;
+        }
+
+        var pending = ViewModel.FlushLibraryAsync();
+        if (pending.IsCompleted)
+        {
+            return;
+        }
+
+        args.Cancel = true;
+        if (_closingAfterFlush)
+        {
+            return;
+        }
+
+        _closingAfterFlush = true;
+        try
+        {
+            do
+            {
+                await pending;
+                pending = ViewModel.FlushLibraryAsync();
+            } while (!pending.IsCompleted);
+        }
+        catch (Exception exception)
+        {
+            AppDiagnostics.Record("library.flush", exception);
+        }
+        finally
+        {
+            _closeAfterFlush = true;
+            Close();
+        }
     }
 
     private void AppNavigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -110,7 +165,10 @@ public sealed partial class MainWindow : Window
         }
 
         await ViewModel.TogglePlaybackAsync(station);
-        UpdateLibraryVisibility();
+        if (!_closed)
+        {
+            UpdateLibraryVisibility();
+        }
     }
 
     private async void StationSearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
@@ -131,32 +189,24 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void FavoriteNowPlayingButton_Click(object sender, RoutedEventArgs e)
+    private async void FavoriteNowPlayingButton_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel.CurrentStation is { } station)
         {
-            ViewModel.ToggleFavorite(station);
-            UpdateNowPlaying();
-            UpdateLibraryVisibility();
+            await ViewModel.ToggleFavoriteAsync(station);
         }
     }
 
-    private void StationFavoriteMenuItem_Click(object sender, RoutedEventArgs e)
+    private async void StationFavoriteMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (sender is MenuFlyoutItem { Tag: RadioStation station })
         {
-            ToggleFavorite(station);
+            await ViewModel.ToggleFavoriteAsync(station);
         }
     }
 
-    private void StationRow_FavoriteRequested(object? sender, RadioStation station) => ToggleFavorite(station);
-
-    private void ToggleFavorite(RadioStation station)
-    {
-        ViewModel.ToggleFavorite(station);
-        UpdateNowPlaying();
-        UpdateLibraryVisibility();
-    }
+    private async void StationRow_FavoriteRequested(object? sender, RadioStation station) =>
+        await ViewModel.ToggleFavoriteAsync(station);
 
     private void PlayPauseButton_Click(object sender, RoutedEventArgs e) => ViewModel.PlayPause();
     private void StopButton_Click(object sender, RoutedEventArgs e) => ViewModel.Stop();

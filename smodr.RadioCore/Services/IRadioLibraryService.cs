@@ -7,6 +7,7 @@ public interface IRadioLibraryService
     IReadOnlyList<RadioStation> Favorites { get; }
     IReadOnlyList<RadioStation> Recents { get; }
     bool IsFavorite(RadioStation station);
-    void ToggleFavorite(RadioStation station);
-    void LogRecent(RadioStation station);
+    Task ToggleFavoriteAsync(RadioStation station);
+    Task LogRecentAsync(RadioStation station);
+    Task FlushAsync();
 }

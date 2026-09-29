@@ -9,7 +9,7 @@ public sealed class RadioLibraryServiceTests
     private static readonly string[] _expectedRecentIds = ["first", "second"];
 
     [TestMethod]
-    public void FavoritesAndRecentsSurviveRestart()
+    public async Task FavoritesAndRecentsSurviveRestart()
     {
         var filePath = Path.Combine(Path.GetTempPath(), $"shoutkit-library-{Guid.NewGuid():N}.json");
         try
@@ -28,10 +28,10 @@ public sealed class RadioLibraryServiceTests
             };
 
             var library = new RadioLibraryService(filePath);
-            library.ToggleFavorite(firstStation);
-            library.LogRecent(firstStation);
-            library.LogRecent(secondStation);
-            library.LogRecent(firstStation);
+            await library.ToggleFavoriteAsync(firstStation);
+            await library.LogRecentAsync(firstStation);
+            await library.LogRecentAsync(secondStation);
+            await library.LogRecentAsync(firstStation);
 
             var reopened = new RadioLibraryService(filePath);
             Assert.IsTrue(reopened.IsFavorite(firstStation));
@@ -39,7 +39,7 @@ public sealed class RadioLibraryServiceTests
                 _expectedRecentIds,
                 reopened.Recents.Select(station => station.Id).ToArray());
 
-            reopened.ToggleFavorite(firstStation);
+            await reopened.ToggleFavoriteAsync(firstStation);
             Assert.IsFalse(new RadioLibraryService(filePath).IsFavorite(firstStation));
         }
         finally
@@ -52,14 +52,15 @@ public sealed class RadioLibraryServiceTests
     }
 
     [TestMethod]
-    public void InvalidSavedLibraryStartsEmpty()
+    public async Task InvalidSavedLibraryStartsEmpty()
     {
         var filePath = Path.Combine(Path.GetTempPath(), $"shoutkit-library-{Guid.NewGuid():N}.json");
         try
         {
-            File.WriteAllText(filePath, "{invalid json");
+            await File.WriteAllTextAsync(filePath, "{invalid json");
 
             var library = new RadioLibraryService(filePath);
+            await library.FlushAsync();
 
             Assert.IsEmpty(library.Favorites);
             Assert.IsEmpty(library.Recents);
@@ -81,7 +82,42 @@ public sealed class RadioLibraryServiceTests
     }
 
     [TestMethod]
-    public void FailedSaveRollsBackFavoriteChange()
+    public async Task CorruptLibraryIsBackedUpBeforeFirstNewSave()
+    {
+        var filePath = Path.Combine(Path.GetTempPath(), $"shoutkit-library-{Guid.NewGuid():N}.json");
+        const string invalidContent = "{invalid json";
+        try
+        {
+            await File.WriteAllTextAsync(filePath, invalidContent);
+            var library = new RadioLibraryService(filePath);
+
+            await library.ToggleFavoriteAsync(new RadioStation
+            {
+                Id = "new",
+                StreamUrl = "https://example.com/live"
+            });
+
+            var backup = Directory.GetFiles(Path.GetDirectoryName(filePath)!,
+                $"{Path.GetFileName(filePath)}.corrupt-*").Single();
+            Assert.AreEqual(invalidContent, await File.ReadAllTextAsync(backup));
+            Assert.HasCount(1, new RadioLibraryService(filePath).Favorites);
+        }
+        finally
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+            foreach (var backup in Directory.GetFiles(Path.GetDirectoryName(filePath)!,
+                $"{Path.GetFileName(filePath)}.corrupt-*"))
+            {
+                File.Delete(backup);
+            }
+        }
+    }
+
+    [TestMethod]
+    public async Task FailedSaveRollsBackFavoriteChange()
     {
         var root = Path.Combine(Path.GetTempPath(), $"shoutkit-library-{Guid.NewGuid():N}");
         var filePath = Path.Combine(root, "library.json");
@@ -91,12 +127,24 @@ public sealed class RadioLibraryServiceTests
             var library = new RadioLibraryService(filePath);
             var station = new RadioStation { Id = "one", StreamUrl = "https://example.com/live" };
 
-            Assert.ThrowsExactly<UnauthorizedAccessException>(() => library.ToggleFavorite(station));
+            await Assert.ThrowsExactlyAsync<UnauthorizedAccessException>(
+                () => library.ToggleFavoriteAsync(station));
             Assert.IsFalse(library.IsFavorite(station));
+
+            Directory.Delete(filePath);
+            await library.ToggleFavoriteAsync(station);
+            Assert.IsTrue(new RadioLibraryService(filePath).IsFavorite(station));
         }
         finally
         {
-            Directory.Delete(filePath);
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+            else if (Directory.Exists(filePath))
+            {
+                Directory.Delete(filePath);
+            }
             Directory.Delete(root);
         }
     }
@@ -110,7 +158,7 @@ public sealed class RadioLibraryServiceTests
         try
         {
             var library = new RadioLibraryService(filePath);
-            library.LogRecent(firstStation);
+            await library.LogRecentAsync(firstStation);
             await using (var hold = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
             {
                 var release = Task.Run(async () =>
@@ -121,7 +169,12 @@ public sealed class RadioLibraryServiceTests
 
                 try
                 {
-                    library.LogRecent(secondStation);
+                    var save = library.LogRecentAsync(secondStation);
+                    var flush = library.FlushAsync();
+                    Assert.IsFalse(save.IsCompleted);
+                    Assert.IsFalse(flush.IsCompleted);
+                    await save;
+                    await flush;
                 }
                 finally
                 {
@@ -141,21 +194,86 @@ public sealed class RadioLibraryServiceTests
     }
 
     [TestMethod]
-    public void NewerLibraryFormatIsPreservedReadOnly()
+    public async Task NewerLibraryFormatIsPreservedReadOnly()
     {
         var filePath = Path.Combine(Path.GetTempPath(), $"shoutkit-library-{Guid.NewGuid():N}.json");
         var futureData = """{"SchemaVersion":999,"Favorites":[],"Recents":[]}""";
         try
         {
-            File.WriteAllText(filePath, futureData);
+            await File.WriteAllTextAsync(filePath, futureData);
             var library = new RadioLibraryService(filePath);
 
-            Assert.ThrowsExactly<IOException>(() => library.LogRecent(new RadioStation()));
-            Assert.AreEqual(futureData, File.ReadAllText(filePath));
+            await Assert.ThrowsExactlyAsync<IOException>(
+                () => library.LogRecentAsync(new RadioStation()));
+            Assert.AreEqual(futureData, await File.ReadAllTextAsync(filePath));
         }
         finally
         {
             File.Delete(filePath);
+        }
+    }
+
+    [TestMethod]
+    public async Task ConcurrentFavoritesAndRecentsSurviveRestart()
+    {
+        var filePath = Path.Combine(Path.GetTempPath(), $"shoutkit-library-{Guid.NewGuid():N}.json");
+        var stations = Enumerable.Range(0, 12)
+            .Select(index => new RadioStation
+            {
+                Id = $"station-{index}",
+                Name = $"Station {index}",
+                StreamUrl = $"https://example.com/{index}"
+            })
+            .ToArray();
+        try
+        {
+            var library = new RadioLibraryService(filePath);
+            var operations = stations.SelectMany(station => new[]
+            {
+                library.ToggleFavoriteAsync(station),
+                library.LogRecentAsync(station)
+            });
+            await Task.WhenAll(operations);
+
+            var reopened = new RadioLibraryService(filePath);
+            Assert.HasCount(stations.Length, reopened.Favorites);
+            Assert.HasCount(stations.Length, reopened.Recents);
+            foreach (var station in stations)
+            {
+                Assert.IsTrue(reopened.IsFavorite(station));
+                Assert.IsTrue(reopened.Recents.Any(recent => recent.Id == station.Id));
+            }
+        }
+        finally
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+        }
+    }
+
+    [TestMethod]
+    public async Task ConcurrentTogglesOfSameFavoriteDoNotLoseUpdates()
+    {
+        var filePath = Path.Combine(Path.GetTempPath(), $"shoutkit-library-{Guid.NewGuid():N}.json");
+        var station = new RadioStation { Id = "same", StreamUrl = "https://example.com/live" };
+        try
+        {
+            var library = new RadioLibraryService(filePath);
+            var toggles = Enumerable.Range(0, 20)
+                .Select(_ => Task.Run(() => library.ToggleFavoriteAsync(station)));
+            await Task.WhenAll(toggles);
+
+            Assert.IsFalse(library.IsFavorite(station));
+            Assert.IsFalse(new RadioLibraryService(filePath).IsFavorite(station));
+        }
+        finally
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
         }
     }
 }

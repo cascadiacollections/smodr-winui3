@@ -9,6 +9,8 @@ public sealed class RadioLibraryService : IRadioLibraryService
     private const int RecentLimit = 20;
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
     private readonly string _filePath;
+    private readonly Lock _writeGate = new();
+    private Task _writeTail = Task.CompletedTask;
     private RadioLibraryData _data;
     private bool _readOnly;
 
@@ -22,62 +24,90 @@ public sealed class RadioLibraryService : IRadioLibraryService
         _data = Load();
     }
 
-    public IReadOnlyList<RadioStation> Favorites => _data.Favorites;
-    public IReadOnlyList<RadioStation> Recents => _data.Recents;
+    public IReadOnlyList<RadioStation> Favorites => [.. Volatile.Read(ref _data).Favorites];
+    public IReadOnlyList<RadioStation> Recents => [.. Volatile.Read(ref _data).Recents];
 
     public bool IsFavorite(RadioStation station) =>
-        _data.Favorites.Any(item => RadioStationIdentity.Matches(item, station));
+        Volatile.Read(ref _data).Favorites.Any(item => RadioStationIdentity.Matches(item, station));
 
-    public void ToggleFavorite(RadioStation station)
+    public Task ToggleFavoriteAsync(RadioStation station)
     {
-        Mutate(() =>
+        return MutateAsync(data =>
         {
-            var index = _data.Favorites.FindIndex(item => RadioStationIdentity.Matches(item, station));
+            var index = data.Favorites.FindIndex(item => RadioStationIdentity.Matches(item, station));
             if (index >= 0)
             {
-                _data.Favorites.RemoveAt(index);
+                data.Favorites.RemoveAt(index);
             }
             else
             {
-                _data.Favorites.Add(station);
+                data.Favorites.Add(station);
             }
         });
     }
 
-    public void LogRecent(RadioStation station)
+    public Task LogRecentAsync(RadioStation station)
     {
-        Mutate(() =>
+        return MutateAsync(data =>
         {
-            _data.Recents.RemoveAll(item => RadioStationIdentity.Matches(item, station));
-            _data.Recents.Insert(0, station);
-            if (_data.Recents.Count > RecentLimit)
+            data.Recents.RemoveAll(item => RadioStationIdentity.Matches(item, station));
+            data.Recents.Insert(0, station);
+            if (data.Recents.Count > RecentLimit)
             {
-                _data.Recents.RemoveRange(RecentLimit, _data.Recents.Count - RecentLimit);
+                data.Recents.RemoveRange(RecentLimit, data.Recents.Count - RecentLimit);
             }
         });
     }
 
-    private void Mutate(Action mutation)
+    public Task FlushAsync()
     {
-        if (_readOnly)
+        lock (_writeGate)
         {
-            throw new IOException("A newer library format cannot be changed by this version of Shoutkit.");
+            return _writeTail;
         }
+    }
 
-        var previous = new RadioLibraryData
+    private Task MutateAsync(Action<RadioLibraryData> mutation)
+    {
+        lock (_writeGate)
         {
-            Favorites = [.. _data.Favorites],
-            Recents = [.. _data.Recents]
-        };
-        mutation();
+            var operation = ApplyMutationAfterAsync(_writeTail, mutation);
+            _writeTail = ObserveCompletionAsync(operation);
+            return operation;
+        }
+    }
+
+    private async Task ApplyMutationAfterAsync(Task previous, Action<RadioLibraryData> mutation)
+    {
+        await previous.ConfigureAwait(false);
+        await Task.Run(() =>
+        {
+            if (_readOnly)
+            {
+                throw new IOException("A newer library format cannot be changed by this version of Shoutkit.");
+            }
+
+            var current = Volatile.Read(ref _data);
+            var next = new RadioLibraryData
+            {
+                Favorites = [.. current.Favorites],
+                Recents = [.. current.Recents]
+            };
+            mutation(next);
+            Save(next);
+            Volatile.Write(ref _data, next);
+        }).ConfigureAwait(false);
+    }
+
+    private static async Task ObserveCompletionAsync(Task operation)
+    {
         try
         {
-            Save();
+            await operation.ConfigureAwait(false);
         }
         catch
         {
-            _data = previous;
-            throw;
+            // The caller receives this failure; later queued writes must still run.
         }
     }
 
@@ -96,8 +126,11 @@ public sealed class RadioLibraryService : IRadioLibraryService
         }
         catch (JsonException exception)
         {
-            AppDiagnostics.Record("library.invalid-json", exception);
-            PreserveInvalidLibrary();
+            _writeTail = Task.Run(() =>
+            {
+                AppDiagnostics.Record("library.invalid-json", exception);
+                PreserveInvalidLibrary();
+            });
         }
         catch (IOException)
         {
@@ -122,7 +155,7 @@ public sealed class RadioLibraryService : IRadioLibraryService
         }
     }
 
-    private void Save()
+    private void Save(RadioLibraryData data)
     {
         var directory = Path.GetDirectoryName(_filePath);
         if (!string.IsNullOrEmpty(directory))
@@ -133,7 +166,7 @@ public sealed class RadioLibraryService : IRadioLibraryService
         var temporaryPath = $"{_filePath}.{Guid.NewGuid():N}.tmp";
         try
         {
-            File.WriteAllText(temporaryPath, JsonSerializer.Serialize(_data, _jsonOptions));
+            File.WriteAllText(temporaryPath, JsonSerializer.Serialize(data, _jsonOptions));
             ReplaceWithRetry(temporaryPath, _filePath);
         }
         finally

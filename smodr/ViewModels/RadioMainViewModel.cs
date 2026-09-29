@@ -191,15 +191,13 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             await _audio.PlayStationAsync(station);
             try
             {
-                _library.LogRecent(station);
-                RefreshLibraryCollections();
+                await _library.LogRecentAsync(station);
+                if (Volatile.Read(ref _disposed) == 0)
+                {
+                    RefreshLibraryCollections();
+                }
             }
-            catch (IOException exception)
-            {
-                AppDiagnostics.Record("library.recent-save", exception);
-                Status = "Playing, but recent stations could not be saved.";
-            }
-            catch (UnauthorizedAccessException exception)
+            catch (Exception exception)
             {
                 AppDiagnostics.Record("library.recent-save", exception);
                 Status = "Playing, but recent stations could not be saved.";
@@ -243,20 +241,18 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         }
     }
 
-    public void ToggleFavorite(RadioStation station)
+    public async Task ToggleFavoriteAsync(RadioStation station)
     {
         try
         {
-            _library.ToggleFavorite(station);
-            RefreshLibraryCollections();
-            OnPropertyChanged(nameof(CurrentStation));
+            await _library.ToggleFavoriteAsync(station);
+            if (Volatile.Read(ref _disposed) == 0)
+            {
+                RefreshLibraryCollections();
+                OnPropertyChanged(nameof(CurrentStation));
+            }
         }
-        catch (IOException exception)
-        {
-            AppDiagnostics.Record("library.favorite-save", exception);
-            Status = "Favorites could not be saved.";
-        }
-        catch (UnauthorizedAccessException exception)
+        catch (Exception exception)
         {
             AppDiagnostics.Record("library.favorite-save", exception);
             Status = "Favorites could not be saved.";
@@ -264,6 +260,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     }
 
     public bool IsFavorite(RadioStation station) => _library.IsFavorite(station);
+
+    public Task FlushLibraryAsync() => _library.FlushAsync();
 
     public void Dispose()
     {
