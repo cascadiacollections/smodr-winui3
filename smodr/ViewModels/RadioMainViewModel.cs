@@ -18,6 +18,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     private int _searchVersion;
     private bool _loadingPopular;
     private bool _loadingSearch;
+    private int _disposed;
 
     public RadioMainViewModel(
         IRadioPlayer audio,
@@ -56,7 +57,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
 
     public async Task LoadPopularAsync()
     {
-        if (PopularStations.Count > 0)
+        if (_lifetimeCancellation.IsCancellationRequested || PopularStations.Count > 0)
         {
             return;
         }
@@ -66,7 +67,13 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         Status = "Tuning in…";
         try
         {
-            Replace(PopularStations, await _directory.GetPopularStationsAsync(60, _lifetimeCancellation.Token));
+            var stations = await _directory.GetPopularStationsAsync(60, _lifetimeCancellation.Token);
+            if (_lifetimeCancellation.IsCancellationRequested)
+            {
+                return;
+            }
+
+            Replace(PopularStations, stations);
             Status = PopularStations.Count == 0 ? "Nothing here yet" : string.Empty;
         }
         catch (OperationCanceledException) when (_lifetimeCancellation.IsCancellationRequested)
@@ -74,8 +81,11 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            AppDiagnostics.Record("popular.load", ex);
-            Status = $"Directory unavailable: {ex.Message}";
+            if (!_lifetimeCancellation.IsCancellationRequested)
+            {
+                AppDiagnostics.Record("popular.load", ex);
+                Status = $"Directory unavailable: {ex.Message}";
+            }
         }
         finally
         {
@@ -97,17 +107,32 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         string loadingStatus)
     {
         var version = Interlocked.Increment(ref _searchVersion);
-        if (_searchCancellation is { } previousSearch)
-        {
-            await previousSearch.CancelAsync();
-        }
-        if (version != Volatile.Read(ref _searchVersion) || _lifetimeCancellation.IsCancellationRequested)
+        if (_lifetimeCancellation.IsCancellationRequested)
         {
             return;
         }
 
         var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCancellation.Token);
-        _searchCancellation = cancellation;
+        var previousSearch = Interlocked.Exchange(ref _searchCancellation, cancellation);
+        try
+        {
+            if (previousSearch is not null)
+            {
+                await previousSearch.CancelAsync();
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            // An earlier search may complete and dispose its token concurrently.
+        }
+
+        if (version != Volatile.Read(ref _searchVersion) || cancellation.IsCancellationRequested)
+        {
+            Interlocked.CompareExchange(ref _searchCancellation, null, cancellation);
+            cancellation.Dispose();
+            return;
+        }
+
         _loadingSearch = true;
         UpdateLoading();
         Status = loadingStatus;
@@ -135,9 +160,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         }
         finally
         {
-            if (ReferenceEquals(_searchCancellation, cancellation))
+            if (ReferenceEquals(Interlocked.CompareExchange(ref _searchCancellation, null, cancellation), cancellation))
             {
-                _searchCancellation = null;
                 _loadingSearch = false;
                 UpdateLoading();
             }
@@ -148,22 +172,22 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
 
     public async Task TogglePlaybackAsync(RadioStation station)
     {
-        if (CurrentStation is not null && RadioStationIdentity.Matches(CurrentStation, station))
-        {
-            if (_audio.IsPlaying)
-            {
-                _audio.Pause();
-            }
-            else
-            {
-                _audio.Play();
-            }
-
-            return;
-        }
-
         try
         {
+            if (CurrentStation is not null && RadioStationIdentity.Matches(CurrentStation, station))
+            {
+                if (_audio.IsPlaying)
+                {
+                    _audio.Pause();
+                }
+                else
+                {
+                    _audio.Play();
+                }
+
+                return;
+            }
+
             await _audio.PlayStationAsync(station);
             try
             {
@@ -183,27 +207,40 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            AppDiagnostics.Record("station.play", ex);
-            Status = $"Unable to play {station.Name}: {ex.Message}";
+            ReportPlaybackFailure(ex);
         }
     }
 
     public void PlayPause()
     {
-        if (_audio.IsPlaying)
+        try
         {
-            _audio.Pause();
+            if (_audio.IsPlaying)
+            {
+                _audio.Pause();
+            }
+            else
+            {
+                _audio.Play();
+            }
         }
-        else
+        catch (Exception ex)
         {
-            _audio.Play();
+            ReportPlaybackFailure(ex);
         }
     }
 
     public void Stop()
     {
-        _audio.StopStation();
-        IsPlaying = false;
+        try
+        {
+            _audio.StopStation();
+            IsPlaying = false;
+        }
+        catch (Exception ex)
+        {
+            ReportPlaybackFailure(ex);
+        }
     }
 
     public void ToggleFavorite(RadioStation station)
@@ -230,12 +267,25 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
+
         _audio.StationChanged -= Audio_StationChanged;
         _audio.PlaybackStateChanged -= Audio_PlaybackStateChanged;
         _audio.PlaybackFailed -= Audio_PlaybackFailed;
         _lifetimeCancellation.Cancel();
-        _searchCancellation?.Cancel();
-        _searchCancellation?.Dispose();
+        var currentSearch = Interlocked.Exchange(ref _searchCancellation, null);
+        try
+        {
+            currentSearch?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // A completed search may dispose its token concurrently.
+        }
+        currentSearch?.Dispose();
         _lifetimeCancellation.Dispose();
         GC.SuppressFinalize(this);
     }
@@ -276,4 +326,10 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     }
 
     private void UpdateLoading() => IsLoading = _loadingPopular || _loadingSearch;
+
+    private void ReportPlaybackFailure(Exception exception)
+    {
+        AppDiagnostics.Record("station.control", exception);
+        Status = "Unable to play this station. Try another station.";
+    }
 }
