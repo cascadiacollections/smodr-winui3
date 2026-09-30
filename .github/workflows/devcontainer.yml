@@ -32,4 +32,5 @@ jobs:
         push: never
         runCmd: |
           dotnet --version
-          dotnet restore smodr.slnx || echo "Expected restore to fail on Linux for WinUI3 project"
+          dotnet restore smodr.RadioCore/smodr.RadioCore.csproj --locked-mode -p:NuGetAudit=false --ignore-failed-sources
+          dotnet build smodr.RadioCore/smodr.RadioCore.csproj -c Release --no-restore -warnaserror

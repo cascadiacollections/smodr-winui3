@@ -407,6 +407,8 @@ public sealed class RadioMainViewModelTests
         Assert.AreEqual("Song", viewModel.CurrentTrack?.Title);
         Assert.HasCount(1, viewModel.HeardTracks);
         Assert.AreEqual("Song", viewModel.HeardTracks[0].Title);
+        Assert.HasCount(1, viewModel.TopTracks);
+        Assert.AreEqual("Artist — Song", viewModel.TopTracks[0].Display);
     }
 
     private sealed class StubTrackHistory : ITrackHistoryService

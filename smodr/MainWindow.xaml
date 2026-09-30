@@ -142,6 +142,31 @@
                                     <ListView.ItemTemplate><DataTemplate x:DataType="models:RadioStation"><local:StationRowControl Station="{x:Bind}" FavoriteRequested="StationRow_FavoriteRequested"/></DataTemplate></ListView.ItemTemplate>
                                 </ListView>
                             </StackPanel>
+                            <StackPanel x:Name="TopTracksSection" Spacing="10" Visibility="Collapsed">
+                                <Grid Margin="8,0">
+                                    <TextBlock Text="Top Tracks" Style="{ThemeResource SubtitleTextBlockStyle}" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="TopTracksTimeframeBox" HorizontalAlignment="Right"
+                                              AutomationProperties.Name="Top tracks timeframe" SelectionChanged="TopTracksTimeframeBox_SelectionChanged">
+                                        <ComboBoxItem Content="This Week" IsSelected="True"/>
+                                        <ComboBoxItem Content="This Month"/>
+                                        <ComboBoxItem Content="All Time"/>
+                                    </ComboBox>
+                                </Grid>
+                                <TextBlock x:Name="TopTracksEmpty" Text="No tracks with both title and artist in this timeframe."
+                                           Margin="12,0" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <ListView x:Name="TopTracksList" ItemsSource="{x:Bind ViewModel.TopTracks, Mode=OneWay}"
+                                          SelectionMode="None" AutomationProperties.Name="Top tracks">
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate x:DataType="models:TopTrack">
+                                            <StackPanel Padding="12,8" Spacing="2">
+                                                <TextBlock Text="{x:Bind Display}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{x:Bind Details}" Style="{ThemeResource CaptionTextBlockStyle}"
+                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                            </StackPanel>
                             <StackPanel x:Name="HeardTracksSection" Spacing="10" Visibility="Collapsed">
                                 <TextBlock Text="Recently Heard" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="8,0"/>
                                 <ListView ItemsSource="{x:Bind ViewModel.HeardTracks, Mode=OneWay}" SelectionMode="None"

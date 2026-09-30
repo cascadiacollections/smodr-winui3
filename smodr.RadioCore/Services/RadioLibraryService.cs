@@ -157,45 +157,7 @@ public sealed class RadioLibraryService : IRadioLibraryService
 
     private void Save(RadioLibraryData data)
     {
-        var directory = Path.GetDirectoryName(_filePath);
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        var temporaryPath = $"{_filePath}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            File.WriteAllText(temporaryPath, JsonSerializer.Serialize(data, _jsonOptions));
-            ReplaceWithRetry(temporaryPath, _filePath);
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath))
-            {
-                File.Delete(temporaryPath);
-            }
-        }
-    }
-
-    private static void ReplaceWithRetry(string sourcePath, string destinationPath)
-    {
-        for (var attempt = 0; ; attempt++)
-        {
-            try
-            {
-                File.Move(sourcePath, destinationPath, true);
-                return;
-            }
-            catch (Exception exception) when (
-                attempt < 3
-                && !Directory.Exists(destinationPath)
-                && exception is IOException or UnauthorizedAccessException)
-            {
-                // Indexers and antivirus scanners can briefly hold the destination on Windows.
-                Thread.Sleep(25 << attempt);
-            }
-        }
+        AtomicFileWriter.WriteAllText(_filePath, JsonSerializer.Serialize(data, _jsonOptions));
     }
 
     private sealed class RadioLibraryData

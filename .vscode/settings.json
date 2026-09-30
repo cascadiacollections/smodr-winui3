@@ -1,5 +1,5 @@
 {
-  "dotnet.defaultSolution": "smodr.sln",
+  "dotnet.defaultSolution": "smodr.slnx",
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
     "source.fixAll": "explicit",
@@ -13,11 +13,6 @@
   "files.trimTrailingWhitespace": true,
   "files.insertFinalNewline": true,
   "csharp.semanticHighlighting.enabled": true,
-  "omnisharp.useModernNet": true,
-  "omnisharp.enableRoslynAnalyzers": true,
-  "omnisharp.enableEditorConfigSupport": true,
-  "omnisharp.enableImportCompletion": true,
-  "omnisharp.organizeImportsOnFormat": true,
   "files.exclude": {
     "**/bin": true,
     "**/obj": true,
@@ -44,7 +39,5 @@
     "editor.defaultFormatter": "redhat.vscode-xml"
   },
   "dotnet-test-explorer.testProjectPath": "**/*Tests.csproj",
-  "git.autofetch": true,
-  "git.confirmSync": false,
-  "git.enableSmartCommit": true
+  "git.autofetch": true
 }

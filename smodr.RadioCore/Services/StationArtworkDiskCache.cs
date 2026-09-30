@@ -43,7 +43,8 @@ public sealed class StationArtworkDiskCache(string? directory = null, TimeProvid
             try
             {
                 await File.WriteAllBytesAsync(temporaryPath, bytes, cancellationToken).ConfigureAwait(false);
-                File.Move(temporaryPath, PathFor(uri), true);
+                await Task.Run(() => AtomicFileWriter.ReplaceWithRetry(temporaryPath, PathFor(uri)),
+                    cancellationToken).ConfigureAwait(false);
             }
             finally
             {

@@ -36,6 +36,7 @@ public sealed partial class MainWindow : Window
         ViewModel.Recents.CollectionChanged += LibraryCollectionChanged;
         ViewModel.Favorites.CollectionChanged += LibraryCollectionChanged;
         ViewModel.HeardTracks.CollectionChanged += LibraryCollectionChanged;
+        ViewModel.TopTracks.CollectionChanged += LibraryCollectionChanged;
 
         AppNavigation.SelectedItem = ListenNowItem;
         UpdateLibraryVisibility();
@@ -83,6 +84,7 @@ public sealed partial class MainWindow : Window
         ViewModel.Recents.CollectionChanged -= LibraryCollectionChanged;
         ViewModel.Favorites.CollectionChanged -= LibraryCollectionChanged;
         ViewModel.HeardTracks.CollectionChanged -= LibraryCollectionChanged;
+        ViewModel.TopTracks.CollectionChanged -= LibraryCollectionChanged;
         ViewModel.Dispose();
     }
 
@@ -347,12 +349,27 @@ public sealed partial class MainWindow : Window
     private void LibraryCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
         UpdateLibraryVisibility();
 
+    private void TopTracksTimeframeBox_SelectionChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (sender is not ComboBox comboBox) return;
+        var timeframe = comboBox.SelectedIndex switch
+        {
+            1 => TopTracksTimeframe.Month,
+            2 => TopTracksTimeframe.AllTime,
+            _ => TopTracksTimeframe.Week
+        };
+        ViewModel.SetTopTracksTimeframe(timeframe);
+    }
+
     private void UpdateLibraryVisibility()
     {
         RecentSection.Visibility = ViewModel.Recents.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         FavoritesSection.Visibility = ViewModel.Favorites.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         HistorySection.Visibility = ViewModel.Recents.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         HeardTracksSection.Visibility = ViewModel.HeardTracks.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        TopTracksSection.Visibility = ViewModel.HeardTracks.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        TopTracksEmpty.Visibility = ViewModel.TopTracks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        TopTracksList.Visibility = ViewModel.TopTracks.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         EmptyLibraryView.Visibility = ViewModel.Favorites.Count == 0 && ViewModel.Recents.Count == 0 && ViewModel.HeardTracks.Count == 0
             ? Visibility.Visible
             : Visibility.Collapsed;

@@ -2,57 +2,60 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "build",
-      "command": "dotnet",
+      "label": "restore: ARM64 (Windows)",
       "type": "process",
-      "args": [
-        "build",
-        "${workspaceFolder}/smodr.sln",
-        "/property:GenerateFullPaths=true",
-        "/consoleloggerparameters:NoSummary;ForceNoAlign"
-      ],
-      "problemMatcher": "$msCompile",
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      }
-    },
-    {
-      "label": "clean",
-      "command": "dotnet",
-      "type": "process",
-      "args": [
-        "clean",
-        "${workspaceFolder}/smodr.sln"
-      ],
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/scripts/dotnet-dev.ps1", "ARM64", "restore", "${workspaceFolder}/smodr.slnx", "-p:Platform=ARM64", "--locked-mode", "-p:NuGetAudit=false", "--ignore-failed-sources"],
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "restore",
-      "command": "dotnet",
+      "label": "build: ARM64 (Windows)",
       "type": "process",
-      "args": [
-        "restore",
-        "${workspaceFolder}/smodr.sln"
-      ],
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/scripts/dotnet-dev.ps1", "ARM64", "build", "${workspaceFolder}/smodr.slnx", "-c", "Debug", "--no-restore", "-p:Platform=ARM64", "-warnaserror"],
+      "dependsOn": "restore: ARM64 (Windows)",
+      "problemMatcher": "$msCompile",
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "test: ARM64 (Windows)",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/scripts/dotnet-dev.ps1", "ARM64", "test", "${workspaceFolder}/smodr.slnx", "-c", "Release", "--no-restore", "-p:Platform=ARM64", "-warnaserror"],
+      "dependsOn": "restore: ARM64 (Windows)",
+      "problemMatcher": "$msCompile",
+      "group": "test"
+    },
+    {
+      "label": "restore: x64 (Windows)",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/scripts/dotnet-dev.ps1", "x64", "restore", "${workspaceFolder}/smodr.slnx", "-p:Platform=x64", "--locked-mode", "-p:NuGetAudit=false", "--ignore-failed-sources"],
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "rebuild",
-      "dependsOn": ["clean", "build"],
-      "dependsOrder": "sequence",
-      "problemMatcher": "$msCompile",
-      "group": "build"
+      "label": "build: x64 (Windows)",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/scripts/dotnet-dev.ps1", "x64", "build", "${workspaceFolder}/smodr.slnx", "-c", "Debug", "--no-restore", "-p:Platform=x64", "-warnaserror"],
+      "dependsOn": "restore: x64 (Windows)",
+      "problemMatcher": "$msCompile"
     },
     {
-      "label": "format",
-      "command": "dotnet",
+      "label": "test: x64 (Windows)",
       "type": "process",
-      "args": [
-        "format",
-        "${workspaceFolder}/smodr.sln"
-      ],
-      "problemMatcher": []
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/scripts/dotnet-dev.ps1", "x64", "test", "${workspaceFolder}/smodr.slnx", "-c", "Release", "--no-restore", "-p:Platform=x64", "-warnaserror"],
+      "dependsOn": "restore: x64 (Windows)",
+      "problemMatcher": "$msCompile",
+      "group": "test"
+    },
+    {
+      "label": "build: radio core (container)",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "${workspaceFolder}/smodr.RadioCore/smodr.RadioCore.csproj", "-c", "Release", "-warnaserror", "-p:NuGetAudit=false"],
+      "problemMatcher": "$msCompile"
     }
   ]
 }

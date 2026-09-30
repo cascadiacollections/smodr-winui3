@@ -134,18 +134,7 @@ public sealed class RadioDirectorySnapshotCache : IRadioDirectorySnapshotCache
 
     private void Save(CacheData snapshot)
     {
-        var directory = Path.GetDirectoryName(_filePath)!;
-        Directory.CreateDirectory(directory);
-        var temporaryPath = $"{_filePath}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            File.WriteAllText(temporaryPath, JsonSerializer.Serialize(snapshot));
-            File.Move(temporaryPath, _filePath, true);
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
-        }
+        AtomicFileWriter.WriteAllText(_filePath, JsonSerializer.Serialize(snapshot));
     }
 
     private sealed class CacheData

@@ -19,9 +19,11 @@ public static class IcyTrackParser
     {
         if (string.IsNullOrWhiteSpace(raw) || raw.Length > 4096) return null;
         var info = ParseCore(raw.Trim().TrimEnd('\0'), 0);
-        if (info is null || !IsLikelySong(info, stationName)) return null;
-        return info;
+        return info is null ? null : Accept(info, stationName);
     }
+
+    internal static RadioTrackInfo? Accept(RadioTrackInfo info, string stationName) =>
+        IsLikelySong(info, stationName) ? info : null;
 
     private static RadioTrackInfo? ParseCore(string raw, int depth)
     {

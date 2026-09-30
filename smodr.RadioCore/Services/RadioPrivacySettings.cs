@@ -69,17 +69,8 @@ public sealed class RadioPrivacySettings : IRadioPrivacySettings
 
     private void Save(bool enabled)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
-        var temporaryPath = $"{_filePath}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            File.WriteAllText(temporaryPath, JsonSerializer.Serialize(new PrivacyData { PlayReportingEnabled = enabled }));
-            File.Move(temporaryPath, _filePath, true);
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
-        }
+        AtomicFileWriter.WriteAllText(_filePath,
+            JsonSerializer.Serialize(new PrivacyData { PlayReportingEnabled = enabled }));
     }
 
     private sealed class PrivacyData

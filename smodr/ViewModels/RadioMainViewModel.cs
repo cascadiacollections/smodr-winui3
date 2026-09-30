@@ -62,7 +62,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _audio.PlaybackStateChanged += Audio_PlaybackStateChanged;
         _audio.PlaybackFailed += Audio_PlaybackFailed;
         RefreshLibraryCollections();
-        if (_trackHistory is not null) Replace(HeardTracks, _trackHistory.Entries);
+        if (_trackHistory is not null) RefreshTrackCollections();
     }
 
     public ObservableCollection<RadioStation> PopularStations { get; } = [];
@@ -70,6 +70,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     public ObservableCollection<RadioStation> Favorites { get; } = [];
     public ObservableCollection<RadioStation> Recents { get; } = [];
     public ObservableCollection<HeardTrack> HeardTracks { get; } = [];
+    public ObservableCollection<TopTrack> TopTracks { get; } = [];
+    public TopTracksTimeframe SelectedTopTracksTimeframe { get; private set; } = TopTracksTimeframe.Week;
 
     [ObservableProperty] public partial RadioStation? CurrentStation { get; set; }
     [ObservableProperty] public partial RadioTrackInfo? CurrentTrack { get; set; }
@@ -370,6 +372,12 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     public Task FlushLibraryAsync() => _library.FlushAsync();
     public Task FlushTrackHistoryAsync() => _trackHistory?.FlushAsync() ?? Task.CompletedTask;
 
+    public void SetTopTracksTimeframe(TopTracksTimeframe timeframe)
+    {
+        SelectedTopTracksTimeframe = timeframe;
+        RefreshTopTracks();
+    }
+
     public Task FlushDirectoryCacheAsync() => _cache?.FlushAsync() ?? Task.CompletedTask;
 
     public void Dispose()
@@ -428,7 +436,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             await _trackHistory!.RecordAsync(update.Station, update.Track);
             _dispatch(() =>
             {
-                if (Volatile.Read(ref _disposed) == 0) Replace(HeardTracks, _trackHistory.Entries);
+                if (Volatile.Read(ref _disposed) == 0) RefreshTrackCollections();
             });
         }
         catch (Exception exception) { AppDiagnostics.Record("track-history.write", exception); }
@@ -473,6 +481,16 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         Replace(Recents, _library.Recents);
     }
 
+    private void RefreshTrackCollections()
+    {
+        if (_trackHistory is null) return;
+        Replace(HeardTracks, _trackHistory.Entries);
+        RefreshTopTracks();
+    }
+
+    private void RefreshTopTracks() => Replace(TopTracks,
+        TopTracksAggregator.Aggregate(HeardTracks, SelectedTopTracksTimeframe, DateTimeOffset.Now));
+
     private static void Replace(ObservableCollection<RadioStation> target, IEnumerable<RadioStation> values)
     {
         target.Clear();
@@ -483,6 +501,12 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     }
 
     private static void Replace(ObservableCollection<HeardTrack> target, IEnumerable<HeardTrack> values)
+    {
+        target.Clear();
+        foreach (var value in values) target.Add(value);
+    }
+
+    private static void Replace(ObservableCollection<TopTrack> target, IEnumerable<TopTrack> values)
     {
         target.Clear();
         foreach (var value in values) target.Add(value);

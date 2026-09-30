@@ -1,0 +1,10 @@
+{
+  "file_scan_exclusions": ["**/bin", "**/obj", "**/AppPackages", "**/.vs", "..."],
+  "languages": {
+    "CSharp": {
+      "format_on_save": "modifications_if_available",
+      "formatter": "language_server",
+      "preferred_line_length": 120
+    }
+  }
+}

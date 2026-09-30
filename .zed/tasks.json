@@ -1,0 +1,44 @@
+[
+  {
+    "label": "Restore Windows ARM64 (offline-friendly)",
+    "command": "powershell.exe",
+    "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/dotnet-dev.ps1", "ARM64", "restore", "smodr.slnx", "-p:Platform=ARM64", "--locked-mode", "-p:NuGetAudit=false", "--ignore-failed-sources"],
+    "cwd": "$ZED_WORKTREE_ROOT"
+  },
+  {
+    "label": "Build Windows ARM64",
+    "command": "powershell.exe",
+    "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/dotnet-dev.ps1", "ARM64", "build", "smodr.slnx", "-c", "Debug", "--no-restore", "-p:Platform=ARM64", "-warnaserror"],
+    "cwd": "$ZED_WORKTREE_ROOT"
+  },
+  {
+    "label": "Test Windows ARM64",
+    "command": "powershell.exe",
+    "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/dotnet-dev.ps1", "ARM64", "test", "smodr.slnx", "-c", "Release", "--no-restore", "-p:Platform=ARM64", "-warnaserror"],
+    "cwd": "$ZED_WORKTREE_ROOT"
+  },
+  {
+    "label": "Restore Windows x64 (offline-friendly)",
+    "command": "powershell.exe",
+    "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/dotnet-dev.ps1", "x64", "restore", "smodr.slnx", "-p:Platform=x64", "--locked-mode", "-p:NuGetAudit=false", "--ignore-failed-sources"],
+    "cwd": "$ZED_WORKTREE_ROOT"
+  },
+  {
+    "label": "Build Windows x64",
+    "command": "powershell.exe",
+    "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/dotnet-dev.ps1", "x64", "build", "smodr.slnx", "-c", "Debug", "--no-restore", "-p:Platform=x64", "-warnaserror"],
+    "cwd": "$ZED_WORKTREE_ROOT"
+  },
+  {
+    "label": "Test Windows x64",
+    "command": "powershell.exe",
+    "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/dotnet-dev.ps1", "x64", "test", "smodr.slnx", "-c", "Release", "--no-restore", "-p:Platform=x64", "-warnaserror"],
+    "cwd": "$ZED_WORKTREE_ROOT"
+  },
+  {
+    "label": "Build radio core (Linux container)",
+    "command": "dotnet",
+    "args": ["build", "smodr.RadioCore/smodr.RadioCore.csproj", "-c", "Release", "-warnaserror", "-p:NuGetAudit=false"],
+    "cwd": "$ZED_WORKTREE_ROOT"
+  }
+]

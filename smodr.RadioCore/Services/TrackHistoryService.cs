@@ -122,17 +122,7 @@ public sealed class TrackHistoryService : ITrackHistoryService
 
     private void Save(HistoryData data)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
-        var temporaryPath = $"{_filePath}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            File.WriteAllText(temporaryPath, JsonSerializer.Serialize(data));
-            File.Move(temporaryPath, _filePath, true);
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
-        }
+        AtomicFileWriter.WriteAllText(_filePath, JsonSerializer.Serialize(data));
     }
 
     private sealed class HistoryData

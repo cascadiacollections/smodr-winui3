@@ -2,15 +2,30 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch smodr (WinUI3)",
+      "name": "Shoutkit Windows (ARM64)",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "build",
-      "program": "${workspaceFolder}/smodr/bin/Debug/net8.0-windows10.0.19041.0/win-x64/smodr.exe",
-      "args": [],
-      "cwd": "${workspaceFolder}/smodr",
-      "stopAtEntry": false,
-      "console": "internalConsole"
+      "preLaunchTask": "build: ARM64 (Windows)",
+      "program": "${workspaceFolder}/smodr/bin/ARM64/Debug/net11.0-windows10.0.22621.0/smodr.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    },
+    {
+      "name": "Shoutkit Windows (x64)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build: x64 (Windows)",
+      "program": "${workspaceFolder}/smodr/bin/x64/Debug/net11.0-windows10.0.22621.0/smodr.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    },
+    {
+      "name": "Attach to running Shoutkit",
+      "type": "coreclr",
+      "request": "attach",
+      "processId": "${command:pickProcess}"
     }
   ]
 }

@@ -24,6 +24,9 @@ public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
         ArgumentNullException.ThrowIfNull(station);
         if (!Uri.TryCreate(station.StreamUrl, UriKind.Absolute, out var uri)
             || uri.Scheme is not ("http" or "https")) return;
+        // An HLS playlist is not an ICY audio response. Its timed metadata is
+        // handled by the native playback item's ID3 cue track when available.
+        if (uri.AbsolutePath.EndsWith(".m3u8", StringComparison.OrdinalIgnoreCase)) return;
 
         CancellationTokenSource? previous;
         CancellationTokenSource current;

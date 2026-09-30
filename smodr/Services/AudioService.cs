@@ -1,9 +1,11 @@
 using System.Diagnostics;
 using Microsoft.UI.Dispatching;
 using smodr.Models;
+using Windows.Foundation.Collections;
 using Windows.Media;
 using Windows.Media.Core;
 using Windows.Media.Playback;
+using Windows.Storage.Streams;
 
 namespace smodr.Services;
 
@@ -13,6 +15,8 @@ public class AudioService : IRadioPlayer, IDisposable
     private bool _radioEnded;
     private MediaPlayer? _mediaPlayer;
     private MediaSource? _mediaSource;
+    private MediaPlaybackItem? _playbackItem;
+    private readonly List<TimedMetadataTrack> _timedTracks = [];
     private DispatcherQueue? _dispatcher;
     private readonly LiveRadioRecovery _recovery;
     private readonly IcyTrackMonitor _trackMonitor;
@@ -93,6 +97,7 @@ public class AudioService : IRadioPlayer, IDisposable
     private void ReleasePlayer()
     {
         _trackMonitor.Stop();
+        DetachTimedTracks();
         if (_mediaPlayer is not { } player) return;
         _mediaPlayer = null;
         player.PlaybackSession.PlaybackStateChanged -= PlaybackSession_PlaybackStateChanged;
@@ -209,14 +214,30 @@ public class AudioService : IRadioPlayer, IDisposable
         try
         {
             item = CreatePlaybackItem(source, metadata);
+            if (CurrentStation is not null)
+            {
+                _playbackItem = item;
+                item.TimedMetadataTracksChanged += PlaybackItem_TimedMetadataTracksChanged;
+                RegisterTimedTracks(item);
+            }
             _mediaPlayer!.Source = item;
             _mediaSource = source;
         }
         catch
         {
+            DetachTimedTracks();
             source.Dispose();
             throw;
         }
+    }
+
+    private void DetachTimedTracks()
+    {
+        if (_playbackItem is null) return;
+        _playbackItem.TimedMetadataTracksChanged -= PlaybackItem_TimedMetadataTracksChanged;
+        foreach (var track in _timedTracks) track.CueEntered -= TimedTrack_CueEntered;
+        _timedTracks.Clear();
+        _playbackItem = null;
     }
 
     internal static MediaPlaybackItem CreatePlaybackItem(MediaSource mediaSource, NowPlayingMetadata metadata)
@@ -444,26 +465,77 @@ public class AudioService : IRadioPlayer, IDisposable
     }
 
     private void TrackMonitor_TrackChanged(object? sender, RadioTrackUpdate update) =>
-        RunOnPlayerThread(() =>
+        RunOnPlayerThread(() => ApplyTrack(update));
+
+    private void PlaybackItem_TimedMetadataTracksChanged(MediaPlaybackItem sender,
+        IVectorChangedEventArgs args) => RunOnPlayerThread(() =>
+    {
+        if (ReferenceEquals(sender, _playbackItem)) RegisterTimedTracks(sender);
+    });
+
+    private void RegisterTimedTracks(MediaPlaybackItem item)
+    {
+        const string id3DispatchType = "15260DFFFF49443320FF49443320000F";
+        for (var index = 0; index < item.TimedMetadataTracks.Count; index++)
         {
-            if (!ReferenceEquals(CurrentStation, update.Station) || !_recovery.IsRequested
-                || PlaybackState != MediaPlaybackState.Playing || CurrentTrack == update.Track) return;
-            CurrentTrack = update.Track;
+            var track = item.TimedMetadataTracks[index];
+            if (!string.Equals(track.DispatchType, id3DispatchType, StringComparison.OrdinalIgnoreCase)
+                || _timedTracks.Contains(track)) continue;
             try
             {
-                if (_mediaPlayer?.Source is MediaPlaybackItem item)
-                {
-                    var display = item.GetDisplayProperties();
-                    display.Type = MediaPlaybackType.Music;
-                    display.MusicProperties.Title = update.Track.Title;
-                    display.MusicProperties.Artist = update.Track.Artist ?? update.Station.Name;
-                    display.MusicProperties.AlbumTitle = update.Station.Name;
-                    item.ApplyDisplayProperties(display);
-                }
+                track.CueEntered += TimedTrack_CueEntered;
+                item.TimedMetadataTracks.SetPresentationMode((uint)index,
+                    TimedMetadataTrackPresentationMode.ApplicationPresented);
+                _timedTracks.Add(track);
             }
-            catch (Exception exception) { AppDiagnostics.Record("track.system-media", exception); }
-            TrackChanged?.Invoke(this, update);
-        });
+            catch (Exception exception)
+            {
+                track.CueEntered -= TimedTrack_CueEntered;
+                AppDiagnostics.Record("track.hls-register", exception);
+            }
+        }
+    }
+
+    private void TimedTrack_CueEntered(TimedMetadataTrack sender, MediaCueEventArgs args)
+    {
+        try
+        {
+            if (args.Cue is not DataCue { Data: { } data } || data.Length is < 20 or > 65_536)
+                return;
+            var bytes = new byte[data.Length];
+            using var reader = DataReader.FromBuffer(data);
+            reader.ReadBytes(bytes);
+            RunOnPlayerThread(() =>
+            {
+                if (!ReferenceEquals(sender.PlaybackItem, _playbackItem)
+                    || CurrentStation is not { } station) return;
+                var track = HlsId3TrackParser.Parse(bytes, station.Name);
+                if (track is not null) ApplyTrack(new RadioTrackUpdate(station, track));
+            });
+        }
+        catch (Exception exception) { AppDiagnostics.Record("track.hls-cue", exception); }
+    }
+
+    private void ApplyTrack(RadioTrackUpdate update)
+    {
+        if (!ReferenceEquals(CurrentStation, update.Station) || !_recovery.IsRequested
+            || PlaybackState != MediaPlaybackState.Playing || CurrentTrack == update.Track) return;
+        CurrentTrack = update.Track;
+        try
+        {
+            if (_mediaPlayer?.Source is MediaPlaybackItem item)
+            {
+                var display = item.GetDisplayProperties();
+                display.Type = MediaPlaybackType.Music;
+                display.MusicProperties.Title = update.Track.Title;
+                display.MusicProperties.Artist = update.Track.Artist ?? update.Station.Name;
+                display.MusicProperties.AlbumTitle = update.Station.Name;
+                item.ApplyDisplayProperties(display);
+            }
+        }
+        catch (Exception exception) { AppDiagnostics.Record("track.system-media", exception); }
+        TrackChanged?.Invoke(this, update);
+    }
 
     private void ClearTrack()
     {
