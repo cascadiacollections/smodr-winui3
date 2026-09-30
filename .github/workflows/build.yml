@@ -69,6 +69,11 @@ jobs:
     - name: Validate unsigned MSIX packaging
       run: dotnet msbuild smodr/smodr.csproj -restore -p:RestoreLockedMode=true -p:Configuration=${{ env.CONFIGURATION }} -p:Platform=${{ matrix.platform }} -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=false -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageDir=out/msix-${{ matrix.platform }}/ -v:q
 
+    - name: Install and upgrade disposable signed MSIX
+      if: matrix.platform == 'ARM64'
+      shell: powershell
+      run: ./scripts/Test-MsixInstall.ps1 -Platform ARM64
+
     - name: Upload build artifacts
       if: success()
       uses: actions/upload-artifact@v7
