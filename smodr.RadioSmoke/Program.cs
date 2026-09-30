@@ -1,3 +1,4 @@
+using smodr.Models;
 using smodr.Services;
 
 if (args.Length is < 2 or > 3 || !Uri.TryCreate(args[0], UriKind.Absolute, out var streamUri)
@@ -11,9 +12,43 @@ if (args.Length is < 2 or > 3 || !Uri.TryCreate(args[0], UriKind.Absolute, out v
 
 var stationName = args[1];
 using var probeClient = new HttpClient { Timeout = TimeSpan.FromSeconds(35) };
+using var listenerClient = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
 using var catalogClient = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
 var probe = new IcyMetadataProbe(probeClient);
 var artwork = new AlbumArtworkLookup(catalogClient);
+var continuousTracks = new List<RadioTrackInfo>();
+using (var listenerTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(35)))
+{
+    try
+    {
+        await new IcyMetadataStreamReader(listenerClient).ListenAsync(streamUri, raw =>
+        {
+            var track = IcyTrackParser.Parse(raw, stationName);
+            if (track is null) return;
+            continuousTracks.Add(track);
+            if (continuousTracks.Count >= samples) listenerTimeout.Cancel();
+        }, listenerTimeout.Token);
+    }
+    catch (OperationCanceledException) when (listenerTimeout.IsCancellationRequested) { }
+    catch (Exception exception) when (exception is HttpRequestException or IOException
+        or TaskCanceledException)
+    {
+        await Console.Error.WriteLineAsync($"Continuous ICY: {exception.GetType().Name}; trying bounded probes.");
+    }
+}
+
+if (continuousTracks.Count > 0)
+{
+    foreach (var track in continuousTracks)
+    {
+        var match = await artwork.FindAsync(track);
+        await Console.Out.WriteLineAsync($"Continuous: {track.Display}; catalog art: {(match is null ? "none" : "plausible match")}");
+    }
+    await Console.Out.WriteLineAsync($"PASS: {continuousTracks.Count} accepted continuous ICY blocks.");
+    return 0;
+}
+
+await Console.Out.WriteLineAsync("No accepted continuous ICY title; checking bounded probe fallback.");
 var found = 0;
 for (var index = 0; index < samples; index++)
 {

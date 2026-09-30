@@ -31,4 +31,24 @@ public sealed class MainWindowAccessibilityTests
             (string?)element.Attribute(_xaml + "Name") == "CloseNowPlayingButton"),
             "Keyboard focus needs a close target when Now Playing opens.");
     }
+
+    [TestMethod]
+    public void NowPlayingNavigationWiresKeyboardDismissalAndFocusTargets()
+    {
+        var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml"));
+        var nowPlaying = document.Descendants().Single(element =>
+            (string?)element.Attribute(_xaml + "Name") == "NowPlayingView");
+        var open = document.Descendants().Single(element =>
+            (string?)element.Attribute(_xaml + "Name") == "OpenNowPlayingButton");
+        var close = nowPlaying.Descendants().Single(element =>
+            (string?)element.Attribute(_xaml + "Name") == "CloseNowPlayingButton");
+        Assert.AreEqual("NowPlayingView_KeyDown", (string?)nowPlaying.Attribute("KeyDown"));
+        Assert.AreEqual("OpenNowPlaying_Click", (string?)open.Attribute("Click"));
+        Assert.AreEqual("CloseNowPlaying_Click", (string?)close.Attribute("Click"));
+
+        var code = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml.cs"));
+        StringAssert.Contains(code, "CloseNowPlayingButton.Focus(FocusState.Programmatic)", StringComparison.Ordinal);
+        StringAssert.Contains(code, "OpenNowPlayingButton.Focus(FocusState.Programmatic)", StringComparison.Ordinal);
+        StringAssert.Contains(code, "e.Key != VirtualKey.Escape", StringComparison.Ordinal);
+    }
 }

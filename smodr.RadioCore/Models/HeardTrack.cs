@@ -4,6 +4,7 @@ namespace smodr.Models;
 
 public sealed class HeardTrack
 {
+    public Guid Id { get; init; }
     public string StationId { get; init; } = string.Empty;
     public string StationName { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;

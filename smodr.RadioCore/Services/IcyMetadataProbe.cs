@@ -58,7 +58,7 @@ public sealed class IcyMetadataProbe(HttpClient httpClient) : ITrackMetadataProb
         return new IcyProbeResult(true, null);
     }
 
-    private static bool TryGetInterval(HttpResponseHeaders responseHeaders,
+    internal static bool TryGetInterval(HttpResponseHeaders responseHeaders,
         HttpContentHeaders contentHeaders, out int interval)
     {
         interval = 0;
@@ -72,7 +72,7 @@ public sealed class IcyMetadataProbe(HttpClient httpClient) : ITrackMetadataProb
             && interval is > 0 and <= MaxMetadataInterval;
     }
 
-    private static string Decode(byte[] bytes)
+    internal static string Decode(byte[] bytes)
     {
         try { return _strictUtf8.GetString(bytes); }
         catch (DecoderFallbackException) { return Encoding.Latin1.GetString(bytes); }

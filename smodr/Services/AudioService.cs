@@ -9,7 +9,7 @@ using Windows.Storage.Streams;
 
 namespace smodr.Services;
 
-public class AudioService : IRadioPlayer, IDisposable
+public partial class AudioService : IRadioPlayer, IDisposable
 {
     private bool _isInitialized;
     private bool _radioEnded;
@@ -30,7 +30,6 @@ public class AudioService : IRadioPlayer, IDisposable
             beforeRetry: RetireCurrentRadio);
     }
 
-    public Episode? CurrentEpisode { get; private set; }
     public RadioStation? CurrentStation { get; private set; }
     public RadioTrackInfo? CurrentTrack { get; private set; }
 
@@ -55,7 +54,6 @@ public class AudioService : IRadioPlayer, IDisposable
         GC.SuppressFinalize(this);
     }
 
-    public event EventHandler<Episode>? EpisodeChanged;
     public event EventHandler<RadioStation?>? StationChanged;
     public event EventHandler<RadioTrackUpdate?>? TrackChanged;
     public event EventHandler<string>? PlaybackFailed;
@@ -112,50 +110,6 @@ public class AudioService : IRadioPlayer, IDisposable
         player.Dispose();
         _mediaSource?.Dispose();
         _mediaSource = null;
-    }
-
-    public Task PlayEpisodeAsync(Episode episode)
-    {
-        if (!_isInitialized)
-        {
-            Initialize();
-        }
-
-        if (string.IsNullOrEmpty(episode.MediaUrl))
-        {
-            throw new ArgumentException("Episode has no media URL to play.");
-        }
-
-        try
-        {
-            _recovery.Pause();
-            _radioEnded = false;
-            if (_mediaPlayer is not null
-                && string.Equals(CurrentEpisode?.MediaUrl, episode.MediaUrl, StringComparison.Ordinal))
-            {
-                _mediaPlayer?.Play();
-                return Task.CompletedTask;
-            }
-
-            CreatePlayer();
-
-            CurrentEpisode = episode;
-            CurrentStation = null;
-            ClearTrack();
-            EpisodeChanged?.Invoke(this, episode);
-
-            SetPlayerSource(new Uri(episode.MediaUrl), NowPlayingMetadata.ForEpisode(episode));
-            _mediaPlayer!.Play();
-
-            Debug.WriteLine($"Started playing: {episode.Title}");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Error playing episode: {ex.Message}");
-            throw;
-        }
-
-        return Task.CompletedTask;
     }
 
     public Task PlayStationAsync(RadioStation station)

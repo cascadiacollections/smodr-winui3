@@ -96,10 +96,10 @@ public sealed class TrackHistoryServiceTests
             var oldTrack = new RadioTrackInfo("Old", "Artist");
             var currentTrack = new RadioTrackInfo("Current", "Artist");
             await history.RecordAsync(station, oldTrack);
-            await history.RecordAsync(station, currentTrack);
+            var currentId = await history.RecordAsync(station, currentTrack);
             var match = new AlbumArtworkMatch(new Uri("https://is1-ssl.mzstatic.com/current.jpg"),
                 new Uri("https://music.apple.com/current"));
-            await history.UpdateArtworkAsync(station, currentTrack, match);
+            await history.UpdateArtworkAsync(currentId, match);
 
             var reloaded = new TrackHistoryService(file).Entries;
             Assert.AreEqual(match.ArtworkUrl.AbsoluteUri, reloaded[0].ArtworkUrl);
@@ -119,11 +119,52 @@ public sealed class TrackHistoryServiceTests
             var station = Station("one");
             var track = new RadioTrackInfo("Song", "Artist");
             var record = history.RecordAsync(station, track);
-            var artwork = history.UpdateArtworkAsync(station, track,
+            async Task UpdateAsync() => await history.UpdateArtworkAsync(await record,
                 new AlbumArtworkMatch(new Uri("https://is1-ssl.mzstatic.com/song.jpg"), null));
+            var artwork = UpdateAsync();
             await Task.WhenAll(record, artwork);
             Assert.AreEqual("https://is1-ssl.mzstatic.com/song.jpg", history.Entries[0].ArtworkUrl);
             Assert.AreEqual(history.Entries[0].ArtworkUrl, new TrackHistoryService(file).Entries[0].ArtworkUrl);
+        }
+        finally { File.Delete(file); }
+    }
+
+    [TestMethod]
+    public async Task RepeatedSongArtworkTargetsOnlyItsOwnOccurrence()
+    {
+        var file = TempFile();
+        try
+        {
+            var history = new TrackHistoryService(file);
+            var station = Station("one");
+            var song = new RadioTrackInfo("Song", "Artist");
+            var earlierId = await history.RecordAsync(station, song);
+            await history.RecordAsync(station, new RadioTrackInfo("Another", "Artist"));
+            var laterId = await history.RecordAsync(station, song);
+            Assert.AreNotEqual(earlierId, laterId);
+            await history.UpdateArtworkAsync(earlierId,
+                new AlbumArtworkMatch(new Uri("https://is1-ssl.mzstatic.com/earlier.jpg"), null));
+            Assert.AreEqual(string.Empty, history.Entries[0].ArtworkUrl);
+            Assert.AreEqual("https://is1-ssl.mzstatic.com/earlier.jpg", history.Entries[2].ArtworkUrl);
+            Assert.AreEqual(earlierId, new TrackHistoryService(file).Entries[2].Id);
+        }
+        finally { File.Delete(file); }
+    }
+
+    [TestMethod]
+    public async Task LegacyHistoryReceivesIdsOnItsNextWrite()
+    {
+        var file = TempFile();
+        try
+        {
+            await File.WriteAllTextAsync(file,
+                "{\"Version\":1,\"Entries\":[{\"Title\":\"Legacy\",\"StationName\":\"Radio One\",\"HeardAt\":\"2026-01-01T00:00:00+00:00\"}]}");
+            var history = new TrackHistoryService(file);
+            Assert.AreNotEqual(Guid.Empty, history.Entries[0].Id);
+            await history.RecordAsync(Station("one"), new RadioTrackInfo("New", "Artist"));
+            var reloaded = new TrackHistoryService(file);
+            Assert.AreEqual(history.Entries[1].Id, reloaded.Entries[1].Id);
+            StringAssert.Contains(await File.ReadAllTextAsync(file), "\"Version\":2", StringComparison.Ordinal);
         }
         finally { File.Delete(file); }
     }

@@ -24,6 +24,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private CancellationTokenSource? _searchCancellation;
     private CancellationTokenSource? _artworkCancellation;
+    private Task<Guid?>? _currentHistoryRecord;
     private int _searchVersion;
     private bool _loadingPopular;
     private bool _loadingSearch;
@@ -441,6 +442,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         {
             if (Volatile.Read(ref _disposed) != 0) return;
             CancelArtworkLookup();
+            _currentHistoryRecord = null;
             CurrentStation = station;
             CurrentTrack = null;
             CurrentArtworkUrl = station?.ArtworkUrl ?? string.Empty;
@@ -454,6 +456,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             if (update is null)
             {
                 CancelArtworkLookup();
+                _currentHistoryRecord = null;
                 CurrentTrack = null;
                 CurrentArtworkUrl = CurrentStation?.ArtworkUrl ?? string.Empty;
                 CurrentAppleMusicUrl = string.Empty;
@@ -461,7 +464,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             }
             if (!ReferenceEquals(_audio.CurrentStation, update.Station)) return;
             CurrentTrack = update.Track;
-            if (_trackHistory is not null) _ = RecordTrackBestEffortAsync(update);
+            _currentHistoryRecord = _trackHistory is null ? null : RecordTrackBestEffortAsync(update);
             StartArtworkLookup(update.Station, update.Track);
         });
 
@@ -475,11 +478,11 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             || string.IsNullOrWhiteSpace(track.Artist)) return;
         var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCancellation.Token);
         _artworkCancellation = cancellation;
-        _ = ResolveArtworkAsync(station, track, cancellation);
+        _ = ResolveArtworkAsync(station, track, _currentHistoryRecord, cancellation);
     }
 
     private async Task ResolveArtworkAsync(RadioStation station, RadioTrackInfo track,
-        CancellationTokenSource cancellation)
+        Task<Guid?>? historyRecord, CancellationTokenSource cancellation)
     {
         try
         {
@@ -494,8 +497,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
                     CurrentArtworkUrl = match.ArtworkUrl.AbsoluteUri;
                     CurrentAppleMusicUrl = match.StoreUrl?.AbsoluteUri ?? string.Empty;
                     _audio.SetNowPlayingArtwork(station, match.ArtworkUrl);
-                    if (_trackHistory is not null)
-                        _ = UpdateHistoryArtworkBestEffortAsync(station, track, match);
+                    if (_trackHistory is not null && historyRecord is not null)
+                        _ = UpdateHistoryArtworkBestEffortAsync(historyRecord, match);
                 }
             });
         }
@@ -515,12 +518,14 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http"
             ? uri : null;
 
-    private async Task UpdateHistoryArtworkBestEffortAsync(RadioStation station,
-        RadioTrackInfo track, AlbumArtworkMatch artwork)
+    private async Task UpdateHistoryArtworkBestEffortAsync(Task<Guid?> historyRecord,
+        AlbumArtworkMatch artwork)
     {
         try
         {
-            await _trackHistory!.UpdateArtworkAsync(station, track, artwork);
+            var entryId = await historyRecord;
+            if (entryId is not { } id) return;
+            await _trackHistory!.UpdateArtworkAsync(id, artwork);
             _dispatch(() =>
             {
                 if (Volatile.Read(ref _disposed) == 0) RefreshTrackCollections();
@@ -529,17 +534,22 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         catch (Exception exception) { AppDiagnostics.Record("track-history.artwork", exception); }
     }
 
-    private async Task RecordTrackBestEffortAsync(RadioTrackUpdate update)
+    private async Task<Guid?> RecordTrackBestEffortAsync(RadioTrackUpdate update)
     {
         try
         {
-            await _trackHistory!.RecordAsync(update.Station, update.Track);
+            var entryId = await _trackHistory!.RecordAsync(update.Station, update.Track);
             _dispatch(() =>
             {
                 if (Volatile.Read(ref _disposed) == 0) RefreshTrackCollections();
             });
+            return entryId;
         }
-        catch (Exception exception) { AppDiagnostics.Record("track-history.write", exception); }
+        catch (Exception exception)
+        {
+            AppDiagnostics.Record("track-history.write", exception);
+            return null;
+        }
     }
 
     private void Audio_PlaybackStateChanged(object? sender, MediaPlaybackState state) =>

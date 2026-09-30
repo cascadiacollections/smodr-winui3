@@ -17,7 +17,8 @@ public sealed partial class StationArtworkControl : UserControl, IDisposable
     private static readonly SemaphoreSlim _downloads = new(4);
     private static readonly ConcurrentDictionary<string, byte[]> _cache = new(StringComparer.Ordinal);
     private static readonly ConcurrentQueue<string> _cacheOrder = new();
-    private static readonly StationArtworkDiskCache _diskCache = new();
+    private static readonly StationArtworkDiskCache _diskCache = new(
+        Path.Combine(App.StorageDirectory, "station-artwork"));
     private CancellationTokenSource? _loadCancellation;
     public event EventHandler<Color?>? AccentColorChanged;
 

@@ -2,17 +2,19 @@ using smodr.Models;
 
 namespace smodr.Services;
 
-/// <summary>Runs bounded metadata probes only while the selected stream is playing.</summary>
+/// <summary>Tracks ICY metadata only while the selected stream is playing.</summary>
 public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
     Func<TimeSpan, CancellationToken, Task>? delay = null,
-    TimeProvider? clock = null) : IDisposable
+    TimeProvider? clock = null,
+    IContinuousTrackMetadataReader? continuousReader = null) : IDisposable
 {
-    // Windows MediaPlayer does not surface ICY title changes from the playback
-    // connection, so a bounded sidecar sample trades some bandwidth for a
-    // shorter worst-case miss window on short songs.
+    // Windows MediaPlayer does not surface ICY titles. Prefer a continuous
+    // sidecar connection; bounded probes remain a fallback if it drops.
     private static readonly TimeSpan _pollInterval = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan _errorInterval = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan _continuousRetryInterval = TimeSpan.FromMinutes(1);
     private readonly ITrackMetadataProbe _probe = probe;
+    private readonly IContinuousTrackMetadataReader? _continuousReader = continuousReader;
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
     private readonly Func<TimeSpan, CancellationToken, Task> _delay =
         delay ?? ((duration, token) => Task.Delay(duration, token));
@@ -84,10 +86,34 @@ public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
         CancellationTokenSource cancellation)
     {
         RadioTrackInfo? previousTrack = null;
+        var nextContinuousAttempt = DateTimeOffset.MinValue;
+        void Publish(string raw)
+        {
+            var track = IcyTrackParser.Parse(raw, station.Name);
+            if (track is null || track == previousTrack) return;
+            lock (_gate)
+            {
+                if (generation != _generation || _disposed) return;
+                previousTrack = track;
+            }
+            try { TrackChanged?.Invoke(this, new RadioTrackUpdate(station, track)); }
+            catch (Exception exception) { AppDiagnostics.Record("track.callback", exception); }
+        }
         try
         {
             while (!cancellation.IsCancellationRequested)
             {
+                if (_continuousReader is not null && _clock.GetUtcNow() >= nextContinuousAttempt)
+                {
+                    try
+                    {
+                        if (!await _continuousReader.ListenAsync(uri, Publish, cancellation.Token)
+                            .ConfigureAwait(false)) break;
+                    }
+                    catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { break; }
+                    catch (Exception exception) { AppDiagnostics.Record("track.continuous", exception); }
+                    nextContinuousAttempt = _clock.GetUtcNow() + _continuousRetryInterval;
+                }
                 try
                 {
                     var startedAt = _clock.GetTimestamp();
@@ -95,17 +121,7 @@ public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
                     timeout.CancelAfter(TimeSpan.FromSeconds(35));
                     var result = await _probe.ProbeAsync(uri, timeout.Token).ConfigureAwait(false);
                     if (!result.IsSupported) break;
-                    var track = IcyTrackParser.Parse(result.RawMetadata, station.Name);
-                    if (track is not null && track != previousTrack)
-                    {
-                        previousTrack = track;
-                        lock (_gate)
-                        {
-                            if (generation != _generation || _disposed) break;
-                        }
-                        try { TrackChanged?.Invoke(this, new RadioTrackUpdate(station, track)); }
-                        catch (Exception exception) { AppDiagnostics.Record("track.callback", exception); }
-                    }
+                    if (result.RawMetadata is { } raw) Publish(raw);
                     var remaining = _pollInterval - _clock.GetElapsedTime(startedAt);
                     if (remaining > TimeSpan.Zero)
                         await _delay(remaining, cancellation.Token).ConfigureAwait(false);

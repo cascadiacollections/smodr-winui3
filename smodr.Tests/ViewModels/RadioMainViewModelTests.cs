@@ -482,28 +482,30 @@ public sealed class RadioMainViewModelTests
     {
         private readonly List<HeardTrack> _entries = [];
         public IReadOnlyList<HeardTrack> Entries => _entries;
-        public Task RecordAsync(RadioStation station, RadioTrackInfo track)
+        public Task<Guid> RecordAsync(RadioStation station, RadioTrackInfo track)
         {
+            var id = Guid.NewGuid();
             _entries.Insert(0, new HeardTrack
             {
+                Id = id,
                 StationId = station.Id,
                 StationName = station.Name,
                 Title = track.Title,
                 Artist = track.Artist,
                 HeardAt = DateTimeOffset.UtcNow
             });
-            return Task.CompletedTask;
+            return Task.FromResult(id);
         }
         public Task FlushAsync() => Task.CompletedTask;
-        public Task UpdateArtworkAsync(RadioStation station, RadioTrackInfo track, AlbumArtworkMatch artwork)
+        public Task UpdateArtworkAsync(Guid entryId, AlbumArtworkMatch artwork)
         {
-            var index = _entries.FindIndex(item => item.StationId == station.Id
-                && item.Title == track.Title && item.Artist == track.Artist);
+            var index = _entries.FindIndex(item => item.Id == entryId);
             if (index >= 0)
             {
                 var old = _entries[index];
                 _entries[index] = new HeardTrack
                 {
+                    Id = old.Id,
                     StationId = old.StationId,
                     StationName = old.StationName,
                     Title = old.Title,

@@ -6,7 +6,7 @@ namespace smodr.Services;
 /// <summary>Ordered, bounded local heard-track history, separate from the station library.</summary>
 public sealed class TrackHistoryService : ITrackHistoryService
 {
-    private const int SchemaVersion = 1;
+    private const int SchemaVersion = 2;
     private const long MaxFileBytes = 2_000_000;
     private readonly string _filePath;
     private readonly int _limit;
@@ -29,7 +29,7 @@ public sealed class TrackHistoryService : ITrackHistoryService
 
     public IReadOnlyList<HeardTrack> Entries => [.. Volatile.Read(ref _data).Entries];
 
-    public Task RecordAsync(RadioStation station, RadioTrackInfo track)
+    public Task<Guid> RecordAsync(RadioStation station, RadioTrackInfo track)
     {
         ArgumentNullException.ThrowIfNull(station);
         ArgumentNullException.ThrowIfNull(track);
@@ -41,14 +41,13 @@ public sealed class TrackHistoryService : ITrackHistoryService
         }
     }
 
-    public Task UpdateArtworkAsync(RadioStation station, RadioTrackInfo track, AlbumArtworkMatch artwork)
+    public Task UpdateArtworkAsync(Guid entryId, AlbumArtworkMatch artwork)
     {
-        ArgumentNullException.ThrowIfNull(station);
-        ArgumentNullException.ThrowIfNull(track);
+        if (entryId == Guid.Empty) throw new ArgumentException("An entry ID is required.", nameof(entryId));
         ArgumentNullException.ThrowIfNull(artwork);
         lock (_gate)
         {
-            var operation = UpdateArtworkAfterAsync(_writeTail, station, track, artwork);
+            var operation = UpdateArtworkAfterAsync(_writeTail, entryId, artwork);
             _writeTail = ObserveCompletionAsync(operation);
             return operation;
         }
@@ -59,16 +58,17 @@ public sealed class TrackHistoryService : ITrackHistoryService
         lock (_gate) return _writeTail;
     }
 
-    private async Task RecordAfterAsync(Task previous, RadioStation station, RadioTrackInfo track)
+    private async Task<Guid> RecordAfterAsync(Task previous, RadioStation station, RadioTrackInfo track)
     {
         await previous.ConfigureAwait(false);
-        await Task.Run(() =>
+        return await Task.Run(() =>
         {
             if (_readOnly) throw new IOException("Unreadable or newer track history cannot be changed by this app.");
             var current = Volatile.Read(ref _data);
             var next = new HistoryData { Entries = [.. current.Entries] };
             var timestamp = _clock.GetUtcNow();
             var latest = next.Entries.FirstOrDefault();
+            Guid entryId;
             if (latest is not null
                 && (string.IsNullOrWhiteSpace(station.Id)
                     ? string.IsNullOrWhiteSpace(latest.StationId)
@@ -77,8 +77,10 @@ public sealed class TrackHistoryService : ITrackHistoryService
                 && string.Equals(latest.Title, track.Title, StringComparison.Ordinal)
                 && string.Equals(latest.Artist, track.Artist, StringComparison.Ordinal))
             {
+                entryId = latest.Id == Guid.Empty ? Guid.NewGuid() : latest.Id;
                 next.Entries[0] = new HeardTrack
                 {
+                    Id = entryId,
                     StationId = latest.StationId,
                     StationName = station.Name,
                     Title = latest.Title,
@@ -91,8 +93,10 @@ public sealed class TrackHistoryService : ITrackHistoryService
             }
             else
             {
+                entryId = Guid.NewGuid();
                 next.Entries.Insert(0, new HeardTrack
                 {
+                    Id = entryId,
                     StationId = station.Id,
                     StationName = station.Name,
                     Title = track.Title,
@@ -105,11 +109,12 @@ public sealed class TrackHistoryService : ITrackHistoryService
             if (next.Entries.Count > _limit) next.Entries.RemoveRange(_limit, next.Entries.Count - _limit);
             Save(next);
             Volatile.Write(ref _data, next);
+            return entryId;
         }).ConfigureAwait(false);
     }
 
-    private async Task UpdateArtworkAfterAsync(Task previous, RadioStation station,
-        RadioTrackInfo track, AlbumArtworkMatch artwork)
+    private async Task UpdateArtworkAfterAsync(Task previous, Guid entryId,
+        AlbumArtworkMatch artwork)
     {
         await previous.ConfigureAwait(false);
         await Task.Run(() =>
@@ -117,17 +122,12 @@ public sealed class TrackHistoryService : ITrackHistoryService
             if (_readOnly) throw new IOException("Unreadable or newer track history cannot be changed by this app.");
             var current = Volatile.Read(ref _data);
             var next = new HistoryData { Entries = [.. current.Entries] };
-            var index = next.Entries.FindIndex(item =>
-                (string.IsNullOrWhiteSpace(station.Id)
-                    ? string.IsNullOrWhiteSpace(item.StationId)
-                        && string.Equals(item.StationName, station.Name, StringComparison.OrdinalIgnoreCase)
-                    : string.Equals(item.StationId, station.Id, StringComparison.OrdinalIgnoreCase))
-                && string.Equals(item.Title, track.Title, StringComparison.Ordinal)
-                && string.Equals(item.Artist, track.Artist, StringComparison.Ordinal));
+            var index = next.Entries.FindIndex(item => item.Id == entryId);
             if (index < 0) return;
             var previousEntry = next.Entries[index];
             next.Entries[index] = new HeardTrack
             {
+                Id = previousEntry.Id,
                 StationId = previousEntry.StationId,
                 StationName = previousEntry.StationName,
                 Title = previousEntry.Title,
@@ -159,7 +159,7 @@ public sealed class TrackHistoryService : ITrackHistoryService
             data.Entries ??= [];
             _readOnly = data.Version > SchemaVersion;
             data.Entries = [.. data.Entries.Where(item => !string.IsNullOrWhiteSpace(item.Title))
-                .OrderByDescending(item => item.HeardAt).Take(_limit)];
+                .OrderByDescending(item => item.HeardAt).Take(_limit).Select(EnsureId)];
             return data;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
@@ -175,6 +175,19 @@ public sealed class TrackHistoryService : ITrackHistoryService
     {
         AtomicFileWriter.WriteAllText(_filePath, JsonSerializer.Serialize(data));
     }
+
+    private static HeardTrack EnsureId(HeardTrack entry) => entry.Id != Guid.Empty ? entry : new HeardTrack
+    {
+        Id = Guid.NewGuid(),
+        StationId = entry.StationId,
+        StationName = entry.StationName,
+        Title = entry.Title,
+        Artist = entry.Artist,
+        HeardAt = entry.HeardAt,
+        ArtworkUrl = entry.ArtworkUrl,
+        StationArtworkUrl = entry.StationArtworkUrl,
+        AppleMusicUrl = entry.AppleMusicUrl
+    };
 
     private sealed class HistoryData
     {

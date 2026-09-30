@@ -68,6 +68,106 @@ public sealed class IcyTrackMonitorTests
         monitor.Stop();
     }
 
+    [TestMethod]
+    public async Task ContinuousReaderPublishesRapidChangesWithoutPolling()
+    {
+        var published = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var probeCalls = 0;
+        using var monitor = new IcyTrackMonitor(new StubProbe(_ =>
+        {
+            Interlocked.Increment(ref probeCalls);
+            return Task.FromResult(IcyProbeResult.Unsupported);
+        }), continuousReader: new StubContinuousReader((_, emit, token) =>
+        {
+            emit("StreamTitle='Artist - First';");
+            emit("StreamTitle='Artist - Second';");
+            return Task.Delay(Timeout.InfiniteTimeSpan, token).ContinueWith(_ => true);
+        }));
+        var titles = new List<string>();
+        monitor.TrackChanged += (_, update) =>
+        {
+            lock (titles)
+            {
+                titles.Add(update.Track.Title);
+                if (titles.Count == 2) published.TrySetResult();
+            }
+        };
+        monitor.Start(Station("one"));
+        await published.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        monitor.Stop();
+        lock (titles)
+        {
+            Assert.HasCount(2, titles);
+            Assert.AreEqual("First", titles[0]);
+            Assert.AreEqual("Second", titles[1]);
+        }
+        Assert.AreEqual(0, probeCalls);
+    }
+
+    [TestMethod]
+    public async Task FailedContinuousReaderFallsBackToBoundedProbe()
+    {
+        var published = new TaskCompletionSource<RadioTrackUpdate>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var monitor = new IcyTrackMonitor(
+            new StubProbe(_ => Task.FromResult(new IcyProbeResult(true,
+                "StreamTitle='Artist - Fallback';"))),
+            continuousReader: new StubContinuousReader((_, _, _) => throw new IOException("stream ended")));
+        monitor.TrackChanged += (_, update) => published.TrySetResult(update);
+        monitor.Start(Station("one"));
+        Assert.AreEqual("Fallback", (await published.Task.WaitAsync(TimeSpan.FromSeconds(3))).Track.Title);
+        monitor.Stop();
+    }
+
+    [TestMethod]
+    public async Task StoppedContinuousReaderCannotPublishLateCue()
+    {
+        Action<string>? delayedEmit = null;
+        var readerStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var monitor = new IcyTrackMonitor(
+            new StubProbe(_ => Task.FromResult(IcyProbeResult.Unsupported)),
+            continuousReader: new StubContinuousReader(async (_, emit, token) =>
+            {
+                delayedEmit = emit;
+                readerStarted.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                return true;
+            }));
+        var updates = 0;
+        monitor.TrackChanged += (_, _) => Interlocked.Increment(ref updates);
+        monitor.Start(Station("one"));
+        await readerStarted.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        monitor.Stop();
+        delayedEmit!("StreamTitle='Artist - Late';");
+        Assert.AreEqual(0, updates);
+    }
+
+    [TestMethod]
+    public async Task ContinuousReaderRetriesAfterFallbackInterval()
+    {
+        var clock = new FakeClock();
+        var published = new TaskCompletionSource<RadioTrackUpdate>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var attempts = 0;
+        using var monitor = new IcyTrackMonitor(
+            new StubProbe(_ => Task.FromResult(new IcyProbeResult(true, null))),
+            (duration, _) =>
+            {
+                clock.Advance(duration);
+                return Task.CompletedTask;
+            }, clock,
+            new StubContinuousReader(async (_, emit, token) =>
+            {
+                if (Interlocked.Increment(ref attempts) == 1) throw new IOException("temporary drop");
+                emit("StreamTitle='Artist - Recovered';");
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                return true;
+            }));
+        monitor.TrackChanged += (_, update) => published.TrySetResult(update);
+        monitor.Start(Station("one"));
+        Assert.AreEqual("Recovered", (await published.Task.WaitAsync(TimeSpan.FromSeconds(3))).Track.Title);
+        Assert.AreEqual(2, attempts);
+        monitor.Stop();
+    }
+
     private static RadioStation Station(string id) => new()
     {
         Id = id,
@@ -81,11 +181,24 @@ public sealed class IcyTrackMonitorTests
             CancellationToken cancellationToken = default) => get(streamUri);
     }
 
+    private sealed class StubContinuousReader(
+        Func<Uri, Action<string>, CancellationToken, Task<bool>> listen) : IContinuousTrackMetadataReader
+    {
+        public Task<bool> ListenAsync(Uri streamUri, Action<string> onMetadata,
+            CancellationToken cancellationToken = default) => listen(streamUri, onMetadata, cancellationToken);
+    }
+
     private sealed class FakeClock : TimeProvider
     {
         private long _ticks;
+        private DateTimeOffset _now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         public override long TimestampFrequency => TimeSpan.TicksPerSecond;
         public override long GetTimestamp() => Interlocked.Read(ref _ticks);
-        public void Advance(TimeSpan duration) => Interlocked.Add(ref _ticks, duration.Ticks);
+        public override DateTimeOffset GetUtcNow() => _now;
+        public void Advance(TimeSpan duration)
+        {
+            Interlocked.Add(ref _ticks, duration.Ticks);
+            _now += duration;
+        }
     }
 }
