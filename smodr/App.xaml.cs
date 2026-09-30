@@ -63,6 +63,9 @@ public partial class App : Application
         services.AddSingleton<IRadioLibraryService, RadioLibraryService>();
         services.AddSingleton<IRadioDirectorySnapshotCache, RadioDirectorySnapshotCache>();
         services.AddSingleton<IRadioPrivacySettings, RadioPrivacySettings>();
+        services.AddHttpClient<IAlbumArtworkLookup, AlbumArtworkLookup>(client =>
+            client.Timeout = TimeSpan.FromSeconds(8))
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddSingleton<PlaybackSleepTimer>();
         services.AddHttpClient<RadioDirectoryService>(client =>
             client.Timeout = TimeSpan.FromSeconds(8));

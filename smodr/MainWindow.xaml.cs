@@ -27,6 +27,7 @@ public sealed partial class MainWindow : Window
         ViewModel = viewModel;
         InitializeComponent();
         PlayReportingSwitch.IsOn = ViewModel.IsPlayReportingEnabled;
+        AlbumArtworkSwitch.IsOn = ViewModel.IsAlbumArtworkEnabled;
         _settingsReady = true;
         _sleepCountdownTimer.Tick += SleepCountdownTimer_Tick;
         UpdateSleepTimer();
@@ -279,12 +280,28 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private async void AlbumArtworkSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (!_settingsReady) return;
+        try { await ViewModel.SetAlbumArtworkEnabledAsync(AlbumArtworkSwitch.IsOn); }
+        catch (Exception exception)
+        {
+            AppDiagnostics.Record("privacy.artwork-write", exception);
+            StatusInfoBar.Severity = InfoBarSeverity.Error;
+            StatusInfoBar.Title = "Setting not saved";
+            StatusInfoBar.Message = "Your album-artwork choice could not be saved on this device.";
+            StatusInfoBar.IsOpen = true;
+        }
+    }
+
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         switch (e.PropertyName)
         {
             case nameof(ViewModel.CurrentStation):
             case nameof(ViewModel.CurrentTrack):
+            case nameof(ViewModel.CurrentArtworkUrl):
+            case nameof(ViewModel.CurrentAppleMusicUrl):
                 UpdateNowPlaying();
                 break;
             case nameof(ViewModel.IsPlaying):
@@ -317,7 +334,10 @@ public sealed partial class MainWindow : Window
         NowPlayingSubtitle.Text = string.IsNullOrWhiteSpace(ViewModel.Status)
             ? ViewModel.CurrentTrack is null ? station.Details : station.Name
             : ViewModel.Status;
-        NowPlayingArtwork.ArtworkUrl = station.ArtworkUrl;
+        NowPlayingArtwork.ArtworkUrl = ViewModel.CurrentArtworkUrl;
+        AppleMusicLink.Visibility = Uri.TryCreate(ViewModel.CurrentAppleMusicUrl, UriKind.Absolute,
+            out var storeUri) ? Visibility.Visible : Visibility.Collapsed;
+        AppleMusicLink.NavigateUri = storeUri;
         var isFavorite = ViewModel.IsFavorite(station);
         FavoriteNowPlayingIcon.Glyph = isFavorite ? "\uEB52" : "\uEB51";
         AutomationProperties.SetName(FavoriteNowPlayingButton,

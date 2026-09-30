@@ -19,9 +19,11 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     private readonly IRadioPrivacySettings? _privacySettings;
     private readonly PlaybackSleepTimer _sleepTimer;
     private readonly ITrackHistoryService? _trackHistory;
+    private readonly IAlbumArtworkLookup? _albumArtworkLookup;
     private readonly Action<Action> _dispatch;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private CancellationTokenSource? _searchCancellation;
+    private CancellationTokenSource? _artworkCancellation;
     private int _searchVersion;
     private bool _loadingPopular;
     private bool _loadingSearch;
@@ -36,7 +38,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         IStationPlayReporter? playReporter = null,
         IRadioPrivacySettings? privacySettings = null,
         PlaybackSleepTimer? sleepTimer = null,
-        ITrackHistoryService? trackHistory = null)
+        ITrackHistoryService? trackHistory = null,
+        IAlbumArtworkLookup? albumArtworkLookup = null)
     {
         if (dispatch is null)
         {
@@ -56,6 +59,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _privacySettings = privacySettings;
         _sleepTimer = sleepTimer ?? new PlaybackSleepTimer();
         _trackHistory = trackHistory;
+        _albumArtworkLookup = albumArtworkLookup;
         _sleepTimer.Elapsed += SleepTimer_Elapsed;
         _audio.StationChanged += Audio_StationChanged;
         _audio.TrackChanged += Audio_TrackChanged;
@@ -75,13 +79,34 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty] public partial RadioStation? CurrentStation { get; set; }
     [ObservableProperty] public partial RadioTrackInfo? CurrentTrack { get; set; }
+    [ObservableProperty] public partial string CurrentArtworkUrl { get; set; } = string.Empty;
+    [ObservableProperty] public partial string CurrentAppleMusicUrl { get; set; } = string.Empty;
     [ObservableProperty] public partial bool IsPlaying { get; set; }
     [ObservableProperty] public partial bool IsLoading { get; set; }
     [ObservableProperty] public partial string Status { get; set; } = "Tuning in…";
     public bool IsPlayReportingEnabled => _privacySettings?.IsPlayReportingEnabled ?? false;
+    public bool IsAlbumArtworkEnabled => _privacySettings?.IsAlbumArtworkEnabled ?? false;
 
     public Task SetPlayReportingEnabledAsync(bool enabled) =>
         _privacySettings?.SetPlayReportingEnabledAsync(enabled) ?? Task.CompletedTask;
+
+    public Task SetAlbumArtworkEnabledAsync(bool enabled)
+    {
+        if (_privacySettings is null) return Task.CompletedTask;
+        var save = _privacySettings.SetAlbumArtworkEnabledAsync(enabled);
+        _dispatch(() =>
+        {
+            if (Volatile.Read(ref _disposed) != 0) return;
+            if (CurrentStation is { } station && CurrentTrack is { } track)
+                StartArtworkLookup(station, track);
+            else
+            {
+                CurrentArtworkUrl = CurrentStation?.ArtworkUrl ?? string.Empty;
+                CurrentAppleMusicUrl = string.Empty;
+            }
+        });
+        return save;
+    }
 
     public Task FlushPrivacySettingsAsync() =>
         _privacySettings?.FlushAsync() ?? Task.CompletedTask;
@@ -393,6 +418,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _audio.PlaybackFailed -= Audio_PlaybackFailed;
         _sleepTimer.Elapsed -= SleepTimer_Elapsed;
         _sleepTimer.Dispose();
+        CancelArtworkLookup();
         _lifetimeCancellation.Cancel();
         var currentSearch = Interlocked.Exchange(ref _searchCancellation, null);
         try
@@ -411,8 +437,12 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     private void Audio_StationChanged(object? sender, RadioStation? station) =>
         _dispatch(() =>
         {
+            if (Volatile.Read(ref _disposed) != 0) return;
+            CancelArtworkLookup();
             CurrentStation = station;
             CurrentTrack = null;
+            CurrentArtworkUrl = station?.ArtworkUrl ?? string.Empty;
+            CurrentAppleMusicUrl = string.Empty;
         });
 
     private void Audio_TrackChanged(object? sender, RadioTrackUpdate? update) =>
@@ -421,13 +451,59 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             if (Volatile.Read(ref _disposed) != 0) return;
             if (update is null)
             {
+                CancelArtworkLookup();
                 CurrentTrack = null;
+                CurrentArtworkUrl = CurrentStation?.ArtworkUrl ?? string.Empty;
+                CurrentAppleMusicUrl = string.Empty;
                 return;
             }
             if (!ReferenceEquals(_audio.CurrentStation, update.Station)) return;
             CurrentTrack = update.Track;
+            StartArtworkLookup(update.Station, update.Track);
             if (_trackHistory is not null) _ = RecordTrackBestEffortAsync(update);
         });
+
+    private void StartArtworkLookup(RadioStation station, RadioTrackInfo track)
+    {
+        CancelArtworkLookup();
+        CurrentArtworkUrl = station.ArtworkUrl;
+        CurrentAppleMusicUrl = string.Empty;
+        if (_albumArtworkLookup is null || _privacySettings?.IsAlbumArtworkEnabled != true
+            || string.IsNullOrWhiteSpace(track.Artist)) return;
+        var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCancellation.Token);
+        _artworkCancellation = cancellation;
+        _ = ResolveArtworkAsync(station, track, cancellation);
+    }
+
+    private async Task ResolveArtworkAsync(RadioStation station, RadioTrackInfo track,
+        CancellationTokenSource cancellation)
+    {
+        try
+        {
+            var match = await _albumArtworkLookup!.FindAsync(track, cancellation.Token);
+            if (match is null || cancellation.IsCancellationRequested) return;
+            _dispatch(() =>
+            {
+                if (Volatile.Read(ref _disposed) == 0 && !cancellation.IsCancellationRequested
+                    && ReferenceEquals(_audio.CurrentStation, station) && CurrentTrack == track
+                    && _privacySettings?.IsAlbumArtworkEnabled == true)
+                {
+                    CurrentArtworkUrl = match.ArtworkUrl.AbsoluteUri;
+                    CurrentAppleMusicUrl = match.StoreUrl.AbsoluteUri;
+                }
+            });
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        catch (Exception exception) { AppDiagnostics.Record("artwork.lookup", exception); }
+    }
+
+    private void CancelArtworkLookup()
+    {
+        var previous = _artworkCancellation;
+        _artworkCancellation = null;
+        previous?.Cancel();
+        previous?.Dispose();
+    }
 
     private async Task RecordTrackBestEffortAsync(RadioTrackUpdate update)
     {

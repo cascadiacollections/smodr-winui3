@@ -198,6 +198,10 @@
                                       OnContent="On" OffContent="Off" Toggled="PlayReportingSwitch_Toggled"/>
                         <TextBlock Text="When enabled, starting a Radio Browser station sends its station ID to Radio Browser to contribute to the community play count. Playback retries and resume do not send another report."
                                    TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <ToggleSwitch x:Name="AlbumArtworkSwitch" Header="Show album artwork for live tracks"
+                                      OnContent="On" OffContent="Off" Toggled="AlbumArtworkSwitch_Toggled"/>
+                        <TextBlock Text="When enabled, recognized artist and title are sent to Apple's iTunes Search API for album artwork. Station artwork remains the fallback; turning this off makes no track lookup requests."
+                                   TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         <TextBlock Text="About" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                         <TextBlock Text="Shoutkit for Windows · Native ARM64 preview"/>
                         <TextBlock Text="Favorites and recent stations are saved on this device. Station listings come from Radio Browser."
@@ -222,6 +226,8 @@
                 <TextBlock x:Name="NowPlayingTitle" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                 <TextBlock x:Name="NowPlayingSubtitle" Style="{ThemeResource CaptionTextBlockStyle}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                <HyperlinkButton x:Name="AppleMusicLink" Content="Open in Apple Music" Visibility="Collapsed"
+                                 Padding="0" HorizontalAlignment="Left"/>
             </StackPanel>
             <Button x:Name="FavoriteNowPlayingButton" Grid.Column="2" Click="FavoriteNowPlayingButton_Click" Background="Transparent" BorderThickness="0" AutomationProperties.Name="Add to favorites"
                     ToolTipService.ToolTip="Add to Favorites"><FontIcon x:Name="FavoriteNowPlayingIcon" Glyph="&#xEB51;"/></Button>

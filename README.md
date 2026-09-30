@@ -38,7 +38,7 @@ Favorites and recents are stored at `%LOCALAPPDATA%\CascadiaCollections\Shoutkit
 
 The verified target is `net11.0-windows10.0.22621.0`, with Windows App SDK 2.4 and a minimum Windows build of 17763. The .NET 11 RC1 SDK was installed side-by-side for this local build; the app was restored, built, tested, published, and launched on ARM64. RC releases can still change before general availability, so revalidate when updating the SDK or Windows App SDK.
 
-This is a local preview. Shoutkit's iOS-specific features such as Siri, widgets, and equalizer have not yet been ported. Track history covers accepted ICY and native HLS timed-ID3 titles, not station listening sessions; live track artwork remains future work.
+This is a local preview. Shoutkit's iOS-specific features such as Siri, widgets, and equalizer have not yet been ported. Track history covers accepted ICY and native HLS timed-ID3 titles, not station listening sessions. For recognized artist/title pairs, the mini-player can look up album artwork through Apple's iTunes Search API, falling back to station artwork. It only presents an exact catalog artist/title match with a nearby Apple Music link. This is enabled by default for parity with iOS and can be disabled in **Settings → Privacy → Show album artwork for live tracks**; a lookup sends artist and title to Apple. Concurrent lookups for one song share a request, matches and definitive misses are cached within the session, and lookup never blocks playback. Album artwork in Windows media controls and retained track-history artwork remain future work.
 
 ## Original smodr project (archival documentation)
 
