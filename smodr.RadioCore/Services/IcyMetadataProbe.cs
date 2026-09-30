@@ -4,11 +4,12 @@ using System.Text;
 
 namespace smodr.Services;
 
-/// <summary>Reads only through the first ICY metadata block, then closes the probe connection.</summary>
+/// <summary>Reads a bounded set of ICY blocks so empty preroll cues do not hide the song.</summary>
 public sealed class IcyMetadataProbe(HttpClient httpClient) : ITrackMetadataProbe
 {
     private const int MaxMetadataInterval = 65_536;
     private const int MaxMetadataLength = 255 * 16;
+    private const int MaxAudioBytes = 512 * 1024;
     private static readonly UTF8Encoding _strictUtf8 = new(false, true);
 
     public async Task<IcyProbeResult> ProbeAsync(Uri streamUri, CancellationToken cancellationToken = default)
@@ -28,25 +29,33 @@ public sealed class IcyMetadataProbe(HttpClient httpClient) : ITrackMetadataProb
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         var buffer = new byte[4096];
-        var remaining = interval;
-        while (remaining > 0)
+        var audioBytesRead = 0;
+        while (audioBytesRead + interval <= MaxAudioBytes)
         {
-            var read = await stream.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, remaining)),
-                cancellationToken).ConfigureAwait(false);
-            if (read == 0) return new IcyProbeResult(true, null);
-            remaining -= read;
+            var remaining = interval;
+            while (remaining > 0)
+            {
+                var read = await stream.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, remaining)),
+                    cancellationToken).ConfigureAwait(false);
+                if (read == 0) return new IcyProbeResult(true, null);
+                remaining -= read;
+            }
+            audioBytesRead += interval;
+
+            var lengthByte = new byte[1];
+            if (await stream.ReadAsync(lengthByte, cancellationToken).ConfigureAwait(false) == 0)
+                return new IcyProbeResult(true, null);
+            var metadataLength = lengthByte[0] * 16;
+            if (metadataLength == 0) continue;
+            if (metadataLength > MaxMetadataLength) return new IcyProbeResult(true, null);
+            var metadata = new byte[metadataLength];
+            await stream.ReadExactlyAsync(metadata, cancellationToken).ConfigureAwait(false);
+            var raw = Decode(metadata).TrimEnd('\0').Trim();
+            if (IcyTrackParser.Parse(raw, string.Empty) is not null)
+                return new IcyProbeResult(true, raw);
         }
 
-        var lengthByte = new byte[1];
-        if (await stream.ReadAsync(lengthByte, cancellationToken).ConfigureAwait(false) == 0)
-            return new IcyProbeResult(true, null);
-        var metadataLength = lengthByte[0] * 16;
-        if (metadataLength == 0) return new IcyProbeResult(true, null);
-        if (metadataLength > MaxMetadataLength) return new IcyProbeResult(true, null);
-        var metadata = new byte[metadataLength];
-        await stream.ReadExactlyAsync(metadata, cancellationToken).ConfigureAwait(false);
-        var raw = Decode(metadata).TrimEnd('\0').Trim();
-        return new IcyProbeResult(true, raw.Length == 0 ? null : raw);
+        return new IcyProbeResult(true, null);
     }
 
     private static bool TryGetInterval(HttpResponseHeaders responseHeaders,

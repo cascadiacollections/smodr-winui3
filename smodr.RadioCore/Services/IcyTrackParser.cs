@@ -14,11 +14,13 @@ public static class IcyTrackParser
          "commercial break", "stay tuned", "coming up next", "back after this", "brought to you by"];
     private static readonly HashSet<string> _junkWords =
         ["unknown", "stream", "live", "offline", "test", "advertisement"];
+    private static readonly string[] _domainSuffixes = [".com", ".org", ".net", ".fm", ".io", ".co"];
 
     public static RadioTrackInfo? Parse(string? raw, string stationName)
     {
         if (string.IsNullOrWhiteSpace(raw) || raw.Length > 4096) return null;
-        var info = ParseCore(raw.Trim().TrimEnd('\0'), 0);
+        // Keep leading whitespace: " - Song" means an empty artist in several feeds.
+        var info = ParseCore(raw.TrimEnd('\0'), 0);
         return info is null ? null : Accept(info, stationName);
     }
 
@@ -35,7 +37,11 @@ public static class IcyTrackParser
                 return ParseCore(combined, depth + 1);
 
             if (fields.TryGetValue("title", out var title) && !string.IsNullOrWhiteSpace(title))
-                return new RadioTrackInfo(title.Trim(), fields.GetValueOrDefault("artist")?.Trim());
+            {
+                var artistField = fields.GetValueOrDefault("artist")?.Trim();
+                return new RadioTrackInfo(title.Trim(),
+                    string.IsNullOrWhiteSpace(artistField) ? null : artistField);
+            }
             return null;
         }
 
@@ -63,9 +69,12 @@ public static class IcyTrackParser
             if (cursor == raw.Length) break;
             var keyStart = cursor;
             while (cursor < raw.Length && IsKeyCharacter(raw[cursor])) cursor++;
-            if (cursor == keyStart || cursor >= raw.Length || raw[cursor] != '=') return false;
-            var key = raw[keyStart..cursor].ToLowerInvariant();
+            var keyEnd = cursor;
+            while (cursor < raw.Length && char.IsWhiteSpace(raw[cursor])) cursor++;
+            if (keyEnd == keyStart || cursor >= raw.Length || raw[cursor] != '=') return false;
+            var key = raw[keyStart..keyEnd].ToLowerInvariant();
             cursor++;
+            while (cursor < raw.Length && char.IsWhiteSpace(raw[cursor])) cursor++;
             string value;
             if (cursor < raw.Length && raw[cursor] is '\'' or '"')
             {
@@ -101,7 +110,9 @@ public static class IcyTrackParser
         if (index == raw.Length) return true;
         var keyStart = index;
         while (index < raw.Length && IsKeyCharacter(raw[index])) index++;
-        return index > keyStart && index < raw.Length && raw[index] == '=';
+        var hasKey = index > keyStart;
+        while (index < raw.Length && char.IsWhiteSpace(raw[index])) index++;
+        return hasKey && index < raw.Length && raw[index] == '=';
     }
 
     private static void SkipSeparators(string raw, ref int index)
@@ -125,6 +136,9 @@ public static class IcyTrackParser
             if (value!.Contains("http://", StringComparison.OrdinalIgnoreCase)
                 || value.Contains("https://", StringComparison.OrdinalIgnoreCase)
                 || value.Contains("www.", StringComparison.OrdinalIgnoreCase)
+                || (!value.Any(char.IsWhiteSpace) && _domainSuffixes.Any(suffix =>
+                    value.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
+                    || value.Contains($"{suffix}/", StringComparison.OrdinalIgnoreCase)))
                 || _promoPhrases.Any(phrase => value.Contains(phrase, StringComparison.OrdinalIgnoreCase)))
                 return false;
             if (Normalize(value) == Normalize(stationName)) return false;

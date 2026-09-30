@@ -86,7 +86,7 @@ public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
                 try
                 {
                     using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation.Token);
-                    timeout.CancelAfter(TimeSpan.FromSeconds(7));
+                    timeout.CancelAfter(TimeSpan.FromSeconds(35));
                     var result = await _probe.ProbeAsync(uri, timeout.Token).ConfigureAwait(false);
                     if (!result.IsSupported) break;
                     var track = IcyTrackParser.Parse(result.RawMetadata, station.Name);

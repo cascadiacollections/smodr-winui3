@@ -59,7 +59,7 @@ public partial class App : Application
         services.AddSingleton<ITrackHistoryService, TrackHistoryService>();
         services.AddSingleton<IcyTrackMonitor>();
         services.AddHttpClient<ITrackMetadataProbe, IcyMetadataProbe>(client =>
-            client.Timeout = TimeSpan.FromSeconds(7));
+            client.Timeout = TimeSpan.FromSeconds(35));
         services.AddSingleton<IRadioLibraryService, RadioLibraryService>();
         services.AddSingleton<IRadioDirectorySnapshotCache, RadioDirectorySnapshotCache>();
         services.AddSingleton<IRadioPrivacySettings, RadioPrivacySettings>();
