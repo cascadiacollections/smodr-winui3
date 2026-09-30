@@ -56,6 +56,10 @@ public partial class App : Application
         };
         var services = new ServiceCollection();
         services.AddSingleton<IRadioPlayer, AudioService>();
+        services.AddSingleton<ITrackHistoryService, TrackHistoryService>();
+        services.AddSingleton<IcyTrackMonitor>();
+        services.AddHttpClient<ITrackMetadataProbe, IcyMetadataProbe>(client =>
+            client.Timeout = TimeSpan.FromSeconds(7));
         services.AddSingleton<IRadioLibraryService, RadioLibraryService>();
         services.AddSingleton<IRadioDirectorySnapshotCache, RadioDirectorySnapshotCache>();
         services.AddSingleton<IRadioPrivacySettings, RadioPrivacySettings>();

@@ -392,6 +392,42 @@ public sealed class RadioMainViewModelTests
         Assert.IsNull(viewModel.SleepTimerEndsAt);
     }
 
+    [TestMethod]
+    public async Task AcceptedTrackAppearsInNowPlayingAndHistory()
+    {
+        var player = new StubPlayer();
+        var history = new StubTrackHistory();
+        using var viewModel = new RadioMainViewModel(player,
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            new StubLibrary(), action => action(), trackHistory: history);
+        var station = new RadioStation { Id = "one", Name = "Radio One", StreamUrl = "https://example.com/live" };
+        await viewModel.TogglePlaybackAsync(station);
+        player.EmitTrack(new RadioTrackUpdate(station, new RadioTrackInfo("Song", "Artist")));
+
+        Assert.AreEqual("Song", viewModel.CurrentTrack?.Title);
+        Assert.HasCount(1, viewModel.HeardTracks);
+        Assert.AreEqual("Song", viewModel.HeardTracks[0].Title);
+    }
+
+    private sealed class StubTrackHistory : ITrackHistoryService
+    {
+        private readonly List<HeardTrack> _entries = [];
+        public IReadOnlyList<HeardTrack> Entries => _entries;
+        public Task RecordAsync(RadioStation station, RadioTrackInfo track)
+        {
+            _entries.Insert(0, new HeardTrack
+            {
+                StationId = station.Id,
+                StationName = station.Name,
+                Title = track.Title,
+                Artist = track.Artist,
+                HeardAt = DateTimeOffset.UtcNow
+            });
+            return Task.CompletedTask;
+        }
+        public Task FlushAsync() => Task.CompletedTask;
+    }
+
     private sealed class StubReporter : IStationPlayReporter
     {
         public int Count { get; private set; }
@@ -470,6 +506,7 @@ public sealed class RadioMainViewModelTests
         Action? pause = null) : IRadioPlayer
     {
         public RadioStation? CurrentStation { get; private set; }
+        public RadioTrackInfo? CurrentTrack => null;
         public bool IsPlaying => false;
         public bool IsPlaybackRequested => playbackRequested;
         public event EventHandler<RadioStation?>? StationChanged
@@ -477,6 +514,8 @@ public sealed class RadioMainViewModelTests
             add { }
             remove { }
         }
+        public event EventHandler<RadioTrackUpdate?>? TrackChanged;
+        public void EmitTrack(RadioTrackUpdate update) => TrackChanged?.Invoke(this, update);
         public event EventHandler<MediaPlaybackState>? PlaybackStateChanged
         {
             add { }

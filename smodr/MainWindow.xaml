@@ -142,6 +142,21 @@
                                     <ListView.ItemTemplate><DataTemplate x:DataType="models:RadioStation"><local:StationRowControl Station="{x:Bind}" FavoriteRequested="StationRow_FavoriteRequested"/></DataTemplate></ListView.ItemTemplate>
                                 </ListView>
                             </StackPanel>
+                            <StackPanel x:Name="HeardTracksSection" Spacing="10" Visibility="Collapsed">
+                                <TextBlock Text="Recently Heard" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="8,0"/>
+                                <ListView ItemsSource="{x:Bind ViewModel.HeardTracks, Mode=OneWay}" SelectionMode="None"
+                                          AutomationProperties.Name="Recently heard tracks">
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate x:DataType="models:HeardTrack">
+                                            <StackPanel Padding="12,8" Spacing="2">
+                                                <TextBlock Text="{x:Bind Display}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{x:Bind Details}" Style="{ThemeResource CaptionTextBlockStyle}"
+                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                            </StackPanel>
                             <StackPanel x:Name="EmptyLibraryView" HorizontalAlignment="Center" Spacing="10" Padding="0,64" Visibility="Collapsed">
                                 <FontIcon Glyph="&#xEB51;" FontSize="40" Opacity="0.55"/>
                                 <TextBlock Text="No Favorites Yet" Style="{ThemeResource SubtitleTextBlockStyle}" HorizontalAlignment="Center"/>

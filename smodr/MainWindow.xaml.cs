@@ -35,6 +35,7 @@ public sealed partial class MainWindow : Window
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
         ViewModel.Recents.CollectionChanged += LibraryCollectionChanged;
         ViewModel.Favorites.CollectionChanged += LibraryCollectionChanged;
+        ViewModel.HeardTracks.CollectionChanged += LibraryCollectionChanged;
 
         AppNavigation.SelectedItem = ListenNowItem;
         UpdateLibraryVisibility();
@@ -81,6 +82,7 @@ public sealed partial class MainWindow : Window
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         ViewModel.Recents.CollectionChanged -= LibraryCollectionChanged;
         ViewModel.Favorites.CollectionChanged -= LibraryCollectionChanged;
+        ViewModel.HeardTracks.CollectionChanged -= LibraryCollectionChanged;
         ViewModel.Dispose();
     }
 
@@ -91,7 +93,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var pending = Task.WhenAll(ViewModel.FlushLibraryAsync(), ViewModel.FlushDirectoryCacheAsync(), ViewModel.FlushPrivacySettingsAsync());
+        var pending = Task.WhenAll(ViewModel.FlushLibraryAsync(), ViewModel.FlushDirectoryCacheAsync(), ViewModel.FlushPrivacySettingsAsync(), ViewModel.FlushTrackHistoryAsync());
         if (pending.IsCompleted)
         {
             return;
@@ -109,7 +111,7 @@ public sealed partial class MainWindow : Window
             do
             {
                 await pending;
-                pending = Task.WhenAll(ViewModel.FlushLibraryAsync(), ViewModel.FlushDirectoryCacheAsync(), ViewModel.FlushPrivacySettingsAsync());
+                pending = Task.WhenAll(ViewModel.FlushLibraryAsync(), ViewModel.FlushDirectoryCacheAsync(), ViewModel.FlushPrivacySettingsAsync(), ViewModel.FlushTrackHistoryAsync());
             } while (!pending.IsCompleted);
         }
         catch (Exception exception)
@@ -280,6 +282,7 @@ public sealed partial class MainWindow : Window
         switch (e.PropertyName)
         {
             case nameof(ViewModel.CurrentStation):
+            case nameof(ViewModel.CurrentTrack):
                 UpdateNowPlaying();
                 break;
             case nameof(ViewModel.IsPlaying):
@@ -308,8 +311,10 @@ public sealed partial class MainWindow : Window
         }
 
         MiniPlayer.Visibility = Visibility.Visible;
-        NowPlayingTitle.Text = station.Name;
-        NowPlayingSubtitle.Text = string.IsNullOrWhiteSpace(ViewModel.Status) ? station.Details : ViewModel.Status;
+        NowPlayingTitle.Text = ViewModel.CurrentTrack?.Display ?? station.Name;
+        NowPlayingSubtitle.Text = string.IsNullOrWhiteSpace(ViewModel.Status)
+            ? ViewModel.CurrentTrack is null ? station.Details : station.Name
+            : ViewModel.Status;
         NowPlayingArtwork.ArtworkUrl = station.ArtworkUrl;
         var isFavorite = ViewModel.IsFavorite(station);
         FavoriteNowPlayingIcon.Glyph = isFavorite ? "\uEB52" : "\uEB51";
@@ -322,7 +327,7 @@ public sealed partial class MainWindow : Window
         if (ViewModel.CurrentStation is not null)
         {
             NowPlayingSubtitle.Text = string.IsNullOrWhiteSpace(ViewModel.Status)
-                ? ViewModel.CurrentStation.Details
+                ? ViewModel.CurrentTrack is null ? ViewModel.CurrentStation.Details : ViewModel.CurrentStation.Name
                 : ViewModel.Status;
         }
 
@@ -347,7 +352,8 @@ public sealed partial class MainWindow : Window
         RecentSection.Visibility = ViewModel.Recents.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         FavoritesSection.Visibility = ViewModel.Favorites.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         HistorySection.Visibility = ViewModel.Recents.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        EmptyLibraryView.Visibility = ViewModel.Favorites.Count == 0 && ViewModel.Recents.Count == 0
+        HeardTracksSection.Visibility = ViewModel.HeardTracks.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        EmptyLibraryView.Visibility = ViewModel.Favorites.Count == 0 && ViewModel.Recents.Count == 0 && ViewModel.HeardTracks.Count == 0
             ? Visibility.Visible
             : Visibility.Collapsed;
     }

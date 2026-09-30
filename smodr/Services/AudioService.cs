@@ -15,15 +15,19 @@ public class AudioService : IRadioPlayer, IDisposable
     private MediaSource? _mediaSource;
     private DispatcherQueue? _dispatcher;
     private readonly LiveRadioRecovery _recovery;
+    private readonly IcyTrackMonitor _trackMonitor;
 
-    public AudioService()
+    public AudioService(IcyTrackMonitor trackMonitor)
     {
+        _trackMonitor = trackMonitor;
+        _trackMonitor.TrackChanged += TrackMonitor_TrackChanged;
         _recovery = new LiveRadioRecovery(RestartCurrentRadio, ReportRadioFailure,
             beforeRetry: RetireCurrentRadio);
     }
 
     public Episode? CurrentEpisode { get; private set; }
     public RadioStation? CurrentStation { get; private set; }
+    public RadioTrackInfo? CurrentTrack { get; private set; }
 
     public MediaPlaybackState PlaybackState => _mediaPlayer?.PlaybackSession?.PlaybackState ?? MediaPlaybackState.None;
     public TimeSpan Position => _mediaPlayer?.PlaybackSession?.Position ?? TimeSpan.Zero;
@@ -34,6 +38,8 @@ public class AudioService : IRadioPlayer, IDisposable
 
     public void Dispose()
     {
+        _trackMonitor.TrackChanged -= TrackMonitor_TrackChanged;
+        _trackMonitor.Dispose();
         _recovery.Dispose();
         if (_mediaPlayer is not null)
         {
@@ -46,6 +52,7 @@ public class AudioService : IRadioPlayer, IDisposable
 
     public event EventHandler<Episode>? EpisodeChanged;
     public event EventHandler<RadioStation?>? StationChanged;
+    public event EventHandler<RadioTrackUpdate?>? TrackChanged;
     public event EventHandler<string>? PlaybackFailed;
     public event EventHandler<MediaPlaybackState>? PlaybackStateChanged;
     public event EventHandler<TimeSpan>? PositionChanged;
@@ -85,6 +92,7 @@ public class AudioService : IRadioPlayer, IDisposable
 
     private void ReleasePlayer()
     {
+        _trackMonitor.Stop();
         if (_mediaPlayer is not { } player) return;
         _mediaPlayer = null;
         player.PlaybackSession.PlaybackStateChanged -= PlaybackSession_PlaybackStateChanged;
@@ -127,6 +135,7 @@ public class AudioService : IRadioPlayer, IDisposable
 
             CurrentEpisode = episode;
             CurrentStation = null;
+            ClearTrack();
             EpisodeChanged?.Invoke(this, episode);
 
             SetPlayerSource(new Uri(episode.MediaUrl), NowPlayingMetadata.ForEpisode(episode));
@@ -161,6 +170,7 @@ public class AudioService : IRadioPlayer, IDisposable
         _radioEnded = false;
         CurrentEpisode = null;
         CurrentStation = station;
+        ClearTrack();
         StationChanged?.Invoke(this, station);
         try
         {
@@ -171,6 +181,7 @@ public class AudioService : IRadioPlayer, IDisposable
             _recovery.Pause();
             ReleasePlayer();
             CurrentStation = null;
+            ClearTrack();
             StationChanged?.Invoke(this, null);
             throw;
         }
@@ -184,7 +195,10 @@ public class AudioService : IRadioPlayer, IDisposable
         // A fresh player gives each stream its own event source. Late callbacks
         // from a retired stream cannot be attributed to a different station.
         CreatePlayer();
-        SetPlayerSource(streamUri, NowPlayingMetadata.ForStation(station));
+        var metadata = CurrentTrack is { } track
+            ? new NowPlayingMetadata(track.Title, track.Artist ?? station.Name, station.Name)
+            : NowPlayingMetadata.ForStation(station);
+        SetPlayerSource(streamUri, metadata);
         _mediaPlayer!.Play();
     }
 
@@ -245,6 +259,7 @@ public class AudioService : IRadioPlayer, IDisposable
 
     public void Pause()
     {
+        _trackMonitor.Stop();
         _recovery.Pause();
         _mediaPlayer?.Pause();
         if (CurrentStation is not null)
@@ -274,6 +289,7 @@ public class AudioService : IRadioPlayer, IDisposable
         ReleasePlayer();
 
         CurrentStation = null;
+        ClearTrack();
         StationChanged?.Invoke(this, null);
     }
 
@@ -304,10 +320,15 @@ public class AudioService : IRadioPlayer, IDisposable
             switch (sender.PlaybackState)
             {
                 case MediaPlaybackState.Buffering:
+                    _trackMonitor.Stop();
                     _recovery.Buffering();
                     break;
                 case MediaPlaybackState.Playing:
                     _recovery.Playing();
+                    if (CurrentStation is { } station) _trackMonitor.Start(station);
+                    break;
+                default:
+                    _trackMonitor.Stop();
                     break;
             }
         }
@@ -353,6 +374,7 @@ public class AudioService : IRadioPlayer, IDisposable
         {
             // A finite programme ended normally. Do not reconnect and loop it.
             _radioEnded = true;
+            _trackMonitor.Stop();
             _recovery.Pause();
             PlaybackStateChanged?.Invoke(this, MediaPlaybackState.Paused);
         }
@@ -419,5 +441,34 @@ public class AudioService : IRadioPlayer, IDisposable
         // Always enqueue: MediaFailed can run on this same thread, and tearing
         // down its MediaPlayer inside the native callback is unsafe.
         _dispatcher?.TryEnqueue(() => action());
+    }
+
+    private void TrackMonitor_TrackChanged(object? sender, RadioTrackUpdate update) =>
+        RunOnPlayerThread(() =>
+        {
+            if (!ReferenceEquals(CurrentStation, update.Station) || !_recovery.IsRequested
+                || PlaybackState != MediaPlaybackState.Playing || CurrentTrack == update.Track) return;
+            CurrentTrack = update.Track;
+            try
+            {
+                if (_mediaPlayer?.Source is MediaPlaybackItem item)
+                {
+                    var display = item.GetDisplayProperties();
+                    display.Type = MediaPlaybackType.Music;
+                    display.MusicProperties.Title = update.Track.Title;
+                    display.MusicProperties.Artist = update.Track.Artist ?? update.Station.Name;
+                    display.MusicProperties.AlbumTitle = update.Station.Name;
+                    item.ApplyDisplayProperties(display);
+                }
+            }
+            catch (Exception exception) { AppDiagnostics.Record("track.system-media", exception); }
+            TrackChanged?.Invoke(this, update);
+        });
+
+    private void ClearTrack()
+    {
+        if (CurrentTrack is null) return;
+        CurrentTrack = null;
+        TrackChanged?.Invoke(this, null);
     }
 }

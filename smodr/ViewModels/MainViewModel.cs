@@ -11,7 +11,8 @@ namespace smodr.ViewModels;
 
 public partial class MainViewModel : ObservableObject, IDisposable
 {
-    private readonly AudioService _audioService = new();
+    private static readonly HttpClient _metadataHttpClient = new();
+    private readonly AudioService _audioService = new(new IcyTrackMonitor(new IcyMetadataProbe(_metadataHttpClient)));
     private readonly DataService _dataService = new();
     private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
     private readonly DownloadService _downloadService = new();

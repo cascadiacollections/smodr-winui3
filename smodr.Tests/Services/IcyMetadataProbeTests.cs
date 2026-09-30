@@ -1,0 +1,70 @@
+using System.Net;
+using System.Text;
+using smodr.Services;
+
+namespace smodr.Tests.Services;
+
+[TestClass]
+public sealed class IcyMetadataProbeTests
+{
+    [TestMethod]
+    public async Task ReadsFirstMetadataBlockAndRequestsIcy()
+    {
+        const string metadata = "StreamTitle='Artist - Song';";
+        var encoded = Encoding.UTF8.GetBytes(metadata);
+        var blocks = (encoded.Length + 15) / 16;
+        var body = new byte[4 + 1 + blocks * 16];
+        encoded.CopyTo(body, 5);
+        body[4] = (byte)blocks;
+        using var handler = new StubHandler(request =>
+        {
+            Assert.AreEqual("1", request.Headers.GetValues("Icy-MetaData").Single());
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(body)
+            };
+            response.Headers.TryAddWithoutValidation("icy-metaint", "4");
+            return response;
+        });
+        using var client = new HttpClient(handler, disposeHandler: false);
+        var result = await new IcyMetadataProbe(client).ProbeAsync(new Uri("https://example.com/live"));
+        Assert.IsTrue(result.IsSupported);
+        Assert.AreEqual(metadata, result.RawMetadata);
+    }
+
+    [TestMethod]
+    public async Task UnsupportedStreamDoesNotReadBody()
+    {
+        using var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent([1, 2, 3])
+        });
+        using var client = new HttpClient(handler, disposeHandler: false);
+        var result = await new IcyMetadataProbe(client).ProbeAsync(new Uri("https://example.com/live"));
+        Assert.IsFalse(result.IsSupported);
+        Assert.IsNull(result.RawMetadata);
+    }
+
+    [TestMethod]
+    public async Task OversizedIntervalIsRejected()
+    {
+        using var handler = new StubHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent([])
+            };
+            response.Headers.TryAddWithoutValidation("icy-metaint", "99999999");
+            return response;
+        });
+        using var client = new HttpClient(handler, disposeHandler: false);
+        var result = await new IcyMetadataProbe(client).ProbeAsync(new Uri("https://example.com/live"));
+        Assert.IsFalse(result.IsSupported);
+    }
+
+    private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+            CancellationToken cancellationToken) => Task.FromResult(respond(request));
+    }
+}

@@ -18,6 +18,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     private readonly IStationPlayReporter? _playReporter;
     private readonly IRadioPrivacySettings? _privacySettings;
     private readonly PlaybackSleepTimer _sleepTimer;
+    private readonly ITrackHistoryService? _trackHistory;
     private readonly Action<Action> _dispatch;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private CancellationTokenSource? _searchCancellation;
@@ -34,7 +35,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         IRadioDirectorySnapshotCache? cache = null,
         IStationPlayReporter? playReporter = null,
         IRadioPrivacySettings? privacySettings = null,
-        PlaybackSleepTimer? sleepTimer = null)
+        PlaybackSleepTimer? sleepTimer = null,
+        ITrackHistoryService? trackHistory = null)
     {
         if (dispatch is null)
         {
@@ -53,19 +55,24 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _playReporter = playReporter;
         _privacySettings = privacySettings;
         _sleepTimer = sleepTimer ?? new PlaybackSleepTimer();
+        _trackHistory = trackHistory;
         _sleepTimer.Elapsed += SleepTimer_Elapsed;
         _audio.StationChanged += Audio_StationChanged;
+        _audio.TrackChanged += Audio_TrackChanged;
         _audio.PlaybackStateChanged += Audio_PlaybackStateChanged;
         _audio.PlaybackFailed += Audio_PlaybackFailed;
         RefreshLibraryCollections();
+        if (_trackHistory is not null) Replace(HeardTracks, _trackHistory.Entries);
     }
 
     public ObservableCollection<RadioStation> PopularStations { get; } = [];
     public ObservableCollection<RadioStation> SearchResults { get; } = [];
     public ObservableCollection<RadioStation> Favorites { get; } = [];
     public ObservableCollection<RadioStation> Recents { get; } = [];
+    public ObservableCollection<HeardTrack> HeardTracks { get; } = [];
 
     [ObservableProperty] public partial RadioStation? CurrentStation { get; set; }
+    [ObservableProperty] public partial RadioTrackInfo? CurrentTrack { get; set; }
     [ObservableProperty] public partial bool IsPlaying { get; set; }
     [ObservableProperty] public partial bool IsLoading { get; set; }
     [ObservableProperty] public partial string Status { get; set; } = "Tuning in…";
@@ -361,6 +368,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     public bool IsFavorite(RadioStation station) => _library.IsFavorite(station);
 
     public Task FlushLibraryAsync() => _library.FlushAsync();
+    public Task FlushTrackHistoryAsync() => _trackHistory?.FlushAsync() ?? Task.CompletedTask;
 
     public Task FlushDirectoryCacheAsync() => _cache?.FlushAsync() ?? Task.CompletedTask;
 
@@ -372,6 +380,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         }
 
         _audio.StationChanged -= Audio_StationChanged;
+        _audio.TrackChanged -= Audio_TrackChanged;
         _audio.PlaybackStateChanged -= Audio_PlaybackStateChanged;
         _audio.PlaybackFailed -= Audio_PlaybackFailed;
         _sleepTimer.Elapsed -= SleepTimer_Elapsed;
@@ -392,7 +401,38 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     }
 
     private void Audio_StationChanged(object? sender, RadioStation? station) =>
-        _dispatch(() => CurrentStation = station);
+        _dispatch(() =>
+        {
+            CurrentStation = station;
+            CurrentTrack = null;
+        });
+
+    private void Audio_TrackChanged(object? sender, RadioTrackUpdate? update) =>
+        _dispatch(() =>
+        {
+            if (Volatile.Read(ref _disposed) != 0) return;
+            if (update is null)
+            {
+                CurrentTrack = null;
+                return;
+            }
+            if (!ReferenceEquals(_audio.CurrentStation, update.Station)) return;
+            CurrentTrack = update.Track;
+            if (_trackHistory is not null) _ = RecordTrackBestEffortAsync(update);
+        });
+
+    private async Task RecordTrackBestEffortAsync(RadioTrackUpdate update)
+    {
+        try
+        {
+            await _trackHistory!.RecordAsync(update.Station, update.Track);
+            _dispatch(() =>
+            {
+                if (Volatile.Read(ref _disposed) == 0) Replace(HeardTracks, _trackHistory.Entries);
+            });
+        }
+        catch (Exception exception) { AppDiagnostics.Record("track-history.write", exception); }
+    }
 
     private void Audio_PlaybackStateChanged(object? sender, MediaPlaybackState state) =>
         _dispatch(() =>
@@ -440,6 +480,12 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         {
             target.Add(value);
         }
+    }
+
+    private static void Replace(ObservableCollection<HeardTrack> target, IEnumerable<HeardTrack> values)
+    {
+        target.Clear();
+        foreach (var value in values) target.Add(value);
     }
 
     private void UpdateLoading() => IsLoading = _loadingPopular || _loadingSearch;
