@@ -2,9 +2,9 @@ name: Build and Test
 
 on:
   push:
-    branches: [ master, develop ]
+    branches: [ main, master, develop ]
   pull_request:
-    branches: [ master, develop ]
+    branches: [ main, master, develop ]
   workflow_dispatch:
 
 env:
@@ -98,5 +98,6 @@ jobs:
     - name: Check code formatting
       run: |
         dotnet format smodr.RadioCore/smodr.RadioCore.csproj --verify-no-changes --verbosity diagnostic
+        dotnet format smodr.RadioSmoke/smodr.RadioSmoke.csproj --verify-no-changes --verbosity diagnostic
         dotnet format smodr/smodr.csproj --verify-no-changes --verbosity diagnostic
         dotnet format smodr.Tests/smodr.Tests.csproj --verify-no-changes --verbosity diagnostic

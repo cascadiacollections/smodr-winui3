@@ -92,27 +92,52 @@ public sealed class AlbumArtworkLookup(HttpClient client) : IAlbumArtworkLookup
             if (document.RootElement.ValueKind != JsonValueKind.Object
                 || !document.RootElement.TryGetProperty("results", out var results)
                 || results.ValueKind != JsonValueKind.Array) return new(false, null);
-            var expectedArtist = Normalize(artist);
-            var expectedTitle = Normalize(title);
             foreach (var item in results.EnumerateArray())
             {
                 if (item.ValueKind != JsonValueKind.Object
                     || !ReadString(item, "artistName", out var foundArtist)
                     || !ReadString(item, "trackName", out var foundTitle)
-                    || Normalize(foundArtist) != expectedArtist || Normalize(foundTitle) != expectedTitle
-                    || !ReadUri(item, "artworkUrl100", "mzstatic.com", out var artwork)
-                    || !ReadStoreUri(item, out var store)) continue;
+                    || !IsPlausibleMatch(artist, title, foundArtist, foundTitle)
+                    || !ReadUri(item, "artworkUrl100", "mzstatic.com", out var artwork)) continue;
                 var resized = Regex.Replace(artwork.AbsoluteUri, @"/100x100bb(?=\.)", "/600x600bb",
                     RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+                ReadStoreUri(item, out var store);
                 return new(true, new AlbumArtworkMatch(new Uri(resized), store));
             }
-            return new(true, null); // A valid response with no exact song is a cacheable miss.
+            return new(true, null); // A valid response without usable artwork is a cacheable miss.
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException
             or IOException or JsonException)
         {
             return new(false, null); // Network and malformed responses may be retried.
         }
+    }
+
+    private static bool IsPlausibleMatch(string artist, string title, string foundArtist,
+        string foundTitle) => Normalize(LeadArtist(artist)) == Normalize(LeadArtist(foundArtist))
+            && Normalize(BaseTitle(title)) == Normalize(BaseTitle(foundTitle));
+
+    private static string LeadArtist(string value)
+    {
+        foreach (var separator in new[] { " feat.", " featuring ", " ft.", " & ", " with " })
+        {
+            var index = value.IndexOf(separator, StringComparison.OrdinalIgnoreCase);
+            if (index > 0) value = value[..index];
+        }
+        return value;
+    }
+
+    private static string BaseTitle(string value)
+    {
+        // A featured-artist credit can differ between radio and catalog fields.
+        // Other qualifiers (live, remix, acoustic) identify different recordings.
+        var parenthesis = value.LastIndexOf('(', StringComparison.Ordinal);
+        if (parenthesis <= 0 || !value.EndsWith(')', StringComparison.Ordinal)) return value;
+        var credit = value[(parenthesis + 1)..^1].TrimStart();
+        return credit.StartsWith("feat", StringComparison.OrdinalIgnoreCase)
+            || credit.StartsWith("ft.", StringComparison.OrdinalIgnoreCase)
+            || credit.StartsWith("featuring", StringComparison.OrdinalIgnoreCase)
+            ? value[..parenthesis] : value;
     }
 
     private static string Normalize(string value) =>

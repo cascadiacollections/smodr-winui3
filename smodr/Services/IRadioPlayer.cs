@@ -17,4 +17,5 @@ public interface IRadioPlayer
     void Play();
     void Pause();
     void StopStation();
+    void SetNowPlayingArtwork(RadioStation station, Uri? artworkUrl);
 }

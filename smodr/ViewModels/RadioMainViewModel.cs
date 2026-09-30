@@ -103,6 +103,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             {
                 CurrentArtworkUrl = CurrentStation?.ArtworkUrl ?? string.Empty;
                 CurrentAppleMusicUrl = string.Empty;
+                if (CurrentStation is { } current)
+                    _audio.SetNowPlayingArtwork(current, ParseArtworkUrl(current.ArtworkUrl));
             }
         });
         return save;
@@ -459,8 +461,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             }
             if (!ReferenceEquals(_audio.CurrentStation, update.Station)) return;
             CurrentTrack = update.Track;
-            StartArtworkLookup(update.Station, update.Track);
             if (_trackHistory is not null) _ = RecordTrackBestEffortAsync(update);
+            StartArtworkLookup(update.Station, update.Track);
         });
 
     private void StartArtworkLookup(RadioStation station, RadioTrackInfo track)
@@ -468,6 +470,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         CancelArtworkLookup();
         CurrentArtworkUrl = station.ArtworkUrl;
         CurrentAppleMusicUrl = string.Empty;
+        _audio.SetNowPlayingArtwork(station, ParseArtworkUrl(station.ArtworkUrl));
         if (_albumArtworkLookup is null || _privacySettings?.IsAlbumArtworkEnabled != true
             || string.IsNullOrWhiteSpace(track.Artist)) return;
         var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCancellation.Token);
@@ -489,7 +492,10 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
                     && _privacySettings?.IsAlbumArtworkEnabled == true)
                 {
                     CurrentArtworkUrl = match.ArtworkUrl.AbsoluteUri;
-                    CurrentAppleMusicUrl = match.StoreUrl.AbsoluteUri;
+                    CurrentAppleMusicUrl = match.StoreUrl?.AbsoluteUri ?? string.Empty;
+                    _audio.SetNowPlayingArtwork(station, match.ArtworkUrl);
+                    if (_trackHistory is not null)
+                        _ = UpdateHistoryArtworkBestEffortAsync(station, track, match);
                 }
             });
         }
@@ -503,6 +509,24 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _artworkCancellation = null;
         previous?.Cancel();
         previous?.Dispose();
+    }
+
+    private static Uri? ParseArtworkUrl(string? value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http"
+            ? uri : null;
+
+    private async Task UpdateHistoryArtworkBestEffortAsync(RadioStation station,
+        RadioTrackInfo track, AlbumArtworkMatch artwork)
+    {
+        try
+        {
+            await _trackHistory!.UpdateArtworkAsync(station, track, artwork);
+            _dispatch(() =>
+            {
+                if (Volatile.Read(ref _disposed) == 0) RefreshTrackCollections();
+            });
+        }
+        catch (Exception exception) { AppDiagnostics.Record("track-history.artwork", exception); }
     }
 
     private async Task RecordTrackBestEffortAsync(RadioTrackUpdate update)

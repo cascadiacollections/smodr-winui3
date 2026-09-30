@@ -1,3 +1,4 @@
+using smodr.Models;
 using smodr.Services;
 
 namespace smodr.Tests.Services;
@@ -5,6 +6,16 @@ namespace smodr.Tests.Services;
 [TestClass]
 public sealed class IcyTrackParserTests
 {
+    [TestMethod]
+    public void KexpAlbumEchoDoesNotCreateASecondTrack()
+    {
+        var current = new RadioTrackInfo("Time (Is)", "Solange");
+        Assert.IsTrue(IcyTrackParser.IsAlbumEcho(current,
+            new RadioTrackInfo("Solange - When I Get Home", "Time (Is)")));
+        Assert.IsFalse(IcyTrackParser.IsAlbumEcho(current,
+            new RadioTrackInfo("Cranes in the Sky", "Solange")));
+    }
+
     [TestMethod]
     [DataRow("StreamTitle='The Artist - A Song';StreamUrl='';", "A Song", "The Artist")]
     [DataRow("StreamTitle='Don't Stop - Rock 'n' Roll';", "Rock 'n' Roll", "Don't Stop")]

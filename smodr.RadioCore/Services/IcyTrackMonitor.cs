@@ -4,11 +4,16 @@ namespace smodr.Services;
 
 /// <summary>Runs bounded metadata probes only while the selected stream is playing.</summary>
 public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
-    Func<TimeSpan, CancellationToken, Task>? delay = null) : IDisposable
+    Func<TimeSpan, CancellationToken, Task>? delay = null,
+    TimeProvider? clock = null) : IDisposable
 {
-    private static readonly TimeSpan _pollInterval = TimeSpan.FromSeconds(20);
+    // Windows MediaPlayer does not surface ICY title changes from the playback
+    // connection, so a bounded sidecar sample trades some bandwidth for a
+    // shorter worst-case miss window on short songs.
+    private static readonly TimeSpan _pollInterval = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan _errorInterval = TimeSpan.FromMinutes(1);
     private readonly ITrackMetadataProbe _probe = probe;
+    private readonly TimeProvider _clock = clock ?? TimeProvider.System;
     private readonly Func<TimeSpan, CancellationToken, Task> _delay =
         delay ?? ((duration, token) => Task.Delay(duration, token));
     private readonly Lock _gate = new();
@@ -85,6 +90,7 @@ public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
             {
                 try
                 {
+                    var startedAt = _clock.GetTimestamp();
                     using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation.Token);
                     timeout.CancelAfter(TimeSpan.FromSeconds(35));
                     var result = await _probe.ProbeAsync(uri, timeout.Token).ConfigureAwait(false);
@@ -100,7 +106,9 @@ public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
                         try { TrackChanged?.Invoke(this, new RadioTrackUpdate(station, track)); }
                         catch (Exception exception) { AppDiagnostics.Record("track.callback", exception); }
                     }
-                    await _delay(_pollInterval, cancellation.Token).ConfigureAwait(false);
+                    var remaining = _pollInterval - _clock.GetElapsedTime(startedAt);
+                    if (remaining > TimeSpan.Zero)
+                        await _delay(remaining, cancellation.Token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
                 {

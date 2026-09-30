@@ -28,7 +28,7 @@ internal static class AtomicFileWriter
                 File.Move(sourcePath, destinationPath, true);
                 return;
             }
-            catch (Exception exception) when (attempt < 3
+            catch (Exception exception) when (attempt < 5
                 && !Directory.Exists(destinationPath)
                 && exception is IOException or UnauthorizedAccessException)
             {

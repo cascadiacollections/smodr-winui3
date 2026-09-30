@@ -16,6 +16,7 @@ public class AudioService : IRadioPlayer, IDisposable
     private MediaPlayer? _mediaPlayer;
     private MediaSource? _mediaSource;
     private MediaPlaybackItem? _playbackItem;
+    private Uri? _currentArtworkUri;
     private readonly List<TimedMetadataTrack> _timedTracks = [];
     private DispatcherQueue? _dispatcher;
     private readonly LiveRadioRecovery _recovery;
@@ -175,6 +176,7 @@ public class AudioService : IRadioPlayer, IDisposable
         _radioEnded = false;
         CurrentEpisode = null;
         CurrentStation = station;
+        _currentArtworkUri = ParseArtworkUri(station.ArtworkUrl);
         ClearTrack();
         StationChanged?.Invoke(this, station);
         try
@@ -204,6 +206,7 @@ public class AudioService : IRadioPlayer, IDisposable
             ? new NowPlayingMetadata(track.Title, track.Artist ?? station.Name, station.Name)
             : NowPlayingMetadata.ForStation(station);
         SetPlayerSource(streamUri, metadata);
+        SetNowPlayingArtwork(station, _currentArtworkUri);
         _mediaPlayer!.Play();
     }
 
@@ -310,6 +313,7 @@ public class AudioService : IRadioPlayer, IDisposable
         ReleasePlayer();
 
         CurrentStation = null;
+        _currentArtworkUri = null;
         ClearTrack();
         StationChanged?.Invoke(this, null);
     }
@@ -331,6 +335,25 @@ public class AudioService : IRadioPlayer, IDisposable
     }
 
     public double GetVolume() => _mediaPlayer?.Volume ?? 0.5;
+
+    public void SetNowPlayingArtwork(RadioStation station, Uri? artworkUrl)
+    {
+        if (!ReferenceEquals(CurrentStation, station) || _mediaPlayer?.Source is not MediaPlaybackItem item)
+            return;
+        _currentArtworkUri = artworkUrl;
+        try
+        {
+            var display = item.GetDisplayProperties();
+            display.Thumbnail = artworkUrl is { Scheme: "https" or "http" }
+                ? RandomAccessStreamReference.CreateFromUri(artworkUrl) : null;
+            item.ApplyDisplayProperties(display);
+        }
+        catch (Exception exception) { AppDiagnostics.Record("artwork.system-media", exception); }
+    }
+
+    private static Uri? ParseArtworkUri(string? value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http"
+            ? uri : null;
 
     private void PlaybackSession_PlaybackStateChanged(MediaPlaybackSession sender, object args)
     {
@@ -519,8 +542,12 @@ public class AudioService : IRadioPlayer, IDisposable
     private void ApplyTrack(RadioTrackUpdate update)
     {
         if (!ReferenceEquals(CurrentStation, update.Station) || !_recovery.IsRequested
-            || PlaybackState != MediaPlaybackState.Playing || CurrentTrack == update.Track) return;
+            || PlaybackState != MediaPlaybackState.Playing || CurrentTrack == update.Track
+            || IcyTrackParser.IsAlbumEcho(CurrentTrack, update.Track)) return;
         CurrentTrack = update.Track;
+        // Never pair a new title with the previous song's cover while its
+        // catalog lookup is still in flight.
+        SetNowPlayingArtwork(update.Station, ParseArtworkUri(update.Station.ArtworkUrl));
         try
         {
             if (_mediaPlayer?.Source is MediaPlaybackItem item)

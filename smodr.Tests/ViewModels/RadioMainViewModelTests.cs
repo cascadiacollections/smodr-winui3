@@ -427,10 +427,12 @@ public sealed class RadioMainViewModelTests
             : Task.FromResult<AlbumArtworkMatch?>(new AlbumArtworkMatch(
                 new Uri("https://is1-ssl.mzstatic.com/new.jpg"), new Uri("https://music.apple.com/new"))));
         var player = new StubPlayer();
+        var history = new StubTrackHistory();
         var privacy = new StubPrivacy(false);
         using var viewModel = new RadioMainViewModel(player,
             new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
-            new StubLibrary(), action => action(), privacySettings: privacy, albumArtworkLookup: lookup);
+            new StubLibrary(), action => action(), privacySettings: privacy,
+            trackHistory: history, albumArtworkLookup: lookup);
         await viewModel.TogglePlaybackAsync(station);
         player.EmitTrack(new RadioTrackUpdate(station, new RadioTrackInfo("Old", "Artist")));
         player.EmitTrack(new RadioTrackUpdate(station, new RadioTrackInfo("New", "Artist")));
@@ -440,9 +442,12 @@ public sealed class RadioMainViewModelTests
         await Task.Delay(20);
         Assert.AreEqual("https://is1-ssl.mzstatic.com/new.jpg", viewModel.CurrentArtworkUrl);
         Assert.AreEqual("https://music.apple.com/new", viewModel.CurrentAppleMusicUrl);
+        Assert.AreEqual(viewModel.CurrentArtworkUrl, player.LastArtworkUrl?.AbsoluteUri);
+        Assert.AreEqual(viewModel.CurrentArtworkUrl, history.Entries[0].ArtworkUrl);
 
         await viewModel.SetAlbumArtworkEnabledAsync(false);
         Assert.AreEqual(station.ArtworkUrl, viewModel.CurrentArtworkUrl);
+        Assert.AreEqual(station.ArtworkUrl, player.LastArtworkUrl?.AbsoluteUri);
         Assert.AreEqual(string.Empty, viewModel.CurrentAppleMusicUrl);
         player.EmitTrack(new RadioTrackUpdate(station, new RadioTrackInfo("Later", "Artist")));
         Assert.AreEqual(2, lookup.Calls);
@@ -490,6 +495,26 @@ public sealed class RadioMainViewModelTests
             return Task.CompletedTask;
         }
         public Task FlushAsync() => Task.CompletedTask;
+        public Task UpdateArtworkAsync(RadioStation station, RadioTrackInfo track, AlbumArtworkMatch artwork)
+        {
+            var index = _entries.FindIndex(item => item.StationId == station.Id
+                && item.Title == track.Title && item.Artist == track.Artist);
+            if (index >= 0)
+            {
+                var old = _entries[index];
+                _entries[index] = new HeardTrack
+                {
+                    StationId = old.StationId,
+                    StationName = old.StationName,
+                    Title = old.Title,
+                    Artist = old.Artist,
+                    HeardAt = old.HeardAt,
+                    ArtworkUrl = artwork.ArtworkUrl.AbsoluteUri,
+                    AppleMusicUrl = artwork.StoreUrl?.AbsoluteUri ?? string.Empty
+                };
+            }
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class StubReporter : IStationPlayReporter
@@ -578,11 +603,13 @@ public sealed class RadioMainViewModelTests
     {
         public RadioStation? CurrentStation { get; private set; }
         public RadioTrackInfo? CurrentTrack => null;
+        public Uri? LastArtworkUrl { get; private set; }
         public bool IsPlaying => false;
         public bool IsPlaybackRequested => playbackRequested;
         public event EventHandler<RadioStation?>? StationChanged;
         public event EventHandler<RadioTrackUpdate?>? TrackChanged;
         public void EmitTrack(RadioTrackUpdate update) => TrackChanged?.Invoke(this, update);
+        public void SetNowPlayingArtwork(RadioStation station, Uri? artworkUrl) => LastArtworkUrl = artworkUrl;
         public event EventHandler<MediaPlaybackState>? PlaybackStateChanged
         {
             add { }

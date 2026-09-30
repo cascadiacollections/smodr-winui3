@@ -3,7 +3,9 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using smodr.Services;
+using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
+using Windows.UI;
 
 namespace smodr;
 
@@ -17,9 +19,13 @@ public sealed partial class StationArtworkControl : UserControl, IDisposable
     private static readonly ConcurrentQueue<string> _cacheOrder = new();
     private static readonly StationArtworkDiskCache _diskCache = new();
     private CancellationTokenSource? _loadCancellation;
+    public event EventHandler<Color?>? AccentColorChanged;
 
     public static readonly DependencyProperty ArtworkUrlProperty = DependencyProperty.Register(
         nameof(ArtworkUrl), typeof(string), typeof(StationArtworkControl),
+        new PropertyMetadata(string.Empty, OnArtworkUrlChanged));
+    public static readonly DependencyProperty FallbackArtworkUrlProperty = DependencyProperty.Register(
+        nameof(FallbackArtworkUrl), typeof(string), typeof(StationArtworkControl),
         new PropertyMetadata(string.Empty, OnArtworkUrlChanged));
 
     public StationArtworkControl()
@@ -35,6 +41,12 @@ public sealed partial class StationArtworkControl : UserControl, IDisposable
         set => SetValue(ArtworkUrlProperty, value);
     }
 
+    public string FallbackArtworkUrl
+    {
+        get => (string)GetValue(FallbackArtworkUrlProperty);
+        set => SetValue(FallbackArtworkUrlProperty, value);
+    }
+
     public void Dispose()
     {
         CancelLoad();
@@ -45,8 +57,14 @@ public sealed partial class StationArtworkControl : UserControl, IDisposable
     {
         var control = (StationArtworkControl)sender;
         control.CancelLoad();
-        control.ArtworkImage.Source = null;
-        control.Placeholder.Visibility = Visibility.Visible;
+        // Keep the station cover visible while the album cover loads.
+        if (string.IsNullOrWhiteSpace(control.FallbackArtworkUrl)
+            || control.ArtworkUrl == control.FallbackArtworkUrl)
+        {
+            control.ArtworkImage.Source = null;
+            control.Placeholder.Visibility = Visibility.Visible;
+            control.AccentColorChanged?.Invoke(control, null);
+        }
         if (control.IsLoaded)
         {
             control.LoadArtwork();
@@ -55,24 +73,35 @@ public sealed partial class StationArtworkControl : UserControl, IDisposable
 
     private void LoadArtwork()
     {
-        if (!Uri.TryCreate(ArtworkUrl, UriKind.Absolute, out var uri)
-            || uri.Scheme is not ("https" or "http"))
+        var value = Uri.TryCreate(ArtworkUrl, UriKind.Absolute, out var primary)
+            && primary.Scheme is "https" or "http" ? primary : null;
+        var fallback = Uri.TryCreate(FallbackArtworkUrl, UriKind.Absolute, out var parsed)
+            && parsed.Scheme is "https" or "http" ? parsed : null;
+        var uri = value ?? fallback;
+        if (uri is null)
         {
             return;
         }
 
         _loadCancellation = new CancellationTokenSource();
-        _ = LoadArtworkAsync(uri, _loadCancellation.Token);
+        _ = LoadArtworkAsync(uri, fallback != uri ? fallback : null, _loadCancellation.Token);
     }
 
-    private async Task LoadArtworkAsync(Uri uri, CancellationToken cancellationToken)
+    private async Task LoadArtworkAsync(Uri uri, Uri? fallback, CancellationToken cancellationToken)
+    {
+        if (await TrySetArtworkAsync(uri, cancellationToken) || fallback is null
+            || cancellationToken.IsCancellationRequested) return;
+        await TrySetArtworkAsync(fallback, cancellationToken);
+    }
+
+    private async Task<bool> TrySetArtworkAsync(Uri uri, CancellationToken cancellationToken)
     {
         try
         {
             var bytes = await GetArtworkBytesAsync(uri, cancellationToken);
             if (bytes is null || cancellationToken.IsCancellationRequested)
             {
-                return;
+                return false;
             }
 
             using var stream = new InMemoryRandomAccessStream();
@@ -91,12 +120,55 @@ public sealed partial class StationArtworkControl : UserControl, IDisposable
             {
                 this.ArtworkImage.Source = image;
                 this.Placeholder.Visibility = Visibility.Collapsed;
+                if (AccentColorChanged is not null)
+                {
+                    var accent = await ReadAccentAsync(bytes);
+                    if (!cancellationToken.IsCancellationRequested)
+                        AccentColorChanged?.Invoke(this, accent);
+                }
+                return true;
             }
         }
         catch (Exception)
         {
-            // Directory artwork is optional; keep the station's placeholder.
+            // Artwork is optional; try the station cover when the album cover fails.
         }
+        return false;
+    }
+
+    private static async Task<Color?> ReadAccentAsync(byte[] bytes)
+    {
+        try
+        {
+            using var stream = new InMemoryRandomAccessStream();
+            using (var writer = new DataWriter(stream))
+            {
+                writer.WriteBytes(bytes);
+                await writer.StoreAsync();
+                writer.DetachStream();
+            }
+            stream.Seek(0);
+            var decoder = await BitmapDecoder.CreateAsync(stream);
+            var pixels = await decoder.GetPixelDataAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore,
+                new BitmapTransform { ScaledWidth = 12, ScaledHeight = 12 },
+                ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
+            var data = pixels.DetachPixelData();
+            var bestSaturation = -1;
+            Color? best = null;
+            for (var index = 0; index + 3 < data.Length; index += 4)
+            {
+                var blue = data[index];
+                var green = data[index + 1];
+                var red = data[index + 2];
+                var saturation = Math.Max(red, Math.Max(green, blue))
+                    - Math.Min(red, Math.Min(green, blue));
+                if (saturation <= bestSaturation || Math.Max(red, Math.Max(green, blue)) < 64) continue;
+                bestSaturation = saturation;
+                best = Color.FromArgb(255, red, green, blue);
+            }
+            return best;
+        }
+        catch (Exception) { return null; }
     }
 
     private static async Task<byte[]?> GetArtworkBytesAsync(Uri uri, CancellationToken cancellationToken)

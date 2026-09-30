@@ -25,7 +25,7 @@ public sealed class AlbumArtworkLookupTests
         var second = await lookup.FindAsync(track);
 
         Assert.AreEqual("https://is1-ssl.mzstatic.com/image/thumb/600x600bb.jpg", first?.ArtworkUrl.AbsoluteUri);
-        Assert.AreEqual("https://music.apple.com/us/album/song/123", first?.StoreUrl.AbsoluteUri);
+        Assert.AreEqual("https://music.apple.com/us/album/song/123", first?.StoreUrl?.AbsoluteUri);
         Assert.AreEqual(first, second);
         Assert.AreEqual(1, requests);
     }
@@ -64,12 +64,60 @@ public sealed class AlbumArtworkLookupTests
     }
 
     [TestMethod]
-    public async Task SkipsWrongFirstResultAndFindsExactSong()
+    public async Task AcceptsFirstCatalogResultWhenFeaturingCreditsDiffer()
     {
-        using var handler = new Handler(_ => Json("""{"results":[{"artistName":"Other","trackName":"Song","artworkUrl100":"https://is1-ssl.mzstatic.com/wrong.jpg","trackViewUrl":"https://music.apple.com/wrong"},{"artistName":"Artist","trackName":"Song!","artworkUrl100":"https://is1-ssl.mzstatic.com/right/100x100bb.jpg","trackViewUrl":"https://music.apple.com/right"}]}"""));
+        using var handler = new Handler(_ => Json("""{"results":[{"artistName":"Waxahatchee","trackName":"Right Back to It (feat. MJ Lenderman)","artworkUrl100":"https://is1-ssl.mzstatic.com/right/100x100bb.jpg","trackViewUrl":"https://music.apple.com/right"}]}"""));
+        using var client = new HttpClient(handler, disposeHandler: false);
+        var match = await new AlbumArtworkLookup(client).FindAsync(
+            new RadioTrackInfo("Right Back to It", "Waxahatchee feat. MJ Lenderman"));
+        Assert.AreEqual("https://is1-ssl.mzstatic.com/right/600x600bb.jpg", match?.ArtworkUrl.AbsoluteUri);
+    }
+
+    [TestMethod]
+    public async Task RejectsUnrelatedFirstSongAndFindsPlausibleLaterResult()
+    {
+        using var handler = new Handler(_ => Json("""{"results":[{"artistName":"Red Hot Chili Peppers","trackName":"Soul to Squeeze","artworkUrl100":"https://is1-ssl.mzstatic.com/wrong.jpg"},{"artistName":"Red Hot Chili Peppers","trackName":"Show Me Your Soul","artworkUrl100":"https://is1-ssl.mzstatic.com/right.jpg"}]}"""));
+        using var client = new HttpClient(handler, disposeHandler: false);
+        var match = await new AlbumArtworkLookup(client).FindAsync(
+            new RadioTrackInfo("Show Me Your Soul", "Red Hot Chili Peppers"));
+        Assert.AreEqual("https://is1-ssl.mzstatic.com/right.jpg", match?.ArtworkUrl.AbsoluteUri);
+    }
+
+    [TestMethod]
+    public async Task UnrelatedCatalogResultsKeepStationArtwork()
+    {
+        using var handler = new Handler(_ => Json("""{"results":[{"artistName":"Red Hot Chili Peppers","trackName":"Soul to Squeeze","artworkUrl100":"https://is1-ssl.mzstatic.com/wrong.jpg"}]}"""));
+        using var client = new HttpClient(handler, disposeHandler: false);
+        Assert.IsNull(await new AlbumArtworkLookup(client).FindAsync(
+            new RadioTrackInfo("Show Me Your Soul", "Red Hot Chili Peppers")));
+    }
+
+    [TestMethod]
+    public async Task LiveVersionDoesNotMasqueradeAsStudioRecording()
+    {
+        using var handler = new Handler(_ => Json("""{"results":[{"artistName":"Leif Vollebekk","trackName":"Long Blue Light (Live at Starling Farm)","artworkUrl100":"https://is1-ssl.mzstatic.com/live.jpg"}]}"""));
+        using var client = new HttpClient(handler, disposeHandler: false);
+        Assert.IsNull(await new AlbumArtworkLookup(client).FindAsync(
+            new RadioTrackInfo("Long Blue Light", "Leif Vollebekk")));
+    }
+
+    [TestMethod]
+    public async Task ParenthesesWithinActualTitleAreRetained()
+    {
+        using var handler = new Handler(_ => Json("""{"results":[{"artistName":"Solange","trackName":"Time (Is)","artworkUrl100":"https://is1-ssl.mzstatic.com/right.jpg"}]}"""));
+        using var client = new HttpClient(handler, disposeHandler: false);
+        Assert.IsNotNull(await new AlbumArtworkLookup(client).FindAsync(
+            new RadioTrackInfo("Time (Is)", "Solange")));
+    }
+
+    [TestMethod]
+    public async Task ArtworkDoesNotRequireStoreLink()
+    {
+        using var handler = new Handler(_ => Json("""{"results":[{"artistName":"Artist","trackName":"Song","artworkUrl100":"https://is1-ssl.mzstatic.com/art/100x100bb.jpg"}]}"""));
         using var client = new HttpClient(handler, disposeHandler: false);
         var match = await new AlbumArtworkLookup(client).FindAsync(new RadioTrackInfo("Song", "Artist"));
-        Assert.AreEqual("https://is1-ssl.mzstatic.com/right/600x600bb.jpg", match?.ArtworkUrl.AbsoluteUri);
+        Assert.IsNotNull(match);
+        Assert.IsNull(match.StoreUrl);
     }
 
     [TestMethod]

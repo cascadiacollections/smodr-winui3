@@ -9,6 +9,9 @@ public sealed class HeardTrack
     public string Title { get; init; } = string.Empty;
     public string? Artist { get; init; }
     public DateTimeOffset HeardAt { get; init; }
+    public string ArtworkUrl { get; init; } = string.Empty;
+    public string StationArtworkUrl { get; init; } = string.Empty;
+    public string AppleMusicUrl { get; init; } = string.Empty;
 
     [JsonIgnore]
     public string Display => string.IsNullOrWhiteSpace(Artist) ? Title : $"{Artist} — {Title}";

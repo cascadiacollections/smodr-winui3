@@ -41,6 +41,19 @@ public sealed class TrackHistoryService : ITrackHistoryService
         }
     }
 
+    public Task UpdateArtworkAsync(RadioStation station, RadioTrackInfo track, AlbumArtworkMatch artwork)
+    {
+        ArgumentNullException.ThrowIfNull(station);
+        ArgumentNullException.ThrowIfNull(track);
+        ArgumentNullException.ThrowIfNull(artwork);
+        lock (_gate)
+        {
+            var operation = UpdateArtworkAfterAsync(_writeTail, station, track, artwork);
+            _writeTail = ObserveCompletionAsync(operation);
+            return operation;
+        }
+    }
+
     public Task FlushAsync()
     {
         lock (_gate) return _writeTail;
@@ -70,7 +83,10 @@ public sealed class TrackHistoryService : ITrackHistoryService
                     StationName = station.Name,
                     Title = latest.Title,
                     Artist = latest.Artist,
-                    HeardAt = timestamp > latest.HeardAt ? timestamp : latest.HeardAt
+                    HeardAt = timestamp > latest.HeardAt ? timestamp : latest.HeardAt,
+                    ArtworkUrl = latest.ArtworkUrl,
+                    StationArtworkUrl = station.ArtworkUrl,
+                    AppleMusicUrl = latest.AppleMusicUrl
                 };
             }
             else
@@ -81,11 +97,46 @@ public sealed class TrackHistoryService : ITrackHistoryService
                     StationName = station.Name,
                     Title = track.Title,
                     Artist = track.Artist,
-                    HeardAt = timestamp
+                    HeardAt = timestamp,
+                    StationArtworkUrl = station.ArtworkUrl
                 });
             }
 
             if (next.Entries.Count > _limit) next.Entries.RemoveRange(_limit, next.Entries.Count - _limit);
+            Save(next);
+            Volatile.Write(ref _data, next);
+        }).ConfigureAwait(false);
+    }
+
+    private async Task UpdateArtworkAfterAsync(Task previous, RadioStation station,
+        RadioTrackInfo track, AlbumArtworkMatch artwork)
+    {
+        await previous.ConfigureAwait(false);
+        await Task.Run(() =>
+        {
+            if (_readOnly) throw new IOException("Unreadable or newer track history cannot be changed by this app.");
+            var current = Volatile.Read(ref _data);
+            var next = new HistoryData { Entries = [.. current.Entries] };
+            var index = next.Entries.FindIndex(item =>
+                (string.IsNullOrWhiteSpace(station.Id)
+                    ? string.IsNullOrWhiteSpace(item.StationId)
+                        && string.Equals(item.StationName, station.Name, StringComparison.OrdinalIgnoreCase)
+                    : string.Equals(item.StationId, station.Id, StringComparison.OrdinalIgnoreCase))
+                && string.Equals(item.Title, track.Title, StringComparison.Ordinal)
+                && string.Equals(item.Artist, track.Artist, StringComparison.Ordinal));
+            if (index < 0) return;
+            var previousEntry = next.Entries[index];
+            next.Entries[index] = new HeardTrack
+            {
+                StationId = previousEntry.StationId,
+                StationName = previousEntry.StationName,
+                Title = previousEntry.Title,
+                Artist = previousEntry.Artist,
+                HeardAt = previousEntry.HeardAt,
+                StationArtworkUrl = previousEntry.StationArtworkUrl,
+                ArtworkUrl = artwork.ArtworkUrl.AbsoluteUri,
+                AppleMusicUrl = artwork.StoreUrl?.AbsoluteUri ?? string.Empty
+            };
             Save(next);
             Volatile.Write(ref _data, next);
         }).ConfigureAwait(false);

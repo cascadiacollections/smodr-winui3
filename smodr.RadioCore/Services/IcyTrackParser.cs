@@ -27,6 +27,13 @@ public static class IcyTrackParser
     internal static RadioTrackInfo? Accept(RadioTrackInfo info, string stationName) =>
         IsLikelySong(info, stationName) ? info : null;
 
+    /// <summary>Some broadcasters emit a second cue with title in the artist
+    /// field and "artist - album" in the title field for the same song.</summary>
+    public static bool IsAlbumEcho(RadioTrackInfo? current, RadioTrackInfo candidate) =>
+        current is { Artist: { Length: > 0 } artist }
+        && string.Equals(candidate.Artist, current.Title, StringComparison.OrdinalIgnoreCase)
+        && candidate.Title.StartsWith($"{artist} - ", StringComparison.OrdinalIgnoreCase);
+
     private static RadioTrackInfo? ParseCore(string raw, int depth)
     {
         if (depth >= 4 || string.IsNullOrWhiteSpace(raw)) return null;

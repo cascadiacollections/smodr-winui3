@@ -5,9 +5,12 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using smodr.Models;
 using smodr.Services;
 using smodr.ViewModels;
+using Windows.System;
 
 namespace smodr;
 
@@ -28,6 +31,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         PlayReportingSwitch.IsOn = ViewModel.IsPlayReportingEnabled;
         AlbumArtworkSwitch.IsOn = ViewModel.IsAlbumArtworkEnabled;
+        HeroArtwork.AccentColorChanged += HeroArtwork_AccentColorChanged;
         _settingsReady = true;
         _sleepCountdownTimer.Tick += SleepCountdownTimer_Tick;
         UpdateSleepTimer();
@@ -86,6 +90,7 @@ public sealed partial class MainWindow : Window
         ViewModel.Favorites.CollectionChanged -= LibraryCollectionChanged;
         ViewModel.HeardTracks.CollectionChanged -= LibraryCollectionChanged;
         ViewModel.TopTracks.CollectionChanged -= LibraryCollectionChanged;
+        HeroArtwork.AccentColorChanged -= HeroArtwork_AccentColorChanged;
         ViewModel.Dispose();
     }
 
@@ -306,6 +311,7 @@ public sealed partial class MainWindow : Window
                 break;
             case nameof(ViewModel.IsPlaying):
                 PlayPauseIcon.Glyph = ViewModel.IsPlaying ? "\uE769" : "\uE768";
+                HeroPlayPauseIcon.Glyph = PlayPauseIcon.Glyph;
                 AutomationProperties.SetName(PlayPauseButton, ViewModel.IsPlaying ? "Pause" : "Play");
                 break;
             case nameof(ViewModel.IsLoading):
@@ -326,6 +332,7 @@ public sealed partial class MainWindow : Window
         if (ViewModel.CurrentStation is not { } station)
         {
             MiniPlayer.Visibility = Visibility.Collapsed;
+            NowPlayingView.Visibility = Visibility.Collapsed;
             return;
         }
 
@@ -334,15 +341,59 @@ public sealed partial class MainWindow : Window
         NowPlayingSubtitle.Text = string.IsNullOrWhiteSpace(ViewModel.Status)
             ? ViewModel.CurrentTrack is null ? station.Details : station.Name
             : ViewModel.Status;
+        NowPlayingArtwork.FallbackArtworkUrl = station.ArtworkUrl;
         NowPlayingArtwork.ArtworkUrl = ViewModel.CurrentArtworkUrl;
+        HeroArtwork.FallbackArtworkUrl = station.ArtworkUrl;
+        HeroArtwork.ArtworkUrl = ViewModel.CurrentArtworkUrl;
+        AmbientArtwork.FallbackArtworkUrl = station.ArtworkUrl;
+        AmbientArtwork.ArtworkUrl = ViewModel.CurrentArtworkUrl;
+        HeroTitle.Text = NowPlayingTitle.Text;
+        HeroSubtitle.Text = station.Name;
+        AutomationProperties.SetName(HeroArtwork,
+            ViewModel.CurrentTrack is { } track && ViewModel.CurrentArtworkUrl != station.ArtworkUrl
+                ? $"Album artwork for {track.Display}"
+                : $"Station artwork for {station.Name}");
         AppleMusicLink.Visibility = Uri.TryCreate(ViewModel.CurrentAppleMusicUrl, UriKind.Absolute,
             out var storeUri) ? Visibility.Visible : Visibility.Collapsed;
         AppleMusicLink.NavigateUri = storeUri;
+        HeroAppleMusicLink.Visibility = AppleMusicLink.Visibility;
+        HeroAppleMusicLink.NavigateUri = storeUri;
         var isFavorite = ViewModel.IsFavorite(station);
         FavoriteNowPlayingIcon.Glyph = isFavorite ? "\uEB52" : "\uEB51";
+        HeroFavoriteIcon.Glyph = FavoriteNowPlayingIcon.Glyph;
         AutomationProperties.SetName(FavoriteNowPlayingButton,
             isFavorite ? $"Remove {station.Name} from favorites" : $"Add {station.Name} to favorites");
     }
+
+    private void OpenNowPlaying_Click(object sender, RoutedEventArgs e)
+    {
+        NowPlayingView.Visibility = Visibility.Visible;
+        CloseNowPlayingButton.Focus(FocusState.Programmatic);
+    }
+
+    private void CloseNowPlaying_Click(object sender, RoutedEventArgs e) => CloseNowPlaying();
+
+    private void NowPlayingView_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key != VirtualKey.Escape) return;
+        CloseNowPlaying();
+        e.Handled = true;
+    }
+
+    private void CloseNowPlaying()
+    {
+        NowPlayingView.Visibility = Visibility.Collapsed;
+        OpenNowPlayingButton.Focus(FocusState.Programmatic);
+    }
+
+#pragma warning disable CA1822 // Event handler updates the generated instance control.
+    private void HeroArtwork_AccentColorChanged(object? sender, Windows.UI.Color? color)
+    {
+        AmbientTint.Background = color is { } accent
+            ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, accent.R, accent.G, accent.B))
+            : null;
+    }
+#pragma warning restore CA1822
 
     private void UpdateStatus()
     {

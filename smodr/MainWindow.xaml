@@ -158,11 +158,17 @@
                                           SelectionMode="None" AutomationProperties.Name="Top tracks">
                                     <ListView.ItemTemplate>
                                         <DataTemplate x:DataType="models:TopTrack">
-                                            <StackPanel Padding="12,8" Spacing="2">
-                                                <TextBlock Text="{x:Bind Display}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{x:Bind Details}" Style="{ThemeResource CaptionTextBlockStyle}"
-                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
-                                            </StackPanel>
+                                            <Grid Padding="12,8" ColumnSpacing="12">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="44"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <Border Width="44" Height="44" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                                                    <local:StationArtworkControl ArtworkUrl="{Binding ArtworkUrl}" FallbackArtworkUrl="{Binding StationArtworkUrl}"/>
+                                                </Border>
+                                                <StackPanel Grid.Column="1" Spacing="2">
+                                                    <TextBlock Text="{x:Bind Display}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{x:Bind Details}" Style="{ThemeResource CaptionTextBlockStyle}"
+                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                            </Grid>
                                         </DataTemplate>
                                     </ListView.ItemTemplate>
                                 </ListView>
@@ -215,15 +221,57 @@
                          HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="16"/>
             </Grid>
         </NavigationView>
+        <Grid x:Name="NowPlayingView" Grid.Row="1" Visibility="Collapsed" KeyDown="NowPlayingView_KeyDown"
+              Background="{ThemeResource LayerFillColorDefaultBrush}">
+            <local:StationArtworkControl x:Name="AmbientArtwork" Opacity="0.10" IsHitTestVisible="False"/>
+            <Border x:Name="AmbientTint" IsHitTestVisible="False" Opacity="0.22"/>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel MaxWidth="520" HorizontalAlignment="Center"
+                        Padding="24" Spacing="18">
+                <Button x:Name="CloseNowPlayingButton" Content="Back to browsing" Click="CloseNowPlaying_Click" HorizontalAlignment="Left"
+                        AutomationProperties.Name="Close Now Playing"/>
+                <Border Width="280" Height="280" CornerRadius="18" HorizontalAlignment="Center"
+                        Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                    <local:StationArtworkControl x:Name="HeroArtwork"/>
+                </Border>
+                <StackPanel Spacing="4" HorizontalAlignment="Center">
+                    <TextBlock x:Name="HeroTitle" Style="{ThemeResource TitleLargeTextBlockStyle}"
+                               TextAlignment="Center" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                    <TextBlock x:Name="HeroSubtitle" Style="{ThemeResource BodyTextBlockStyle}"
+                               TextAlignment="Center" TextWrapping="Wrap"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+                    <Button Click="PlayPauseButton_Click" Width="52" Height="52" CornerRadius="26"
+                            Style="{ThemeResource AccentButtonStyle}" AutomationProperties.Name="Play or pause">
+                        <FontIcon x:Name="HeroPlayPauseIcon" Glyph="&#xE768;"/>
+                    </Button>
+                    <Button Click="FavoriteNowPlayingButton_Click" Width="52" Height="52"
+                            AutomationProperties.Name="Toggle favorite" ToolTipService.ToolTip="Toggle favorite">
+                        <FontIcon x:Name="HeroFavoriteIcon" Glyph="&#xEB51;"/>
+                    </Button>
+                    <Button Click="StopButton_Click" Width="52" Height="52"
+                            AutomationProperties.Name="Stop playback" ToolTipService.ToolTip="Stop">
+                        <FontIcon Glyph="&#xE71A;"/>
+                    </Button>
+                </StackPanel>
+                <HyperlinkButton x:Name="HeroAppleMusicLink" Content="Open in Apple Music"
+                                 Visibility="Collapsed" HorizontalAlignment="Center"/>
+            </StackPanel>
+            </ScrollViewer>
+        </Grid>
         <Grid x:Name="MiniPlayer" Grid.Row="2" Visibility="Collapsed"
               Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
               BorderThickness="0,1,0,0" Padding="16,10" ColumnSpacing="12">
             <Grid.ColumnDefinitions><ColumnDefinition Width="48"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <Border Width="48" Height="48" CornerRadius="10" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
-                <local:StationArtworkControl x:Name="NowPlayingArtwork"/>
-            </Border>
+            <Button x:Name="OpenNowPlayingButton" Click="OpenNowPlaying_Click" Width="48" Height="48" Padding="0" BorderThickness="0"
+                    AutomationProperties.Name="Open Now Playing" ToolTipService.ToolTip="Open Now Playing">
+                <Border Width="48" Height="48" CornerRadius="10" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                    <local:StationArtworkControl x:Name="NowPlayingArtwork"/>
+                </Border>
+            </Button>
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                <TextBlock x:Name="NowPlayingTitle" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                <TextBlock x:Name="NowPlayingTitle" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                           AutomationProperties.LiveSetting="Polite"/>
                 <TextBlock x:Name="NowPlayingSubtitle" Style="{ThemeResource CaptionTextBlockStyle}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
                 <HyperlinkButton x:Name="AppleMusicLink" Content="Open in Apple Music" Visibility="Collapsed"

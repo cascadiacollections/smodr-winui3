@@ -85,6 +85,49 @@ public sealed class TrackHistoryServiceTests
         finally { File.Delete(file); }
     }
 
+    [TestMethod]
+    public async Task ArtworkUpdateSurvivesRestartAndCannotOverwriteAnotherTrack()
+    {
+        var file = TempFile();
+        try
+        {
+            var history = new TrackHistoryService(file);
+            var station = Station("one");
+            var oldTrack = new RadioTrackInfo("Old", "Artist");
+            var currentTrack = new RadioTrackInfo("Current", "Artist");
+            await history.RecordAsync(station, oldTrack);
+            await history.RecordAsync(station, currentTrack);
+            var match = new AlbumArtworkMatch(new Uri("https://is1-ssl.mzstatic.com/current.jpg"),
+                new Uri("https://music.apple.com/current"));
+            await history.UpdateArtworkAsync(station, currentTrack, match);
+
+            var reloaded = new TrackHistoryService(file).Entries;
+            Assert.AreEqual(match.ArtworkUrl.AbsoluteUri, reloaded[0].ArtworkUrl);
+            Assert.AreEqual(match.StoreUrl?.AbsoluteUri, reloaded[0].AppleMusicUrl);
+            Assert.AreEqual(string.Empty, reloaded[1].ArtworkUrl);
+        }
+        finally { File.Delete(file); }
+    }
+
+    [TestMethod]
+    public async Task ConcurrentRecordThenArtworkUpdateKeepsLatestHistory()
+    {
+        var file = TempFile();
+        try
+        {
+            var history = new TrackHistoryService(file);
+            var station = Station("one");
+            var track = new RadioTrackInfo("Song", "Artist");
+            var record = history.RecordAsync(station, track);
+            var artwork = history.UpdateArtworkAsync(station, track,
+                new AlbumArtworkMatch(new Uri("https://is1-ssl.mzstatic.com/song.jpg"), null));
+            await Task.WhenAll(record, artwork);
+            Assert.AreEqual("https://is1-ssl.mzstatic.com/song.jpg", history.Entries[0].ArtworkUrl);
+            Assert.AreEqual(history.Entries[0].ArtworkUrl, new TrackHistoryService(file).Entries[0].ArtworkUrl);
+        }
+        finally { File.Delete(file); }
+    }
+
     private static string TempFile() => Path.Combine(Path.GetTempPath(), $"shoutkit-tracks-{Guid.NewGuid():N}.json");
 
     private static RadioStation Station(string id) => new()
