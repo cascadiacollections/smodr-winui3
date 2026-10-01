@@ -303,7 +303,9 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         }
     }
 
-    public async Task TogglePlaybackAsync(RadioStation station)
+    public Task TogglePlaybackAsync(RadioStation station) => PlayStationCoreAsync(station, reportPlay: true);
+
+    private async Task PlayStationCoreAsync(RadioStation station, bool reportPlay)
     {
         try
         {
@@ -325,7 +327,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             }
 
             await _audio.PlayStationAsync(station);
-            if (_privacySettings?.IsPlayReportingEnabled == true && _playReporter is not null)
+            if (reportPlay && _privacySettings?.IsPlayReportingEnabled == true && _playReporter is not null)
             {
                 _ = ReportPlayBestEffortAsync(station.Id);
             }
@@ -347,6 +349,15 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         {
             ReportPlaybackFailure(ex);
         }
+    }
+
+    public Task PlayStationFromLinkAsync(RadioStation station)
+    {
+        var activeStation = _audio.CurrentStation ?? CurrentStation;
+        if (activeStation is null || !RadioStationIdentity.Matches(activeStation, station))
+            return PlayStationCoreAsync(station, reportPlay: false);
+        if (!_audio.IsPlaybackRequested) PlayPause();
+        return Task.CompletedTask;
     }
 
     public void PlayPause()

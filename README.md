@@ -44,6 +44,8 @@ This is a local preview. The source-level platform and parity backlog is in [WIN
 
 A packaged build uses its Windows package-local `LocalFolder`. On first launch it non-destructively imports the unpackaged library, track history, privacy settings, and directory snapshot if each target file does not already exist. It leaves the source files untouched, and it never overwrites newer packaged data. CI exercises the packaged import and upgrade headlessly; an interactive MSIX launch still needs checking before release.
 
+Packaged builds also register `holmdel://station` and `holmdel://play` links. An HTTPS `streamURL` is required; a link can include `id`, `name`, and HTTPS `artworkURL`. The parser rejects unknown or duplicate parameters and unsafe URLs. Reopening an already-playing station does not toggle it off. `autoPlay=0` opens Search for that station instead of starting audio. Links do not submit Radio Browser play telemetry because their station IDs are supplied by an untrusted caller. The unpackaged preview has no protocol registration. Windows also pauses requested radio playback when its default output changes, avoiding automatic playback on a different device; resume is manual. Both paths need interactive MSIX/device QA.
+
 ## Original smodr project (archival documentation)
 
 The following section describes the upstream podcast app, not the active Shoutkit Windows preview. Its runtime requirements and feature list do not apply to the self-contained preview above.

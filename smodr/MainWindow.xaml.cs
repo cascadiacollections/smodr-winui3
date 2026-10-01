@@ -57,6 +57,26 @@ public sealed partial class MainWindow : Window
         if (!_closed) await ViewModel.WarmGenresAsync();
     }
 
+    public async Task OpenStationLinkAsync(StationLaunchLink link)
+    {
+        if (_closed) return;
+        try
+        {
+            if (link.AutoPlay)
+            {
+                AppNavigation.SelectedItem = ListenNowItem;
+                await ViewModel.PlayStationFromLinkAsync(link.Station);
+            }
+            else
+            {
+                AppNavigation.SelectedItem = SearchItem;
+                StationSearchBox.Text = link.Station.Name;
+                await ViewModel.SearchAsync(link.Station.Name);
+            }
+        }
+        catch (Exception exception) { AppDiagnostics.Record("station.protocol-launch", exception); }
+    }
+
     private void ConfigureWindow()
     {
         ExtendsContentIntoTitleBar = true;

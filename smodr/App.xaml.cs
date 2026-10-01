@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
+using Microsoft.Windows.AppLifecycle;
+using smodr.Models;
 using smodr.Services;
 using smodr.ViewModels;
 
@@ -9,9 +11,21 @@ public partial class App : Application
 {
     private Window? _window;
     private readonly ServiceProvider _services;
+    private static StationLaunchLink? _pendingStationLink;
     public static string StorageDirectory { get; private set; } = AppStorageResolver.LegacyDirectory;
 
     public static Window? MainWindow { get; private set; }
+
+    public static void HandleActivation(AppActivationArguments activation)
+    {
+        StationLaunchLink? link = null;
+        if (activation.Kind == ExtendedActivationKind.Protocol
+            && activation.Data is Windows.ApplicationModel.Activation.IProtocolActivatedEventArgs protocol
+            && StationLaunchLink.TryParse(protocol.Uri, out var stationLink))
+            link = stationLink;
+        Interlocked.Exchange(ref _pendingStationLink, link);
+        ActivateMainWindow();
+    }
 
     public static void ActivateMainWindow()
     {
@@ -30,6 +44,9 @@ public partial class App : Application
             }
 
             window.Activate();
+            if (window is MainWindow mainWindow
+                && Interlocked.Exchange(ref _pendingStationLink, null) is { } link)
+                _ = mainWindow.OpenStationLinkAsync(link);
         });
     }
 
@@ -91,5 +108,6 @@ public partial class App : Application
         MainWindow = _window;
         _window.Closed += (_, _) => _services.Dispose();
         _window.Activate();
+        ActivateMainWindow();
     }
 }

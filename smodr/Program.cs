@@ -40,7 +40,8 @@ public static class Program
             return;
         }
 
-        instance.Activated += (_, _) => App.ActivateMainWindow();
+        instance.Activated += (_, activation) => App.HandleActivation(activation);
+        App.HandleActivation(current.GetActivatedEventArgs());
         Application.Start(initialization =>
         {
             SynchronizationContext.SetSynchronizationContext(

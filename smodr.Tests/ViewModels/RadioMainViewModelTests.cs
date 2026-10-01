@@ -323,6 +323,44 @@ public sealed class RadioMainViewModelTests
     }
 
     [TestMethod]
+    public async Task RepeatedStationLinkNeverTogglesPlayingStationOff()
+    {
+        var station = new RadioStation { Id = "kexp", Name = "KEXP" };
+        var pauses = 0;
+        var player = new StubPlayer(playbackRequested: true,
+            pause: () => Interlocked.Increment(ref pauses));
+        using var viewModel = new RadioMainViewModel(player,
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            new StubLibrary(), action => action());
+
+        await viewModel.PlayStationFromLinkAsync(station);
+        await viewModel.PlayStationFromLinkAsync(station);
+
+        Assert.AreEqual(0, pauses);
+        Assert.AreEqual("kexp", player.CurrentStation?.Id);
+    }
+
+    [TestMethod]
+    public async Task UntrustedStationLinkDoesNotReportSuppliedRadioBrowserUuid()
+    {
+        var station = new RadioStation
+        {
+            Id = "bdb9fa3b-5672-4e0e-9b75-dcb19295c483",
+            Name = "External",
+            StreamUrl = "https://example.com/live"
+        };
+        var reporter = new StubReporter();
+        using var viewModel = new RadioMainViewModel(new StubPlayer(),
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            new StubLibrary(), action => action(), playReporter: reporter,
+            privacySettings: new StubPrivacy(true));
+
+        await viewModel.PlayStationFromLinkAsync(station);
+
+        Assert.AreEqual(0, reporter.Count);
+    }
+
+    [TestMethod]
     public async Task OptOutAndFailedPlayNeverReport()
     {
         var station = new RadioStation { Id = "bdb9fa3b-5672-4e0e-9b75-dcb19295c483", Name = "Example" };

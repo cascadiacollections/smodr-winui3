@@ -21,7 +21,7 @@
                 <NavigationViewItem x:Name="ListenNowItem" Content="Listen Now" Tag="listen">
                     <NavigationViewItem.Icon><FontIcon Glyph="&#xE768;"/></NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="Search" Tag="search">
+                <NavigationViewItem x:Name="SearchItem" Content="Search" Tag="search">
                     <NavigationViewItem.Icon><FontIcon Glyph="&#xE721;"/></NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem Content="Favorites" Tag="favorites">

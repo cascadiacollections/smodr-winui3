@@ -4,6 +4,7 @@ using smodr.Models;
 using Windows.Foundation.Collections;
 using Windows.Media;
 using Windows.Media.Core;
+using Windows.Media.Devices;
 using Windows.Media.Playback;
 using Windows.Storage.Streams;
 
@@ -21,6 +22,8 @@ public partial class AudioService : IRadioPlayer, IDisposable
     private DispatcherQueue? _dispatcher;
     private readonly LiveRadioRecovery _recovery;
     private readonly IcyTrackMonitor _trackMonitor;
+    private string? _defaultRenderDeviceId;
+    private bool _observingDefaultRenderDevice;
 
     public AudioService(IcyTrackMonitor trackMonitor)
     {
@@ -42,6 +45,12 @@ public partial class AudioService : IRadioPlayer, IDisposable
 
     public void Dispose()
     {
+        if (_observingDefaultRenderDevice)
+        {
+            try { MediaDevice.DefaultAudioRenderDeviceChanged -= MediaDevice_DefaultAudioRenderDeviceChanged; }
+            catch (Exception exception) { AppDiagnostics.Record("station.audio-device-unwatch", exception); }
+            _observingDefaultRenderDevice = false;
+        }
         _trackMonitor.TrackChanged -= TrackMonitor_TrackChanged;
         _trackMonitor.Dispose();
         _recovery.Dispose();
@@ -70,6 +79,17 @@ public partial class AudioService : IRadioPlayer, IDisposable
 
         _dispatcher = DispatcherQueue.GetForCurrentThread();
         CreatePlayer();
+        try
+        {
+            _defaultRenderDeviceId = MediaDevice.GetDefaultAudioRenderId(AudioDeviceRole.Default);
+        }
+        catch (Exception exception) { AppDiagnostics.Record("station.audio-device-current", exception); }
+        try
+        {
+            MediaDevice.DefaultAudioRenderDeviceChanged += MediaDevice_DefaultAudioRenderDeviceChanged;
+            _observingDefaultRenderDevice = true;
+        }
+        catch (Exception exception) { AppDiagnostics.Record("station.audio-device-watch", exception); }
         _isInitialized = true;
     }
 
@@ -153,6 +173,8 @@ public partial class AudioService : IRadioPlayer, IDisposable
 
     private void StartRadioSource(RadioStation station, Uri streamUri)
     {
+        try { _defaultRenderDeviceId = MediaDevice.GetDefaultAudioRenderId(AudioDeviceRole.Default); }
+        catch (Exception exception) { AppDiagnostics.Record("station.audio-device-current", exception); }
         // A fresh player gives each stream its own event source. Late callbacks
         // from a retired stream cannot be attributed to a different station.
         CreatePlayer();
@@ -439,6 +461,26 @@ public partial class AudioService : IRadioPlayer, IDisposable
         // Always enqueue: MediaFailed can run on this same thread, and tearing
         // down its MediaPlayer inside the native callback is unsafe.
         _dispatcher?.TryEnqueue(() => action());
+    }
+
+    private void MediaDevice_DefaultAudioRenderDeviceChanged(object sender,
+        DefaultAudioRenderDeviceChangedEventArgs args)
+    {
+        var nextDeviceId = args.Id;
+        var isDefaultRole = args.Role == AudioDeviceRole.Default;
+        var playerAtEvent = _mediaPlayer;
+        RunOnPlayerThread(() =>
+        {
+            if (!_observingDefaultRenderDevice || !ReferenceEquals(playerAtEvent, _mediaPlayer)) return;
+            var previous = _defaultRenderDeviceId;
+            _defaultRenderDeviceId = nextDeviceId;
+            if (AudioOutputChangePolicy.ShouldPause(previous, nextDeviceId,
+                isDefaultRole, CurrentStation is not null && _recovery.IsRequested))
+            {
+                try { Pause(); }
+                catch (Exception exception) { AppDiagnostics.Record("station.audio-device-pause", exception); }
+            }
+        });
     }
 
     private void TrackMonitor_TrackChanged(object? sender, RadioTrackUpdate update) =>
