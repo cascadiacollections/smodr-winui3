@@ -92,4 +92,51 @@ public sealed class RadioPrivacySettingsTests
             Directory.Delete(directory, recursive: true);
         }
     }
+
+    [TestMethod]
+    public async Task FailedSaveRestoresLastDurableChoiceAndAllowsRetry()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"shoutkit-privacy-{Guid.NewGuid():N}");
+        var file = Path.Combine(directory, "settings.json");
+        Directory.CreateDirectory(file); // A directory cannot be replaced by the settings file.
+        try
+        {
+            var settings = new RadioPrivacySettings(file);
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => settings.SetPlayReportingEnabledAsync(false));
+            Assert.AreEqual(RadioPrivacyChoices.Default, settings.Current);
+
+            Directory.Delete(file);
+            await settings.SetPlayReportingEnabledAsync(false);
+            Assert.AreEqual(new RadioPrivacyChoices(false, true), settings.Current);
+            Assert.AreEqual(settings.Current, new RadioPrivacySettings(file).Current);
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    public async Task FutureSchemaFailsClosedAndLegacySchemaUpgradesOnSave()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"shoutkit-privacy-{Guid.NewGuid():N}");
+        var file = Path.Combine(directory, "settings.json");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            await File.WriteAllTextAsync(file,
+                """{"SchemaVersion":2,"PlayReportingEnabled":true,"AlbumArtworkEnabled":true}""");
+            Assert.AreEqual(RadioPrivacyChoices.FailClosed, new RadioPrivacySettings(file).Current);
+
+            await File.WriteAllTextAsync(file, """{"PlayReportingEnabled":false}""");
+            var settings = new RadioPrivacySettings(file);
+            Assert.AreEqual(new RadioPrivacyChoices(false, true), settings.Current);
+            await settings.SetAlbumArtworkEnabledAsync(false);
+            StringAssert.Contains(await File.ReadAllTextAsync(file), "\"SchemaVersion\":1", StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
 }

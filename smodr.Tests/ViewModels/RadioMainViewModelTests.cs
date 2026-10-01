@@ -594,6 +594,7 @@ public sealed class RadioMainViewModelTests
     {
         private bool _enabled = enabled;
         private bool _artworkEnabled = true;
+        public RadioPrivacyChoices Current => new(_enabled, _artworkEnabled);
         public bool IsPlayReportingEnabled => _enabled;
         public bool IsAlbumArtworkEnabled => _artworkEnabled;
         public Task SetPlayReportingEnabledAsync(bool value)

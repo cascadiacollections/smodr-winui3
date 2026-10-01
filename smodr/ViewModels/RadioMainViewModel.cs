@@ -94,24 +94,29 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     public Task SetPlayReportingEnabledAsync(bool enabled) =>
         _privacySettings?.SetPlayReportingEnabledAsync(enabled) ?? Task.CompletedTask;
 
-    public Task SetAlbumArtworkEnabledAsync(bool enabled)
+    public async Task SetAlbumArtworkEnabledAsync(bool enabled)
     {
-        if (_privacySettings is null) return Task.CompletedTask;
-        var save = _privacySettings.SetAlbumArtworkEnabledAsync(enabled);
-        _dispatch(() =>
+        if (_privacySettings is null) return;
+        try
         {
-            if (Volatile.Read(ref _disposed) != 0) return;
-            if (CurrentStation is { } station && CurrentTrack is { } track)
-                StartArtworkLookup(station, track);
-            else
+            await _privacySettings.SetAlbumArtworkEnabledAsync(enabled);
+        }
+        finally
+        {
+            _dispatch(() =>
             {
-                CurrentArtworkUrl = CurrentStation?.ArtworkUrl ?? string.Empty;
-                CurrentAppleMusicUrl = string.Empty;
-                if (CurrentStation is { } current)
-                    _audio.SetNowPlayingArtwork(current, ParseArtworkUrl(current.ArtworkUrl));
-            }
-        });
-        return save;
+                if (Volatile.Read(ref _disposed) != 0) return;
+                if (CurrentStation is { } station && CurrentTrack is { } track)
+                    StartArtworkLookup(station, track);
+                else
+                {
+                    CurrentArtworkUrl = CurrentStation?.ArtworkUrl ?? string.Empty;
+                    CurrentAppleMusicUrl = string.Empty;
+                    if (CurrentStation is { } current)
+                        _audio.SetNowPlayingArtwork(current, ParseArtworkUrl(current.ArtworkUrl));
+                }
+            });
+        }
     }
 
     public Task FlushPrivacySettingsAsync() =>

@@ -8,46 +8,51 @@ public sealed class RadioPrivacySettings : IRadioPrivacySettings
     private readonly string _filePath;
     private readonly Lock _gate = new();
     private Task _writeTail = Task.CompletedTask;
-    private bool _playReportingEnabled;
-    private bool _albumArtworkEnabled;
+    private long _requestVersion;
+    private RadioPrivacyChoices _current;
+    private RadioPrivacyChoices _persisted;
 
     public RadioPrivacySettings(string? filePath = null)
     {
         _filePath = filePath ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "CascadiaCollections", "ShoutkitWindows", "privacy-settings.json");
-        (_playReportingEnabled, _albumArtworkEnabled) = Read();
+        _current = _persisted = Read();
+    }
+
+    public RadioPrivacyChoices Current
+    {
+        get { lock (_gate) return _current; }
     }
 
     public bool IsPlayReportingEnabled
     {
-        get { lock (_gate) return _playReportingEnabled; }
+        get => Current.PlayReportingEnabled;
     }
 
     public bool IsAlbumArtworkEnabled
     {
-        get { lock (_gate) return _albumArtworkEnabled; }
+        get => Current.AlbumArtworkEnabled;
     }
 
     public Task SetPlayReportingEnabledAsync(bool enabled)
     {
-        lock (_gate)
-        {
-            if (_playReportingEnabled == enabled) return _writeTail;
-            _playReportingEnabled = enabled;
-            var operation = SaveAfterAsync(_writeTail, _playReportingEnabled, _albumArtworkEnabled);
-            _writeTail = ObserveCompletionAsync(operation);
-            return operation;
-        }
+        return Update(current => current with { PlayReportingEnabled = enabled });
     }
 
     public Task SetAlbumArtworkEnabledAsync(bool enabled)
     {
+        return Update(current => current with { AlbumArtworkEnabled = enabled });
+    }
+
+    private Task Update(Func<RadioPrivacyChoices, RadioPrivacyChoices> change)
+    {
         lock (_gate)
         {
-            if (_albumArtworkEnabled == enabled) return _writeTail;
-            _albumArtworkEnabled = enabled;
-            var operation = SaveAfterAsync(_writeTail, _playReportingEnabled, _albumArtworkEnabled);
+            var next = change(_current);
+            if (next == _current) return _writeTail;
+            _current = next;
+            var operation = SaveAfterAsync(_writeTail, next, ++_requestVersion);
             _writeTail = ObserveCompletionAsync(operation);
             return operation;
         }
@@ -58,28 +63,42 @@ public sealed class RadioPrivacySettings : IRadioPrivacySettings
         lock (_gate) return _writeTail;
     }
 
-    private (bool PlayReporting, bool AlbumArtwork) Read()
+    private RadioPrivacyChoices Read()
     {
         try
         {
-            if (!File.Exists(_filePath)) return (true, true);
+            if (!File.Exists(_filePath)) return RadioPrivacyChoices.Default;
             // A damaged existing choice must not silently re-enable network reporting.
             var data = JsonSerializer.Deserialize<PrivacyData>(File.ReadAllText(_filePath));
-            return data?.PlayReportingEnabled is { } reporting
-                ? (reporting, data.AlbumArtworkEnabled ?? true) // Existing settings predate artwork.
-                : (false, false);
+            return data?.PlayReportingEnabled is { } reporting && (data.SchemaVersion is null or 1)
+                ? new RadioPrivacyChoices(reporting, data.AlbumArtworkEnabled ?? true) // Existing settings predate artwork.
+                : RadioPrivacyChoices.FailClosed;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
             AppDiagnostics.Record("privacy.read", exception);
-            return (false, false);
+            return RadioPrivacyChoices.FailClosed;
         }
     }
 
-    private async Task SaveAfterAsync(Task previous, bool playReporting, bool albumArtwork)
+    private async Task SaveAfterAsync(Task previous, RadioPrivacyChoices choices, long requestVersion)
     {
         await previous.ConfigureAwait(false);
-        await Task.Run(() => Save(playReporting, albumArtwork)).ConfigureAwait(false);
+        try
+        {
+            await Task.Run(() => Save(choices)).ConfigureAwait(false);
+            lock (_gate) _persisted = choices;
+        }
+        catch
+        {
+            lock (_gate)
+            {
+                // A later queued choice may still save successfully; only roll back
+                // when this failure is still the latest requested snapshot.
+                if (_requestVersion == requestVersion) _current = _persisted;
+            }
+            throw;
+        }
     }
 
     private static async Task ObserveCompletionAsync(Task operation)
@@ -88,18 +107,20 @@ public sealed class RadioPrivacySettings : IRadioPrivacySettings
         catch { /* The next setting change must still be writable. */ }
     }
 
-    private void Save(bool playReporting, bool albumArtwork)
+    private void Save(RadioPrivacyChoices choices)
     {
         AtomicFileWriter.WriteAllText(_filePath,
             JsonSerializer.Serialize(new PrivacyData
             {
-                PlayReportingEnabled = playReporting,
-                AlbumArtworkEnabled = albumArtwork
+                SchemaVersion = 1,
+                PlayReportingEnabled = choices.PlayReportingEnabled,
+                AlbumArtworkEnabled = choices.AlbumArtworkEnabled
             }));
     }
 
     private sealed class PrivacyData
     {
+        public int? SchemaVersion { get; set; }
         public bool? PlayReportingEnabled { get; set; }
         public bool? AlbumArtworkEnabled { get; set; }
     }
