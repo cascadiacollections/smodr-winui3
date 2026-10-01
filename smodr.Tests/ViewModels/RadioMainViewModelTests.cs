@@ -104,13 +104,36 @@ public sealed class RadioMainViewModelTests
                 requests++;
                 return Task.FromResult<IReadOnlyList<RadioStation>>([]);
             }),
-            new StubLibrary(), action => action(), cache);
+            new StubLibrary(), action => action(), cache, canPrefetch: () => true);
 
         await viewModel.WarmGenresAsync();
 
         Assert.AreEqual(7, requests);
         Assert.AreEqual(7, cache.StoreCalls);
         Assert.IsEmpty(viewModel.SearchResults);
+    }
+
+    [TestMethod]
+    public async Task GenreWarmupStopsWhenWindowsPrefetchPolicyChanges()
+    {
+        var policyChecks = 0;
+        var requests = 0;
+        var cache = new StubCache(Array.Empty<RadioStation>());
+        using var viewModel = new RadioMainViewModel(
+            new StubPlayer(),
+            new StubDirectory((_, _) =>
+            {
+                requests++;
+                return Task.FromResult<IReadOnlyList<RadioStation>>([]);
+            }),
+            new StubLibrary(), action => action(), cache,
+            canPrefetch: () => ++policyChecks <= 2);
+
+        await viewModel.WarmGenresAsync();
+
+        Assert.AreEqual(2, requests);
+        Assert.AreEqual(2, cache.StoreCalls);
+        Assert.AreEqual(3, policyChecks);
     }
 
     [TestMethod]

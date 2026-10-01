@@ -77,6 +77,86 @@ public sealed class RadioDirectoryServiceTests
     }
 
     [TestMethod]
+    public async Task OversizedAdvertisedResponseFallsBack()
+    {
+        var hosts = new List<string>();
+        using var handler = new StubHandler(request =>
+        {
+            hosts.Add(request.RequestUri!.Host);
+            var content = new StringContent("[]");
+            if (request.RequestUri.Host == "first.example")
+                content.Headers.ContentLength = 3 * 1024 * 1024;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+        });
+        using var client = new HttpClient(handler, disposeHandler: false);
+        var service = new RadioDirectoryService(client,
+            (Uri[])[new Uri("https://first.example/"), new Uri("https://second.example/")]);
+
+        Assert.IsEmpty(await service.GetPopularStationsAsync());
+        CollectionAssert.AreEqual(_expectedFallbackHosts, hosts);
+    }
+
+    [TestMethod]
+    public async Task ResponseLargerThanAdvertisedLengthFallsBack()
+    {
+        var hosts = new List<string>();
+        using var handler = new StubHandler(request =>
+        {
+            hosts.Add(request.RequestUri!.Host);
+            var content = new StringContent(request.RequestUri.Host == "first.example"
+                ? $"[{new string(' ', 2 * 1024 * 1024)}]" : "[]");
+            if (request.RequestUri.Host == "first.example") content.Headers.ContentLength = 2;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+        });
+        using var client = new HttpClient(handler, disposeHandler: false);
+        var service = new RadioDirectoryService(client,
+            (Uri[])[new Uri("https://first.example/"), new Uri("https://second.example/")]);
+
+        Assert.IsEmpty(await service.GetPopularStationsAsync());
+        CollectionAssert.AreEqual(_expectedFallbackHosts, hosts);
+    }
+
+    [TestMethod]
+    public async Task ExcessStationCountFallsBack()
+    {
+        var hosts = new List<string>();
+        using var handler = new StubHandler(request =>
+        {
+            hosts.Add(request.RequestUri!.Host);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(request.RequestUri.Host == "first.example"
+                    ? $"[{string.Join(',', Enumerable.Repeat("{}", 1_001))}]" : "[]")
+            };
+        });
+        using var client = new HttpClient(handler, disposeHandler: false);
+        var service = new RadioDirectoryService(client,
+            (Uri[])[new Uri("https://first.example/"), new Uri("https://second.example/")]);
+
+        Assert.IsEmpty(await service.GetPopularStationsAsync());
+        CollectionAssert.AreEqual(_expectedFallbackHosts, hosts);
+    }
+
+    [TestMethod]
+    public async Task ValidOverlongResponseReturnsAtMostOneHundredStations()
+    {
+        var entries = Enumerable.Range(0, 150).Select(index =>
+            $"{{\"stationuuid\":\"{index}\",\"name\":\"Station {index}\",\"url_resolved\":\"https://example.com/{index}\"}}");
+        using var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent($"[{string.Join(',', entries)}]")
+        });
+        using var client = new HttpClient(handler, disposeHandler: false);
+        var service = new RadioDirectoryService(client, (Uri[])[new Uri("https://first.example/")]);
+
+        var stations = await service.GetPopularStationsAsync(100);
+
+        Assert.HasCount(100, stations);
+        Assert.AreEqual("Station 0", stations[0].Name);
+        Assert.AreEqual("Station 99", stations[^1].Name);
+    }
+
+    [TestMethod]
     public async Task UserCancellationDoesNotContactFallbackServer()
     {
         using var cancellation = new CancellationTokenSource();

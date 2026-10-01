@@ -20,6 +20,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     private readonly PlaybackSleepTimer _sleepTimer;
     private readonly ITrackHistoryService? _trackHistory;
     private readonly IAlbumArtworkLookup? _albumArtworkLookup;
+    private readonly Func<bool> _canPrefetch;
     private readonly Action<Action> _dispatch;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private CancellationTokenSource? _searchCancellation;
@@ -40,7 +41,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         IRadioPrivacySettings? privacySettings = null,
         PlaybackSleepTimer? sleepTimer = null,
         ITrackHistoryService? trackHistory = null,
-        IAlbumArtworkLookup? albumArtworkLookup = null)
+        IAlbumArtworkLookup? albumArtworkLookup = null,
+        Func<bool>? canPrefetch = null)
     {
         if (dispatch is null)
         {
@@ -61,6 +63,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _sleepTimer = sleepTimer ?? new PlaybackSleepTimer();
         _trackHistory = trackHistory;
         _albumArtworkLookup = albumArtworkLookup;
+        _canPrefetch = canPrefetch ?? WindowsWarmupPolicy.CanPrefetch;
         _sleepTimer.Elapsed += SleepTimer_Elapsed;
         _audio.StationChanged += Audio_StationChanged;
         _audio.TrackChanged += Audio_TrackChanged;
@@ -196,7 +199,9 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         if (_cache is null) return;
         foreach (var genre in _warmGenres)
         {
-            if (_lifetimeCancellation.IsCancellationRequested) return;
+            // A network can become metered or Energy Saver can turn on while
+            // the previous genre request is in flight.
+            if (_lifetimeCancellation.IsCancellationRequested || !_canPrefetch()) return;
             var key = RadioDirectorySnapshotCache.GenreKey(genre);
             if (await GetCachedAsync(key, TimeSpan.FromDays(7)) is not null) continue;
             try

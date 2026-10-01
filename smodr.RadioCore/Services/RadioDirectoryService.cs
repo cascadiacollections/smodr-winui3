@@ -6,6 +6,9 @@ namespace smodr.Services;
 public sealed class RadioDirectoryService : IRadioDirectoryService, IStationPlayReporter
 {
     private const string UserAgent = "ShoutkitWindows/0.1 (+https://github.com/cascadiacollections/smodr-winui3)";
+    private const int MaxResponseBytes = 2 * 1024 * 1024;
+    private const int MaxResponseStations = 1_000;
+    private const int MaxReturnedStations = 100;
     private static readonly Uri[] _defaultServers =
     [
         new("https://all.api.radio-browser.info/"),
@@ -34,7 +37,8 @@ public sealed class RadioDirectoryService : IRadioDirectoryService, IStationPlay
     public Task<IReadOnlyList<RadioStation>> GetPopularStationsAsync(
         int limit = 50,
         CancellationToken cancellationToken = default) =>
-        GetStationsAsync($"json/stations/topclick/{Math.Clamp(limit, 1, 100)}?hidebroken=true", cancellationToken);
+        GetStationsAsync($"json/stations/topclick/{Math.Clamp(limit, 1, MaxReturnedStations)}?hidebroken=true",
+            limit, cancellationToken);
 
     public Task<IReadOnlyList<RadioStation>> SearchAsync(
         string query,
@@ -48,8 +52,8 @@ public sealed class RadioDirectoryService : IRadioDirectoryService, IStationPlay
 
         var encodedQuery = Uri.EscapeDataString(query.Trim());
         return GetStationsAsync(
-            $"json/stations/search?name={encodedQuery}&limit={Math.Clamp(limit, 1, 100)}&order=clickcount&reverse=true&hidebroken=true",
-            cancellationToken);
+            $"json/stations/search?name={encodedQuery}&limit={Math.Clamp(limit, 1, MaxReturnedStations)}&order=clickcount&reverse=true&hidebroken=true",
+            limit, cancellationToken);
     }
 
     public Task<IReadOnlyList<RadioStation>> SearchGenreAsync(
@@ -64,8 +68,8 @@ public sealed class RadioDirectoryService : IRadioDirectoryService, IStationPlay
 
         var encodedGenre = Uri.EscapeDataString(genre.Trim());
         return GetStationsAsync(
-            $"json/stations/bytag/{encodedGenre}?limit={Math.Clamp(limit, 1, 100)}&order=clickcount&reverse=true&hidebroken=true",
-            cancellationToken);
+            $"json/stations/bytag/{encodedGenre}?limit={Math.Clamp(limit, 1, MaxReturnedStations)}&order=clickcount&reverse=true&hidebroken=true",
+            limit, cancellationToken);
     }
 
     public async Task ReportPlayAsync(string stationId, CancellationToken cancellationToken = default)
@@ -80,7 +84,8 @@ public sealed class RadioDirectoryService : IRadioDirectoryService, IStationPlay
             try
             {
                 using var response = await _httpClient.GetAsync(
-                    new Uri(server, $"json/url/{stationUuid:D}"), cancellationToken).ConfigureAwait(false);
+                    new Uri(server, $"json/url/{stationUuid:D}"),
+                    HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
                 return;
             }
@@ -97,7 +102,8 @@ public sealed class RadioDirectoryService : IRadioDirectoryService, IStationPlay
         if (lastError is not null) AppDiagnostics.Record("directory.play-report", lastError);
     }
 
-    private async Task<IReadOnlyList<RadioStation>> GetStationsAsync(string path, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<RadioStation>> GetStationsAsync(string path, int limit,
+        CancellationToken cancellationToken)
     {
         Exception? lastError = null;
         foreach (var server in _servers)
@@ -105,23 +111,18 @@ public sealed class RadioDirectoryService : IRadioDirectoryService, IStationPlay
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                var requestUri = new Uri(server, path);
-                var stations = await _httpClient.GetFromJsonAsync<List<RadioStation>>(requestUri, cancellationToken) ?? [];
-                return stations
-                    .Where(station => !string.IsNullOrWhiteSpace(station.Name)
-                        && Uri.TryCreate(station.StreamUrl, UriKind.Absolute, out var streamUri)
-                        && streamUri.Scheme is "http" or "https")
-                    .GroupBy(
-                        station => string.IsNullOrWhiteSpace(station.Id) ? station.StreamUrl : station.Id,
-                        StringComparer.OrdinalIgnoreCase)
-                    .Select(group => group.First())
-                    .ToList();
+                using var response = await _httpClient.GetAsync(new Uri(server, path),
+                    HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+                return await ReadStationsAsync(response.Content, Math.Clamp(limit, 1, MaxReturnedStations),
+                    cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }
-            catch (Exception ex) when (ex is HttpRequestException or JsonException or TaskCanceledException)
+            catch (Exception ex) when (ex is HttpRequestException or JsonException
+                or IOException or InvalidDataException or TaskCanceledException)
             {
                 lastError = ex;
             }
@@ -133,6 +134,44 @@ public sealed class RadioDirectoryService : IRadioDirectoryService, IStationPlay
         }
 
         throw new RadioDirectoryUnavailableException("Radio directory unavailable. Check your connection and try again.", lastError);
+    }
+
+    private static async Task<IReadOnlyList<RadioStation>> ReadStationsAsync(
+        HttpContent content, int limit, CancellationToken cancellationToken)
+    {
+        if (content.Headers.ContentLength > MaxResponseBytes)
+            throw new InvalidDataException("Radio directory response exceeded the size limit.");
+
+        await using var stream = await content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var buffer = new MemoryStream();
+        var chunk = new byte[8192];
+        int read;
+        while ((read = await stream.ReadAsync(chunk, cancellationToken).ConfigureAwait(false)) != 0)
+        {
+            if (buffer.Length + read > MaxResponseBytes)
+                throw new InvalidDataException("Radio directory response exceeded the size limit.");
+            await buffer.WriteAsync(chunk.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+        }
+
+        using var document = JsonDocument.Parse(buffer.GetBuffer().AsMemory(0, (int)buffer.Length));
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+            throw new JsonException("Radio directory response was not an array.");
+
+        var stations = new List<RadioStation>();
+        var identities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var scanned = 0;
+        foreach (var item in document.RootElement.EnumerateArray())
+        {
+            if (++scanned > MaxResponseStations)
+                throw new InvalidDataException("Radio directory returned too many stations.");
+            var station = item.Deserialize<RadioStation>();
+            if (station is null || string.IsNullOrWhiteSpace(station.Name)
+                || !Uri.TryCreate(station.StreamUrl, UriKind.Absolute, out var streamUri)
+                || streamUri.Scheme is not ("http" or "https")) continue;
+            var identity = string.IsNullOrWhiteSpace(station.Id) ? station.StreamUrl : station.Id;
+            if (identities.Add(identity) && stations.Count < limit) stations.Add(station);
+        }
+        return stations;
     }
 }
 

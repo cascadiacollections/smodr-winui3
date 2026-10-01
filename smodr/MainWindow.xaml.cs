@@ -54,7 +54,7 @@ public sealed partial class MainWindow : Window
         await ViewModel.LoadPopularAsync();
         if (_closed || ViewModel.PopularStations.Count == 0 || ViewModel.Status.Length != 0) return;
         await Task.Delay(TimeSpan.FromSeconds(5));
-        if (!_closed && WindowsWarmupPolicy.CanPrefetch()) await ViewModel.WarmGenresAsync();
+        if (!_closed) await ViewModel.WarmGenresAsync();
     }
 
     private void ConfigureWindow()
