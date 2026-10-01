@@ -4,6 +4,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:smodr"
         xmlns:models="using:smodr.Models"
+        xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
         Title="Shoutkit">
     <Window.SystemBackdrop><MicaBackdrop Kind="BaseAlt"/></Window.SystemBackdrop>
     <Grid>
@@ -201,21 +202,24 @@
                     <StackPanel Spacing="18" MaxWidth="680" HorizontalAlignment="Left">
                         <TextBlock Text="Settings" Style="{ThemeResource TitleLargeTextBlockStyle}"/>
                         <TextBlock Text="Privacy" Style="{ThemeResource SubtitleTextBlockStyle}"/>
-                        <ToggleSwitch x:Name="PlayReportingSwitch" Header="Report plays to Radio Browser"
-                                      OnContent="On" OffContent="Off" Toggled="PlayReportingSwitch_Toggled"/>
-                        <TextBlock Text="When enabled, starting a Radio Browser station sends its station ID to Radio Browser to contribute to the community play count. Playback retries and resume do not send another report."
-                                   TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        <ToggleSwitch x:Name="AlbumArtworkSwitch" Header="Show album artwork for live tracks"
-                                      OnContent="On" OffContent="Off" Toggled="AlbumArtworkSwitch_Toggled"/>
-                        <TextBlock Text="When enabled, recognized artist and title are sent to Apple's iTunes Search API for album artwork. Station artwork remains the fallback; turning this off makes no track lookup requests."
-                                   TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <toolkit:SettingsCard Header="Report plays to Radio Browser"
+                                              Description="Sends a station ID to Radio Browser once when you start a directory station. Retries and resume do not report again.">
+                            <ToggleSwitch x:Name="PlayReportingSwitch" AutomationProperties.Name="Report plays to Radio Browser"
+                                          OnContent="On" OffContent="Off" Toggled="PlayReportingSwitch_Toggled"/>
+                        </toolkit:SettingsCard>
+                        <toolkit:SettingsCard Header="Show album artwork for live tracks"
+                                              Description="Sends recognized artist and title to Apple's iTunes Search API. Station artwork remains the fallback.">
+                            <ToggleSwitch x:Name="AlbumArtworkSwitch" AutomationProperties.Name="Show album artwork for live tracks"
+                                          OnContent="On" OffContent="Off" Toggled="AlbumArtworkSwitch_Toggled"/>
+                        </toolkit:SettingsCard>
                         <TextBlock Text="About" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                         <TextBlock Text="Shoutkit for Windows · Native ARM64 preview"/>
                         <TextBlock Text="Favorites and recent stations are saved on this device. Station listings come from Radio Browser."
                                    TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         <HyperlinkButton Content="Radio Browser directory" NavigateUri="https://www.radio-browser.info/" Padding="0"/>
-                        <Button Content="Software licenses" Click="SoftwareLicenses_Click"
-                                AutomationProperties.Name="View software licenses"/>
+                        <toolkit:SettingsCard Header="Software licenses" Description="Application and dependency notices"
+                                              IsClickEnabled="True" Click="SoftwareLicenses_Click"
+                                              AutomationProperties.Name="View software licenses"/>
                     </StackPanel>
                     </ScrollViewer>
                 </Grid>

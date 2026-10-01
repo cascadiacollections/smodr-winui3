@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 using smodr.Services;
 
 namespace smodr.Tests.Services;
@@ -19,8 +20,8 @@ public sealed class PlaybackSleepTimerTests
     [TestMethod]
     public async Task TimerFiresOnceAndClearsItsDeadline()
     {
-        var delays = new ControlledDelays();
-        using var timer = new PlaybackSleepTimer(delay: delays.WaitAsync);
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero));
+        using var timer = new PlaybackSleepTimer(clock);
         var fired = 0;
         var firedSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         timer.Elapsed += (_, _) =>
@@ -32,7 +33,7 @@ public sealed class PlaybackSleepTimerTests
         timer.Start(TimeSpan.FromMinutes(15));
         Assert.IsNotNull(timer.EndsAt);
         Assert.IsTrue(timer.Remaining > TimeSpan.Zero);
-        delays.Complete(0);
+        clock.Advance(TimeSpan.FromMinutes(15));
         await firedSignal.Task.WaitAsync(TimeSpan.FromSeconds(3));
 
         Assert.AreEqual(1, Volatile.Read(ref fired));

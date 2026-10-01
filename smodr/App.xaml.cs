@@ -94,10 +94,7 @@ public partial class App : Application
             client.Timeout = TimeSpan.FromSeconds(8))
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddSingleton<PlaybackSleepTimer>();
-        services.AddHttpClient<RadioDirectoryService>(client =>
-            client.Timeout = TimeSpan.FromSeconds(8));
-        services.AddTransient<IRadioDirectoryService>(provider => provider.GetRequiredService<RadioDirectoryService>());
-        services.AddTransient<IStationPlayReporter>(provider => provider.GetRequiredService<RadioDirectoryService>());
+        services.AddRadioDirectoryHttpClients();
         services.AddSingleton<RadioMainViewModel>();
         _services = services.BuildServiceProvider(validateScopes: true);
     }

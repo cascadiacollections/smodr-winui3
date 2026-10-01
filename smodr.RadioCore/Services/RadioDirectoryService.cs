@@ -17,11 +17,14 @@ public sealed class RadioDirectoryService : IRadioDirectoryService, IStationPlay
     ];
 
     private readonly HttpClient _httpClient;
+    private readonly HttpClient _reportClient;
     private readonly IReadOnlyList<Uri> _servers;
 
-    public RadioDirectoryService(HttpClient httpClient, IReadOnlyList<Uri>? servers = null)
+    public RadioDirectoryService(HttpClient httpClient, IReadOnlyList<Uri>? servers = null,
+        HttpClient? reportClient = null)
     {
         _httpClient = httpClient;
+        _reportClient = reportClient ?? httpClient;
         _servers = servers ?? _defaultServers;
         if (_servers.Count == 0 || _servers.Any(uri => uri.Scheme != Uri.UriSchemeHttps))
         {
@@ -31,6 +34,10 @@ public sealed class RadioDirectoryService : IRadioDirectoryService, IStationPlay
         if (_httpClient.DefaultRequestHeaders.UserAgent.Count == 0)
         {
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+        }
+        if (_reportClient.DefaultRequestHeaders.UserAgent.Count == 0)
+        {
+            _reportClient.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
         }
     }
 
@@ -83,7 +90,7 @@ public sealed class RadioDirectoryService : IRadioDirectoryService, IStationPlay
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                using var response = await _httpClient.GetAsync(
+                using var response = await _reportClient.GetAsync(
                     new Uri(server, $"json/url/{stationUuid:D}"),
                     HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();

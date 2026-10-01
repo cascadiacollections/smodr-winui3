@@ -51,4 +51,20 @@ public sealed class MainWindowAccessibilityTests
         StringAssert.Contains(code, "OpenNowPlayingButton.Focus(FocusState.Programmatic)", StringComparison.Ordinal);
         StringAssert.Contains(code, "e.Key != VirtualKey.Escape", StringComparison.Ordinal);
     }
+
+    [TestMethod]
+    public void SettingsCardsKeepControlsNamedAndScrollable()
+    {
+        var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml"));
+        var settings = document.Descendants().Single(element =>
+            (string?)element.Attribute(_xaml + "Name") == "SettingsView");
+        Assert.IsTrue(settings.Descendants().Any(element => element.Name.LocalName == "ScrollViewer"));
+        Assert.HasCount(3, settings.Descendants().Where(element => element.Name.LocalName == "SettingsCard"));
+        foreach (var action in settings.Descendants().Where(element => element.Name.LocalName == "ToggleSwitch"
+            || (element.Name.LocalName == "SettingsCard" && (string?)element.Attribute("IsClickEnabled") == "True")))
+        {
+            Assert.IsFalse(string.IsNullOrWhiteSpace((string?)action.Attribute("AutomationProperties.Name")),
+                $"Settings action {action.Name.LocalName} needs an accessible name.");
+        }
+    }
 }

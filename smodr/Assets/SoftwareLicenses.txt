@@ -32,10 +32,16 @@ RUNTIME DEPENDENCIES
 CommunityToolkit.Mvvm 8.4.0 — MIT
 https://www.nuget.org/packages/CommunityToolkit.Mvvm/8.4.0#readme-body-tab
 
+CommunityToolkit.WinUI.Controls.SettingsControls 8.2.251219 — MIT
+https://www.nuget.org/packages/CommunityToolkit.WinUI.Controls.SettingsControls/8.2.251219
+
 Microsoft.Extensions.DependencyInjection and Microsoft.Extensions.Http
 11.0.0-rc.1.26425.128 — MIT
 https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection/11.0.0-rc.1.26425.128
 https://www.nuget.org/packages/Microsoft.Extensions.Http/11.0.0-rc.1.26425.128
+
+Microsoft.Extensions.Http.Resilience 10.10.0 — MIT
+https://www.nuget.org/packages/Microsoft.Extensions.Http.Resilience/10.10.0
 
 System.ServiceModel.Syndication 10.0.5 — MIT
 https://www.nuget.org/packages/System.ServiceModel.Syndication/10.0.5
@@ -49,6 +55,10 @@ smodr/packages.lock.json in the source repository. Some Microsoft components
 have their own license terms; consult each package's included license and
 third-party notices before redistribution. Microsoft.Windows.SDK.BuildTools
 is a build-time dependency rather than an app feature.
+
+Microsoft.Extensions.TimeProvider.Testing 10.10.0 is used by tests only and is
+not shipped as an app feature:
+https://www.nuget.org/packages/Microsoft.Extensions.TimeProvider.Testing/10.10.0
 
 SOURCE AND DEPENDENCY INVENTORY
 
