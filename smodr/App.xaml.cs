@@ -2,8 +2,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using smodr.Services;
 using smodr.ViewModels;
-using Windows.ApplicationModel;
-using Windows.Storage;
 
 namespace smodr;
 
@@ -11,11 +9,7 @@ public partial class App : Application
 {
     private Window? _window;
     private readonly ServiceProvider _services;
-    public static string StorageDirectory { get; private set; } = LegacyStorageDirectory;
-
-    private static string LegacyStorageDirectory => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "CascadiaCollections", "ShoutkitWindows");
+    public static string StorageDirectory { get; private set; } = AppStorageResolver.LegacyDirectory;
 
     public static Window? MainWindow { get; private set; }
 
@@ -48,7 +42,7 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
-        StorageDirectory = ResolveStorageDirectory();
+        StorageDirectory = AppStorageResolver.ResolveDirectory();
         UnhandledException += (_, args) => AppDiagnostics.Record("winui.unhandled", args.Exception);
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
         {
@@ -89,28 +83,6 @@ public partial class App : Application
         services.AddTransient<IStationPlayReporter>(provider => provider.GetRequiredService<RadioDirectoryService>());
         services.AddSingleton<RadioMainViewModel>();
         _services = services.BuildServiceProvider(validateScopes: true);
-    }
-
-    private static string ResolveStorageDirectory()
-    {
-        string packaged;
-        try
-        {
-            _ = Package.Current.Id;
-            packaged = ApplicationData.Current.LocalFolder.Path;
-        }
-        catch (Exception exception) when (exception is InvalidOperationException
-            or System.Runtime.InteropServices.COMException)
-        {
-            return LegacyStorageDirectory; // Unpackaged preview has no package identity.
-        }
-
-        try { PackagedDataMigration.Import(LegacyStorageDirectory, packaged); }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            AppDiagnostics.Record("package.data-import", exception);
-        }
-        return packaged;
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)

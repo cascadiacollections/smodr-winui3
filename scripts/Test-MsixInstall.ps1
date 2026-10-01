@@ -3,6 +3,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if ($env:GITHUB_ACTIONS -cne 'true') {
+    throw 'This install smoke only runs on a disposable GitHub Actions runner.'
+}
 $repository = Split-Path -Parent $PSScriptRoot
 $manifestPath = Join-Path $repository 'smodr/Package.appxmanifest'
 $project = Join-Path $repository 'smodr/smodr.csproj'
@@ -21,6 +24,8 @@ $testRoot = Join-Path $repository "out/msix-install-smoke-$Platform-$([guid]::Ne
 $certificatePath = Join-Path $testRoot 'ci-public.cer'
 $certificate = $null
 $installed = $null
+$legacyDirectory = Join-Path $env:LOCALAPPDATA 'CascadiaCollections/ShoutkitWindows'
+$seededLegacyDirectory = $false
 try {
     New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
     $certificate = New-SelfSignedCertificate -Type Custom -KeyUsage DigitalSignature `
@@ -65,8 +70,49 @@ try {
         throw 'Base package was not registered at version 1.0.0.0.'
     }
 
+    if (Test-Path -LiteralPath $legacyDirectory) {
+        throw 'Legacy profile already exists; refusing to alter it.'
+    }
+    New-Item -ItemType Directory -Path $legacyDirectory | Out-Null
+    $seededLegacyDirectory = $true
+    $fixtures = @{
+        'library.json' = '{"SchemaVersion":1,"Favorites":[{"Id":"ci-station","Name":"CI Radio","StreamUrl":"https://example.com/live"}],"Recents":[]}'
+        'track-history.json' = '{"Version":1,"Entries":[{"Title":"CI Song","Artist":"CI Artist","StationName":"CI Radio","HeardAt":"2026-01-01T00:00:00+00:00"}]}'
+        'privacy-settings.json' = '{"PlayReportingEnabled":false,"AlbumArtworkEnabled":false}'
+        'directory-cache.json' = '{"Version":1,"Entries":{}}'
+    }
+    $utf8 = New-Object System.Text.UTF8Encoding($false)
+    foreach ($name in $fixtures.Keys) {
+        [System.IO.File]::WriteAllText((Join-Path $legacyDirectory $name), $fixtures[$name], $utf8)
+    }
+
     $localState = Join-Path $env:LOCALAPPDATA "Packages/$($installed.PackageFamilyName)/LocalState"
     New-Item -ItemType Directory -Path $localState -Force | Out-Null
+    function Assert-ImportedFiles {
+        foreach ($name in $fixtures.Keys) {
+            $source = Join-Path $legacyDirectory $name
+            $target = Join-Path $localState $name
+            if (-not (Test-Path -LiteralPath $target) -or
+                (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -cne
+                (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash) {
+                throw "Packaged first-launch import did not preserve $name."
+            }
+        }
+    }
+    function Invoke-PackagedImportProbe {
+        $executable = Join-Path $installed.InstallLocation 'smodr.exe'
+        if (-not (Test-Path -LiteralPath $executable)) { throw 'Installed app executable was not found.' }
+        $process = Start-Process -FilePath $executable -ArgumentList '--ci-verify-packaged-import' `
+            -PassThru -WindowStyle Hidden
+        if (-not $process.WaitForExit(20000)) {
+            Stop-Process -Id $process.Id -Force
+            throw 'Packaged import probe did not exit within 20 seconds.'
+        }
+        if ($process.ExitCode -ne 0) { throw "Packaged import probe exited $($process.ExitCode)." }
+    }
+    Invoke-PackagedImportProbe
+    Assert-ImportedFiles
+
     $marker = Join-Path $localState 'ci-upgrade-marker.txt'
     [System.IO.File]::WriteAllText($marker, 'retain-on-upgrade')
 
@@ -79,7 +125,10 @@ try {
         [System.IO.File]::ReadAllText($marker) -cne 'retain-on-upgrade') {
         throw 'Package upgrade did not preserve identity and package-local data.'
     }
-    Write-Output "PASS: $Platform MSIX install and upgrade preserved LocalState."
+    $installed = $upgraded
+    Invoke-PackagedImportProbe
+    Assert-ImportedFiles
+    Write-Output "PASS: $Platform packaged import and MSIX upgrade preserved LocalState."
 }
 finally {
     [System.IO.File]::WriteAllBytes($manifestPath, $originalManifest)
@@ -90,6 +139,14 @@ finally {
         $personalPath = "Cert:\CurrentUser\My\$($certificate.Thumbprint)"
         if (Test-Path -LiteralPath $trustedPath) { Remove-Item -LiteralPath $trustedPath }
         if (Test-Path -LiteralPath $personalPath) { Remove-Item -LiteralPath $personalPath }
+    }
+    if ($seededLegacyDirectory) {
+        $expectedLegacyDirectory = [System.IO.Path]::GetFullPath(
+            (Join-Path $env:LOCALAPPDATA 'CascadiaCollections/ShoutkitWindows'))
+        if ([System.IO.Path]::GetFullPath($legacyDirectory) -cne $expectedLegacyDirectory) {
+            throw 'Refusing to remove an unexpected CI legacy profile path.'
+        }
+        Remove-Item -LiteralPath $legacyDirectory -Recurse -Force
     }
     $outRoot = [System.IO.Path]::GetFullPath((Join-Path $repository 'out'))
     $resolvedTestRoot = [System.IO.Path]::GetFullPath($testRoot)
