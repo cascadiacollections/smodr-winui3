@@ -319,6 +319,38 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private async void SoftwareLicenses_Click(object sender, RoutedEventArgs e)
+    {
+        string notices;
+        try
+        {
+            notices = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Assets", "SoftwareLicenses.txt"));
+        }
+        catch (Exception exception)
+        {
+            AppDiagnostics.Record("licenses.read", exception);
+            notices = "Software license notices are unavailable in this installation. See LICENSE.txt and the package lockfile in the project repository.";
+        }
+
+        var dialog = new ContentDialog
+        {
+            Title = "Software licenses",
+            CloseButtonText = "Close",
+            XamlRoot = Content.XamlRoot,
+            Content = new ScrollViewer
+            {
+                MaxHeight = 540,
+                Content = new TextBlock
+                {
+                    Text = notices,
+                    TextWrapping = TextWrapping.Wrap,
+                    IsTextSelectionEnabled = true,
+                },
+            },
+        };
+        await dialog.ShowAsync();
+    }
+
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         switch (e.PropertyName)

@@ -197,6 +197,7 @@
                     </ScrollViewer>
                 </Grid>
                 <Grid x:Name="SettingsView" Visibility="Collapsed" Padding="28,20">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="18" MaxWidth="680" HorizontalAlignment="Left">
                         <TextBlock Text="Settings" Style="{ThemeResource TitleLargeTextBlockStyle}"/>
                         <TextBlock Text="Privacy" Style="{ThemeResource SubtitleTextBlockStyle}"/>
@@ -213,7 +214,10 @@
                         <TextBlock Text="Favorites and recent stations are saved on this device. Station listings come from Radio Browser."
                                    TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         <HyperlinkButton Content="Radio Browser directory" NavigateUri="https://www.radio-browser.info/" Padding="0"/>
+                        <Button Content="Software licenses" Click="SoftwareLicenses_Click"
+                                AutomationProperties.Name="View software licenses"/>
                     </StackPanel>
+                    </ScrollViewer>
                 </Grid>
                 <ProgressRing x:Name="LoadingRing" Width="42" Height="42" IsActive="False" Visibility="Collapsed"
                               HorizontalAlignment="Center" VerticalAlignment="Center"/>

@@ -1,0 +1,59 @@
+Shoutkit for Windows — software licenses
+
+APPLICATION SOURCE — MIT License
+
+Copyright (c) 2025 Cascadia Collections
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+The upstream Shoutkit iOS application is separately GPL-3.0 licensed. This
+Windows repository currently declares MIT. Its code provenance and any
+GPL-derived portions must be reviewed before external redistribution; this
+notice is not a determination that the entire Windows adaptation is MIT.
+
+RUNTIME DEPENDENCIES
+
+CommunityToolkit.Mvvm 8.4.0 — MIT
+https://www.nuget.org/packages/CommunityToolkit.Mvvm/8.4.0#readme-body-tab
+
+Microsoft.Extensions.DependencyInjection and Microsoft.Extensions.Http
+11.0.0-rc.1.26425.128 — MIT
+https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection/11.0.0-rc.1.26425.128
+https://www.nuget.org/packages/Microsoft.Extensions.Http/11.0.0-rc.1.26425.128
+
+System.ServiceModel.Syndication 10.0.5 — MIT
+https://www.nuget.org/packages/System.ServiceModel.Syndication/10.0.5
+
+Microsoft.WindowsAppSDK 2.4.0 — Microsoft package license
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK/2.4.0#license-body-tab
+
+The Windows App SDK brings additional runtime components and transitive
+packages. The locked dependency graph and exact package versions are in
+smodr/packages.lock.json in the source repository. Some Microsoft components
+have their own license terms; consult each package's included license and
+third-party notices before redistribution. Microsoft.Windows.SDK.BuildTools
+is a build-time dependency rather than an app feature.
+
+SOURCE AND DEPENDENCY INVENTORY
+
+https://github.com/cascadiacollections/smodr-winui3
+
+Station data comes from the community Radio Browser directory. Radio Browser
+is a service, not software bundled into this app:
+https://www.radio-browser.info/

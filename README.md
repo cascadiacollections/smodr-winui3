@@ -193,7 +193,7 @@ Contributions are welcome! Please:
 
 ## License
 
-See [LICENSE.txt](LICENSE.txt) for details.
+See [LICENSE.txt](LICENSE.txt) for the application license. Settings → Software licenses displays the application license and direct runtime dependency notices offline. [WINDOWS_PARITY.md](WINDOWS_PARITY.md) records the remaining settings differences from iOS and the third-party redistribution notice audit that remains before release.
 
 ## Links
 
