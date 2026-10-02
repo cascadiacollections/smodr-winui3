@@ -9,6 +9,8 @@ public static class HlsId3TrackParser
 {
     private const int MaxCueBytes = 65_536;
     private static readonly UTF8Encoding _strictUtf8 = new(false, true);
+    private static readonly UnicodeEncoding _strictLittleEndian = new(false, false, true);
+    private static readonly UnicodeEncoding _strictBigEndian = new(true, false, true);
 
     public static RadioTrackInfo? Parse(ReadOnlySpan<byte> bytes, string stationName)
     {
@@ -34,8 +36,16 @@ public static class HlsId3TrackParser
             if (frameSize > 0 && frame[8] == 0 && frame[9] == 0)
             {
                 var payload = frame.Slice(10, frameSize);
-                if (frame[..4].SequenceEqual("TIT2"u8)) title = DecodeText(payload);
-                else if (frame[..4].SequenceEqual("TPE1"u8)) artist = DecodeText(payload);
+                if (frame[..4].SequenceEqual("TIT2"u8))
+                {
+                    title = DecodeText(payload);
+                    if (title is null) return null;
+                }
+                else if (frame[..4].SequenceEqual("TPE1"u8))
+                {
+                    artist = DecodeText(payload);
+                    if (artist is null) return null;
+                }
             }
             offset += 10 + frameSize;
         }
@@ -76,10 +86,10 @@ public static class HlsId3TrackParser
             {
                 0 => Encoding.Latin1.GetString(text),
                 1 when text.Length >= 2 && text[0] == 0xFE && text[1] == 0xFF =>
-                    Encoding.BigEndianUnicode.GetString(text[2..]),
+                    _strictBigEndian.GetString(text[2..]),
                 1 when text.Length >= 2 && text[0] == 0xFF && text[1] == 0xFE =>
-                    Encoding.Unicode.GetString(text[2..]),
-                2 => Encoding.BigEndianUnicode.GetString(text),
+                    _strictLittleEndian.GetString(text[2..]),
+                2 => _strictBigEndian.GetString(text),
                 3 => _strictUtf8.GetString(text),
                 _ => null
             };

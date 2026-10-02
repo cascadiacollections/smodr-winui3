@@ -22,6 +22,8 @@ public sealed class IcyTrackParserTests
     [DataRow("title='A Song';artist='The Artist';", "A Song", "The Artist")]
     [DataRow("text='The Artist - A Song';", "A Song", "The Artist")]
     [DataRow("E=MC²", "E=MC²", null)]
+    [DataRow("StreamTitle='Hüsker Dü - Ice Cold Ice';", "Ice Cold Ice", "Hüsker Dü")]
+    [DataRow("StreamTitle='宇多田ヒカル - First Love';", "First Love", "宇多田ヒカル")]
     public void ParsesTrackVariants(string raw, string title, string? artist)
     {
         var result = IcyTrackParser.Parse(raw, "Radio One");
@@ -37,6 +39,9 @@ public sealed class IcyTrackParserTests
     [DataRow("StreamTitle='Artist - Commercial break';")]
     [DataRow("StreamTitle='';")]
     [DataRow("TrackId=123;StreamUrl='http://example.com';")]
+    [DataRow("StreamTitle='H\uFFFDsker D\uFFFD - Ice Cold Ice';")]
+    [DataRow("title='Ice Cold Ice';artist='H\uFFFDsker D\uFFFD';")]
+    [DataRow("StreamTitle='Artist - Broken\uFFFD title';")]
     public void RejectsNonSongCues(string raw) =>
         Assert.IsNull(IcyTrackParser.Parse(raw, "Radio One"));
 

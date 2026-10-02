@@ -119,6 +119,33 @@ public sealed class IcyTrackMonitorTests
     }
 
     [TestMethod]
+    public async Task DamagedCueIsNotPublishedAndCorrectAccentedCueStillIs()
+    {
+        var published = new TaskCompletionSource<RadioTrackUpdate>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var updates = new List<RadioTrackUpdate>();
+        using var monitor = new IcyTrackMonitor(
+            new StubProbe(_ => Task.FromResult(IcyProbeResult.Unsupported)),
+            continuousReader: new StubContinuousReader(async (_, emit, token) =>
+            {
+                emit("StreamTitle='H\uFFFDsker D\uFFFD - Ice Cold Ice';");
+                emit("StreamTitle='Hüsker Dü - Ice Cold Ice';");
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                return true;
+            }));
+        monitor.TrackChanged += (_, update) =>
+        {
+            lock (updates) updates.Add(update);
+            published.TrySetResult(update);
+        };
+        monitor.Start(Station("one"));
+        var track = (await published.Task.WaitAsync(TimeSpan.FromSeconds(3))).Track;
+        monitor.Stop();
+        Assert.AreEqual("Hüsker Dü", track.Artist);
+        Assert.AreEqual("Ice Cold Ice", track.Title);
+        lock (updates) Assert.HasCount(1, updates);
+    }
+
+    [TestMethod]
     public async Task StoppedContinuousReaderCannotPublishLateCue()
     {
         Action<string>? delayedEmit = null;

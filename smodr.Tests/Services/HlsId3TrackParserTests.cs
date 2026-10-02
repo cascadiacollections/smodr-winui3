@@ -38,11 +38,50 @@ public sealed class HlsId3TrackParserTests
     }
 
     private static byte[] Cue(byte version, params (string Id, string Text)[] frames)
+        => CuePayloads(version, frames.Select(frame => (frame.Id,
+            new byte[] { 3 }.Concat(Encoding.UTF8.GetBytes(frame.Text)).ToArray())).ToArray());
+
+    [TestMethod]
+    [DataRow((byte)0)]
+    [DataRow((byte)1)]
+    [DataRow((byte)2)]
+    [DataRow((byte)3)]
+    public void PreservesAccentedArtistInAllId3TextEncodings(byte encoding)
+    {
+        var codec = encoding switch
+        {
+            0 => Encoding.Latin1,
+            1 => Encoding.Unicode,
+            2 => Encoding.BigEndianUnicode,
+            _ => Encoding.UTF8
+        };
+        var preamble = encoding == 1 ? codec.GetPreamble() : [];
+        var artist = new byte[] { encoding }.Concat(preamble).Concat(codec.GetBytes("Hüsker Dü")).ToArray();
+        var cue = CuePayloads(4, ("TIT2", [3, .. Encoding.UTF8.GetBytes("Ice Cold Ice")]), ("TPE1", artist));
+        Assert.AreEqual("Hüsker Dü", HlsId3TrackParser.Parse(cue, "KEXP")?.Artist);
+    }
+
+    [TestMethod]
+    [DataRow((byte)1)]
+    [DataRow((byte)2)]
+    [DataRow((byte)3)]
+    public void RejectsMalformedArtistWithoutPublishingAnArtistlessTitle(byte encoding)
+    {
+        byte[] artist = encoding switch
+        {
+            1 => [1, 0xFF, 0xFE, 0x00, 0xD8], // Unpaired UTF-16 LE surrogate.
+            2 => [2, 0xD8, 0x00], // Unpaired UTF-16 BE surrogate.
+            _ => [3, 0xC3] // Truncated UTF-8 character.
+        };
+        var cue = CuePayloads(4, ("TIT2", [3, .. Encoding.UTF8.GetBytes("Ice Cold Ice")]), ("TPE1", artist));
+        Assert.IsNull(HlsId3TrackParser.Parse(cue, "KEXP"));
+    }
+
+    private static byte[] CuePayloads(byte version, params (string Id, byte[] Payload)[] frames)
     {
         var body = new List<byte>();
-        foreach (var (id, text) in frames)
+        foreach (var (id, payload) in frames)
         {
-            var payload = new byte[] { 3 }.Concat(Encoding.UTF8.GetBytes(text)).ToArray();
             body.AddRange(Encoding.ASCII.GetBytes(id));
             var size = new byte[4];
             if (version == 4) WriteSynchsafe(size, payload.Length);

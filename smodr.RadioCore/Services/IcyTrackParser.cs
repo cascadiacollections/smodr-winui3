@@ -140,6 +140,9 @@ public static class IcyTrackParser
         if (info.Title.Length == 0 || info.Title.Length > 300 || info.Artist?.Length > 200) return false;
         foreach (var value in new[] { info.Title, info.Artist }.Where(value => value is not null))
         {
+            // Original bytes are unrecoverable once a replacement character is
+            // received. Reject damaged text rather than guessing an artist.
+            if (value!.Contains('\uFFFD', StringComparison.Ordinal)) return false;
             if (value!.Contains("http://", StringComparison.OrdinalIgnoreCase)
                 || value.Contains("https://", StringComparison.OrdinalIgnoreCase)
                 || value.Contains("www.", StringComparison.OrdinalIgnoreCase)

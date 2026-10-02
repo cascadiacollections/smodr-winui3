@@ -57,10 +57,33 @@ public sealed class IcyMetadataProbeTests
         Assert.AreEqual("StreamTitle='Alice in Chains - Brother';StreamUrl='Sap';", result.RawMetadata);
     }
 
-    private static void AddBlock(List<byte> body, string? metadata)
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task PreservesAccentsAndSkipsAlreadyDamagedCues(bool latin1)
+    {
+        const string metadata = "StreamTitle='Hüsker Dü - Ice Cold Ice';";
+        var body = new List<byte>();
+        AddBlock(body, "StreamTitle='H\uFFFDsker D\uFFFD - Ice Cold Ice';");
+        AddBlock(body, metadata, latin1 ? Encoding.Latin1 : Encoding.UTF8);
+        using var handler = new StubHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent([.. body])
+            };
+            response.Headers.TryAddWithoutValidation("icy-metaint", "4");
+            return response;
+        });
+        using var client = new HttpClient(handler);
+        var result = await new IcyMetadataProbe(client).ProbeAsync(new Uri("https://example.com/live"));
+        Assert.AreEqual(metadata, result.RawMetadata);
+    }
+
+    private static void AddBlock(List<byte> body, string? metadata, Encoding? encoding = null)
     {
         body.AddRange(new byte[4]);
-        var bytes = Encoding.UTF8.GetBytes(metadata ?? string.Empty);
+        var bytes = (encoding ?? Encoding.UTF8).GetBytes(metadata ?? string.Empty);
         var blocks = (bytes.Length + 15) / 16;
         body.Add((byte)blocks);
         body.AddRange(bytes);

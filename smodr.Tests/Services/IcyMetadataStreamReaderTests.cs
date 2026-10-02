@@ -74,6 +74,51 @@ public sealed class IcyMetadataStreamReaderTests
         Assert.AreEqual("StreamTitle='Björk - Jóga';", titles[0]);
     }
 
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task PreservesHuskerDuAcrossUtf8AndLatin1Blocks(bool latin1)
+    {
+        const string metadata = "StreamTitle='Hüsker Dü - Ice Cold Ice';";
+        var body = new List<byte>();
+        AddBlock(body, metadata, latin1 ? Encoding.Latin1 : Encoding.UTF8);
+        using var handler = new StubHandler(_ => Response([.. body]));
+        using var client = new HttpClient(handler);
+        var titles = new List<string>();
+        await new IcyMetadataStreamReader(client).ListenAsync(new Uri("https://example.com/live"), titles.Add);
+        Assert.HasCount(1, titles);
+        Assert.AreEqual(metadata, titles[0]);
+        Assert.AreEqual("Hüsker Dü", IcyTrackParser.Parse(titles[0], "KEXP")?.Artist);
+    }
+
+    [TestMethod]
+    public async Task Utf8CharactersSplitAcrossNetworkReadsRemainIntact()
+    {
+        const string metadata = "StreamTitle='Hüsker Dü - Ice Cold Ice';";
+        var body = new List<byte>();
+        AddBlock(body, metadata);
+        using var handler = new StubHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StreamContent(new FragmentedStream([.. body]))
+            };
+            response.Headers.TryAddWithoutValidation("icy-metaint", "4");
+            return response;
+        });
+        using var client = new HttpClient(handler);
+        var titles = new List<string>();
+        await new IcyMetadataStreamReader(client).ListenAsync(new Uri("https://example.com/live"), titles.Add);
+        Assert.HasCount(1, titles);
+        Assert.AreEqual(metadata, titles[0]);
+    }
+
+    private sealed class FragmentedStream(byte[] bytes) : MemoryStream(bytes, writable: false)
+    {
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) =>
+            base.ReadAsync(buffer[..Math.Min(1, buffer.Length)], cancellationToken);
+    }
+
     private static HttpResponseMessage Response(byte[] body)
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(body) };
