@@ -129,6 +129,46 @@ public sealed class RadioSettingsViewModelTests
         Assert.IsFalse(settings.IsPlayReportingEnabled);
     }
 
+    [TestMethod]
+    public async Task LicenseSectionsCoalesceAndCacheBackgroundPreparation()
+    {
+        var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reads = 0;
+        var settings = new RadioSettingsViewModel(new StubPrivacy(), readLicenses: () =>
+        {
+            Assert.IsNull(SynchronizationContext.Current, "License preparation must not run on the caller's UI context.");
+            Interlocked.Increment(ref reads);
+            started.SetResult();
+            return completion.Task;
+        });
+        var previousContext = SynchronizationContext.Current;
+        Task<IReadOnlyList<string>> pending;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
+            pending = settings.LoadSoftwareLicenseSectionsAsync();
+            Assert.AreSame(pending, settings.LoadSoftwareLicenseSectionsAsync());
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previousContext); }
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        var text = new string('a', 10_000);
+        completion.SetResult(text);
+        Assert.AreEqual(text, string.Concat(await pending));
+        Assert.AreSame(pending, settings.LoadSoftwareLicenseSectionsAsync());
+        Assert.AreEqual(1, reads);
+    }
+
+    [TestMethod]
+    public async Task SynchronousLicenseReadFailureProducesSafeSections()
+    {
+        var settings = new RadioSettingsViewModel(new StubPrivacy(),
+            readLicenses: () => throw new IOException("private installation path"));
+        var text = string.Concat(await settings.LoadSoftwareLicenseSectionsAsync());
+        StringAssert.Contains(text, "unavailable", StringComparison.Ordinal);
+        Assert.IsFalse(text.Contains("private installation path", StringComparison.Ordinal));
+    }
+
     private sealed class StubPrivacy : IRadioPrivacySettings
     {
         public Func<Task> BeforeSave { get; set; } = () => Task.CompletedTask;

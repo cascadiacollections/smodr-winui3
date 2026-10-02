@@ -38,6 +38,8 @@ Valid UTF-8/Latin-1 ICY names and declared ID3 text encodings retain Unicode. A 
 
 ## Native validation checklist
 
+Software-license notices use a bounded, virtualized ListView, rather than laying out the entire bundled inventory in one TextBlock. Reading and lossless section preparation run on a worker and are cached per Settings view model. The dialog shows a loading state immediately; closing stops its UI continuation without cancelling a shared cache load. All notices remain bundled and available offline. Headless checks cover content preservation, Unicode/CRLF boundaries, caching, and the XAML virtualization constraints; scrolling, text selection, keyboard access, high text scaling, and actual opening latency still require native QA.
+
 1. Keep all options Off: play/switch/pause/resume KEXP and Brookdale, check titles, artwork, history, sleep timer, and system controls.
 2. Enable preparation, restart without autoplay, select the warmed recent before 30 seconds, then select a different stream. Check no audio/media-card appears before selection, cancellation on close, and connection/resource cleanup. Repeat on a metered connection and with Energy Saver enabled.
 3. Enable looping on a finite test broadcast; pause/stop/switch at completion. Confirm unknown-duration live EOF is not looped and automatic restarts do not send telemetry.

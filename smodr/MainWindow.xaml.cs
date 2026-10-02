@@ -23,6 +23,7 @@ public sealed partial class MainWindow : Window
     private bool _closeAfterFlush;
     private bool _closed;
     private bool _settingsReady;
+    private bool _licensesOpen;
     private readonly RadioStreamPrewarmer? _prewarmer;
     private readonly RadioJumpList? _jumpList;
     private readonly CancellationTokenSource _warmupCancellation = new();
@@ -337,26 +338,36 @@ public sealed partial class MainWindow : Window
 
     private async void SoftwareLicenses_Click(object sender, RoutedEventArgs e)
     {
-        var notices = await Settings.LoadSoftwareLicensesAsync();
-        if (_closed) return;
-
-        var dialog = new ContentDialog
+        if (_closed || _licensesOpen) return;
+        _licensesOpen = true;
+        using var cancellation = new CancellationTokenSource();
+        try
         {
-            Title = "Software licenses",
-            CloseButtonText = "Close",
-            XamlRoot = Content.XamlRoot,
-            Content = new ScrollViewer
+            var view = new SoftwareLicensesView();
+            var dialog = new ContentDialog
             {
-                MaxHeight = 540,
-                Content = new TextBlock
-                {
-                    Text = notices,
-                    TextWrapping = TextWrapping.Wrap,
-                    IsTextSelectionEnabled = true,
-                },
-            },
-        };
-        await dialog.ShowAsync();
+                Title = "Software licenses",
+                CloseButtonText = "Close",
+                XamlRoot = Content.XamlRoot,
+                Content = view,
+            };
+            var showing = dialog.ShowAsync();
+            _ = PopulateLicenseDialogAsync(view, cancellation.Token);
+            await showing;
+        }
+        catch (Exception exception) { AppDiagnostics.Record("licenses.dialog", exception); }
+        finally { cancellation.Cancel(); _licensesOpen = false; }
+    }
+
+    private async Task PopulateLicenseDialogAsync(SoftwareLicensesView view, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var sections = await Settings.LoadSoftwareLicenseSectionsAsync().WaitAsync(cancellationToken);
+            if (!_closed && !cancellationToken.IsCancellationRequested) view.SetNotices(sections);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception exception) { AppDiagnostics.Record("licenses.dialog-content", exception); }
     }
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)

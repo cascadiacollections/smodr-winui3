@@ -10,6 +10,8 @@ public partial class RadioSettingsViewModel(IRadioPrivacySettings privacy,
     bool jumpListSupported = false, Action? refreshJumpList = null) : ObservableObject
 {
     private Task _pendingEdit = Task.CompletedTask;
+    private readonly Lock _licenseGate = new();
+    private Task<IReadOnlyList<string>>? _licenseSections;
     private readonly IRadioPrivacySettings _privacy = privacy;
     private readonly Func<bool, Task> _setArtwork = setArtwork ?? privacy.SetAlbumArtworkEnabledAsync;
     private readonly Func<Task<string>> _readLicenses = readLicenses ?? (() => File.ReadAllTextAsync(
@@ -117,6 +119,16 @@ public partial class RadioSettingsViewModel(IRadioPrivacySettings privacy,
         {
             AppDiagnostics.Record("licenses.read", exception);
             return "Software license notices are unavailable in this installation. See LICENSE.txt and the package lockfile in the project repository.";
+        }
+    }
+
+    public Task<IReadOnlyList<string>> LoadSoftwareLicenseSectionsAsync()
+    {
+        lock (_licenseGate)
+        {
+            // Coalesce repeated opens; reading, decoding and splitting stay off the UI thread.
+            return _licenseSections ??= Task.Run(async () =>
+                SoftwareLicenseText.Split(await LoadSoftwareLicensesAsync().ConfigureAwait(false)));
         }
     }
 }

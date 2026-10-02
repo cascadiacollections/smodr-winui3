@@ -8,6 +8,24 @@ public sealed class MainWindowAccessibilityTests
     private static readonly XNamespace _xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
 
     [TestMethod]
+    public void SoftwareLicenseNoticesUseBoundedVirtualizedAccessibleList()
+    {
+        var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "SoftwareLicensesView.xaml"));
+        var grid = document.Descendants().Single(element => element.Name.LocalName == "Grid");
+        Assert.AreEqual("480", (string?)grid.Attribute("Height"));
+        Assert.IsFalse(document.Descendants().Any(element => element.Name.LocalName == "ScrollViewer"),
+            "An outer scroll host would give the list unbounded layout space.");
+        var list = document.Descendants().Single(element => element.Name.LocalName == "ListView");
+        Assert.IsTrue(list.Descendants().Any(element => element.Name.LocalName == "ItemsStackPanel"));
+        Assert.AreEqual("Software license notices", (string?)list.Attribute("AutomationProperties.Name"));
+        var text = list.Descendants().Single(element => element.Name.LocalName == "TextBlock");
+        Assert.AreEqual("True", (string?)text.Attribute("IsTextSelectionEnabled"));
+        var code = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml.cs"));
+        StringAssert.Contains(code, "if (_closed || _licensesOpen) return;", StringComparison.Ordinal);
+        StringAssert.Contains(code, "WaitAsync(cancellationToken)", StringComparison.Ordinal);
+    }
+
+    [TestMethod]
     public void NowPlayingControlsHaveNamesAndScaledLayoutCanScroll()
     {
         var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml"));
