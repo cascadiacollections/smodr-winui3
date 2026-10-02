@@ -22,13 +22,17 @@ internal sealed class RadioAudioEngineCoordinator(Action<Action> dispatch) : IDi
         if (ReferenceEquals(engine, Current)) return;
         var previous = Interlocked.Exchange(ref _current, null);
         Interlocked.Increment(ref _generation);
-        if (previous is not null)
+        try
         {
-            previous.StateChanged -= Engine_StateChanged;
-            previous.Completed -= Engine_Completed;
-            previous.Failed -= Engine_Failed;
-            if (disposePrevious) previous.Dispose();
+            if (previous is not null)
+            {
+                previous.StateChanged -= Engine_StateChanged;
+                previous.Completed -= Engine_Completed;
+                previous.Failed -= Engine_Failed;
+                if (disposePrevious) previous.Dispose();
+            }
         }
+        catch { engine?.Dispose(); throw; }
         if (engine is null) return;
         try
         {
@@ -56,8 +60,17 @@ internal sealed class RadioAudioEngineCoordinator(Action<Action> dispatch) : IDi
         Current?.SetVolume(_volume);
     }
 
-    public void Play() => Current?.Play();
-    public void Pause() => Current?.Pause();
+    public void Play()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        Current?.Play();
+    }
+
+    public void Pause()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        Current?.Pause();
+    }
 
     private void Deliver(object? sender, Action action)
     {
@@ -76,8 +89,11 @@ internal sealed class RadioAudioEngineCoordinator(Action<Action> dispatch) : IDi
     public void Dispose()
     {
         if (_disposed) return;
-        Replace(null);
-        _disposed = true;
-        GC.SuppressFinalize(this);
+        try { Replace(null); }
+        finally
+        {
+            _disposed = true;
+            GC.SuppressFinalize(this);
+        }
     }
 }

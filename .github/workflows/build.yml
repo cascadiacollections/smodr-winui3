@@ -77,6 +77,25 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         }
 
+    - name: Run headless race and soak suite
+      shell: pwsh
+      run: ./scripts/Test-HeadlessSoak.ps1 -Platform ${{ matrix.platform }} -Minutes 1 -SkipBuild -OutputDirectory out/headless-soak/${{ matrix.platform }}
+
+    - name: Record headless performance diagnostics
+      shell: pwsh
+      run: ./scripts/Measure-HeadlessPerformance.ps1 -Platform ${{ matrix.platform }} -Runs 3 -SkipBuild -OutputDirectory out/headless-performance/${{ matrix.platform }}
+
+    - name: Upload headless confidence reports
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: headless-confidence-${{ matrix.platform }}
+        path: |
+          out/headless-soak/
+          out/headless-performance/
+        if-no-files-found: warn
+        retention-days: 14
+
     - name: Publish self-contained app
       run: dotnet publish smodr/smodr.csproj --configuration ${{ env.CONFIGURATION }} --no-restore -p:Platform=${{ matrix.platform }} -r ${{ matrix.rid }} --self-contained true -o out/shoutkit-${{ matrix.platform }}
 
@@ -126,5 +145,6 @@ jobs:
       run: |
         dotnet format smodr.RadioCore/smodr.RadioCore.csproj --verify-no-changes --verbosity diagnostic
         dotnet format smodr.RadioSmoke/smodr.RadioSmoke.csproj --verify-no-changes --verbosity diagnostic
+        dotnet format smodr.HeadlessPerf/smodr.HeadlessPerf.csproj --verify-no-changes --verbosity diagnostic
         dotnet format smodr/smodr.csproj --verify-no-changes --verbosity diagnostic
         dotnet format smodr.Tests/smodr.Tests.csproj --verify-no-changes --verbosity diagnostic

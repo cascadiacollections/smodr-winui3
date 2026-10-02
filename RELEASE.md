@@ -12,6 +12,12 @@ artifacts passed. The MSIX build still has the documented missing-symbols-tool w
 This validates the station-row, artwork, stream-harness, and engine-ownership changes;
 it does not replace the interactive or signing gates below. No live playback was launched.
 
+The subsequent headless-confidence pass reached 311 passing tests on both architectures,
+plus 28 ARM64 and 15 x64 sustained race/soak iterations. Performance diagnostics include
+native Windows bitmap decoding without WinUI or audio; scope, commands, and the local
+baseline are in [HEADLESS_CONFIDENCE.md](HEADLESS_CONFIDENCE.md). Native release gates
+remain open. The new CI report jobs have only been authored locally, not run remotely.
+
 Optional playback and shell features have additional native gates in [PLAYBACK_FEATURES.md](PLAYBACK_FEATURES.md): prepared-player handoff and cancellation, finite looping races, experimental AudioGraph audibility/recovery/resource cleanup, signed-MSIX jump-list activation/removal, and authorized-key SHOUTcast tune-in. Keep these gates open until checked on real devices; source-level and synthetic tests do not complete them.
 
 The GitHub Actions build uses the exact .NET 11 RC SDK in `global.json`, locked NuGet restores, warning-free x64 and native ARM64 builds and unit tests, formatting checks, self-contained publish artifacts, and unsigned MSIX package validation for both architectures. The ARM64 lane uses GitHub's Windows 11 ARM64 runner with Visual Studio 2026. It also creates a disposable certificate matching the development package identity, builds a signed CI-only MSIX, installs version 1.0.0.0, invokes the installed executable in a CI-only headless mode to import synthetic unpackaged files, upgrades to 1.0.0.1, and checks that package identity, imported bytes, and a LocalState marker survive. The temporary package, synthetic legacy files, and certificate are removed afterward and never uploaded. Unit tests independently cover the import rules. This is not production signing and does not prove interactive UI launch, live playback, or accessibility; those still require an interactive Windows host.

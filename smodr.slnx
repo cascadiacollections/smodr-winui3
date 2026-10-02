@@ -10,6 +10,10 @@
   </Project>
   <Project Path="smodr.RadioCore/smodr.RadioCore.csproj" />
   <Project Path="smodr.RadioSmoke/smodr.RadioSmoke.csproj" />
+  <Project Path="smodr.HeadlessPerf/smodr.HeadlessPerf.csproj">
+    <Platform Solution="*|ARM64" Project="ARM64" />
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
   <Project Path="smodr.Tests/smodr.Tests.csproj">
     <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />
