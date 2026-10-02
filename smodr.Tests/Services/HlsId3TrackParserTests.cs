@@ -74,7 +74,8 @@ public sealed class HlsId3TrackParserTests
             _ => [3, 0xC3] // Truncated UTF-8 character.
         };
         var cue = CuePayloads(4, ("TIT2", [3, .. Encoding.UTF8.GetBytes("Ice Cold Ice")]), ("TPE1", artist));
-        Assert.IsNull(HlsId3TrackParser.Parse(cue, "KEXP"));
+        Assert.IsNull(HlsId3TrackParser.Parse(cue, "KEXP", out var damaged));
+        Assert.IsTrue(damaged);
     }
 
     private static byte[] CuePayloads(byte version, params (string Id, byte[] Payload)[] frames)

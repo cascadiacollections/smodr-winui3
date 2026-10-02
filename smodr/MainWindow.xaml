@@ -219,6 +219,38 @@
                                           IsEnabled="{x:Bind Settings.CanEdit, Mode=OneWay}"
                                           OnContent="On" OffContent="Off" Toggled="AlbumArtworkSwitch_Toggled"/>
                         </toolkit:SettingsCard>
+                        <TextBlock Text="Playback" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                        <toolkit:SettingsCard Header="Prepare a saved stream on launch"
+                                              Description="Opens one recent or favorite stream silently for up to 30 seconds on unrestricted connections with Energy Saver off. Uses network data; sends no Radio Browser play report. Off by default; applies on next launch with equalizer off.">
+                            <ToggleSwitch x:Name="PrewarmSwitch" AutomationProperties.Name="Prepare a saved stream on launch"
+                                          IsOn="{x:Bind Settings.IsStreamPrewarmingEnabled, Mode=OneWay}"
+                                          IsEnabled="{x:Bind Settings.CanEditPlayback, Mode=OneWay}"
+                                          OnContent="On" OffContent="Off" Toggled="PrewarmSwitch_Toggled"/>
+                        </toolkit:SettingsCard>
+                        <toolkit:SettingsCard Header="Loop finished broadcasts"
+                                              Description="Reopens finite broadcasts after they finish. Unknown-duration live stream endings are not looped. Off by default.">
+                            <ToggleSwitch x:Name="LoopBroadcastsSwitch" AutomationProperties.Name="Loop finished broadcasts"
+                                          IsOn="{x:Bind Settings.IsLoopFinishedBroadcastsEnabled, Mode=OneWay}"
+                                          IsEnabled="{x:Bind Settings.CanEditPlayback, Mode=OneWay}"
+                                          OnContent="On" OffContent="Off" Toggled="LoopBroadcastsSwitch_Toggled"/>
+                        </toolkit:SettingsCard>
+                        <toolkit:SettingsCard Header="Equalizer (experimental)"
+                                              Description="Uses Windows AudioGraph for Speech, Bass, or Treble. Applies when the stream is next opened; HLS timed track metadata and stream prewarming are unavailable on this path. Off keeps the standard MediaPlayer path.">
+                            <ComboBox x:Name="EqualizerBox" AutomationProperties.Name="Equalizer preset"
+                                      SelectedIndex="{x:Bind Settings.SelectedEqualizerPreset, Mode=OneWay}"
+                                      IsEnabled="{x:Bind Settings.CanEditPlayback, Mode=OneWay}"
+                                      SelectionChanged="EqualizerBox_SelectionChanged">
+                                <ComboBoxItem Content="Off"/><ComboBoxItem Content="Speech"/>
+                                <ComboBoxItem Content="Bass"/><ComboBoxItem Content="Treble"/>
+                            </ComboBox>
+                        </toolkit:SettingsCard>
+                        <toolkit:SettingsCard Header="Show saved stations in Windows jump lists"
+                                              Description="Publishes station names to the taskbar and Start shortcut menus. Available in packaged builds only; off by default.">
+                            <ToggleSwitch x:Name="JumpListSwitch" AutomationProperties.Name="Show saved stations in Windows jump lists"
+                                          IsOn="{x:Bind Settings.IsJumpListEnabled, Mode=OneWay}"
+                                          IsEnabled="{x:Bind Settings.CanEditJumpLists, Mode=OneWay}"
+                                          OnContent="On" OffContent="Off" Toggled="JumpListSwitch_Toggled"/>
+                        </toolkit:SettingsCard>
                         <TextBlock Text="About" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                         <TextBlock Text="Shoutkit for Windows · Native ARM64 preview"/>
                         <TextBlock Text="Favorites and recent stations are saved on this device. Station listings come from Radio Browser."

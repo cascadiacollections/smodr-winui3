@@ -548,6 +548,67 @@ public sealed class RadioMainViewModelTests
         finally { viewModel.PropertyChanged -= Handler; }
     }
 
+    [TestMethod]
+    public async Task OlderResolvedStationCannotOverrideLaterSelectionOrReportAPlay()
+    {
+        var oldResult = new TaskCompletionSource<RadioStation>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var old = new RadioStation { Id = "old", StreamUrl = "https://stream.example/old" };
+        var next = new RadioStation { Id = "next", StreamUrl = "https://stream.example/next" };
+        var player = new StubPlayer();
+        var library = new StubLibrary();
+        var reporter = new StubReporter();
+        using var viewModel = new RadioMainViewModel(player, new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            library, action => action(), playReporter: reporter, privacySettings: new StubPrivacy(true),
+            streamResolver: new StubResolver((station, _) => station.Id == "old" ? oldResult.Task : Task.FromResult(station)));
+        var pending = viewModel.TogglePlaybackAsync(old);
+        await viewModel.TogglePlaybackAsync(next);
+        oldResult.SetResult(old);
+        await pending;
+        Assert.AreSame(next, player.CurrentStation);
+        Assert.AreEqual(1, library.RecentSaves);
+        Assert.AreEqual(1, reporter.Count);
+    }
+
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task StopOrDisposeCancelsPendingStreamResolution(bool dispose)
+    {
+        var result = new TaskCompletionSource<RadioStation>(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationToken captured = default;
+        var player = new StubPlayer();
+        var library = new StubLibrary();
+        using var viewModel = new RadioMainViewModel(player, new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            library, action => action(), streamResolver: new StubResolver((_, token) => { captured = token; return result.Task; }));
+        var station = new RadioStation { Id = "one", StreamUrl = "https://stream.example/live" };
+        var pending = viewModel.TogglePlaybackAsync(station);
+        if (dispose) viewModel.Dispose(); else viewModel.Stop();
+        Assert.IsTrue(captured.IsCancellationRequested);
+        result.SetResult(station);
+        await pending;
+        Assert.IsNull(player.CurrentStation);
+        Assert.AreEqual(0, library.RecentSaves);
+    }
+
+    [TestMethod]
+    public async Task SavedStationLaunchDoesNotToggleOffAlreadyRequestedPlayback()
+    {
+        var pauses = 0;
+        var player = new StubPlayer(pause: () => pauses++);
+        using var viewModel = new RadioMainViewModel(player, new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            new StubLibrary(), action => action());
+        var station = new RadioStation { Id = "one", StreamUrl = "https://stream.example/live" };
+        await viewModel.TogglePlaybackAsync(station);
+        await viewModel.PlaySavedStationAsync(station);
+        Assert.IsTrue(player.IsPlaybackRequested);
+        Assert.AreEqual(0, pauses);
+    }
+
+    private sealed class StubResolver(Func<RadioStation, CancellationToken, Task<RadioStation>> resolve) : IStationStreamResolver
+    {
+        public Task<RadioStation> ResolveAsync(RadioStation station, CancellationToken cancellationToken = default) => resolve(station, cancellationToken);
+    }
+
     private sealed class StubArtwork(Func<RadioTrackInfo, Task<AlbumArtworkMatch?>> resolve) : IAlbumArtworkLookup
     {
         public int Calls { get; private set; }

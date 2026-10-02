@@ -8,6 +8,7 @@ public static class PackagedDataMigration
         ("library.json", 2_000_000),
         ("track-history.json", 2_000_000),
         ("privacy-settings.json", 64_000),
+        ("playback-settings.json", 64_000),
         ("directory-cache.json", 2_000_000)
     ];
 

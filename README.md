@@ -1,12 +1,12 @@
 # Shoutkit for Windows — local preview
 
-This branch is a Windows ARM64 adaptation of the [Shoutkit iOS app](https://github.com/cascadiacollections/shoutkit), built in the `smodr-winui3` host. It is an unpackaged, self-contained desktop preview, not a direct SwiftUI port or a complete feature-equivalent release. The current window is radio-first; the original podcast services remain in the repository but are not exposed in this preview's navigation. The dormant podcast playback API is isolated in `smodr/LegacyPodcast/` and is not called by the active radio view model.
+This branch is a Windows ARM64 adaptation of the [Shoutkit iOS app](https://github.com/cascadiacollections/shoutkit), built in the `smodr-winui3` host. It is an unpackaged, self-contained desktop preview, not a direct SwiftUI port or a complete feature-equivalent release. The application is radio-only. The inherited podcast models, RSS, downloads, cache, and playback surface have been removed; their history remains recoverable in Git. Existing radio profile data is unchanged.
 
 Listen Now shows popular stations and recently played stations. Search supports station names and genre browsing. Favorites and the 20 most recent stations are saved in the user's local app data. Playback uses Windows MediaPlayer and the mini-player is shared across views. Windows media controls receive explicit station title/details, and their Play/Pause commands go through the app's recovery-aware player. The mini-player's Sleep menu offers 15, 30, 45, or 60 minutes plus Cancel; expiry pauses the current station without removing it, even if the station changed while the timer ran. Station artwork is downloaded with timeout, size, format, concurrency, and cache limits before WinUI receives it. A second launch activates the existing window instead of opening a second player.
 
 For direct HTTP radio streams that advertise `icy-metaint`, a cancellable sidecar connection reads each ICY block while playback is Playing. It does not replace or buffer the audio stream. If that auxiliary connection drops, the bounded 512 KiB / 35-second probe resumes on a 10-second cadence; short titles can still be missed during fallback. On HLS streams, Windows timed-ID3 cues are consumed when the native media source exposes them; plain title/artist frames use the same Now Playing and history path. Unsupported stations retain station-level Now Playing text; metadata errors cannot interrupt audio. Conservative parsing hides obvious station IDs, ads, URLs, and promo copy. Accepted artist/title cues update the mini-player and Windows media controls and are saved, on this device only, to a bounded 1,000-entry Recently Heard list in Favorites. Top Tracks ranks those retained entries for the past week, month, or all time without another database. The list lives at `%LOCALAPPDATA%\CascadiaCollections\ShoutkitWindows\track-history.json` in unpackaged builds; closing waits for pending writes. History entries now have stable IDs so a delayed artwork result cannot attach to another play of the same song. KEXP-style album echoes are suppressed when they match the current song. HLS cue availability depends on the stream and Windows media source; in-stream artwork is not yet supported.
 
-Metadata text is Unicode, not ASCII-only: ICY bytes use strict UTF-8 with a Latin-1 fallback, and HLS ID3 text honors its declared Latin-1, UTF-16, or UTF-8 encoding. Regression tests cover accented artists such as Hüsker Dü and non-Latin names. Malformed ID3 text and song fields already containing the Unicode replacement character (`�`) are rejected before song display, history, or artwork lookup; the original letters cannot be reconstructed from that character. This does not repair broadcaster-supplied corruption or previously saved history, and rejected cues do not clear the last accepted track.
+Metadata text is Unicode, not ASCII-only: ICY bytes use strict UTF-8 with a Latin-1 fallback, and HLS ID3 text honors its declared Latin-1, UTF-16, or UTF-8 encoding. Regression tests cover accented artists such as Hüsker Dü and non-Latin names. Malformed ID3 text and song fields already containing the Unicode replacement character (`�`) are rejected before song display, history, or artwork lookup; the original letters cannot be reconstructed from that character. This does not repair broadcaster-supplied corruption or previously saved history, and damaged song cues clear stale current song metadata/artwork without changing saved history; empty or advertising cues do not.
 
 Before release, smoke-test one ICY station and one HLS station known to emit timed ID3: verify track changes in the mini-player and Windows media controls, pause/resume and station switching, Recently Heard after restart, and the Top Tracks timeframe selector. These native stream paths have synthetic headless coverage but still need real-stream validation.
 
@@ -16,7 +16,7 @@ After the first successful fetch, popular stations load from `%LOCALAPPDATA%\Cas
 
 The Windows snapshot policy intentionally differs from iOS's six-hour stable landing snapshot and non-persisted search/genre results: the longer-lived Windows copies support the requested offline/warm browsing behavior. A cached list from an earlier build may briefly retain vote-based ordering until the first successful refresh replaces it.
 
-Live radio bounds a stalled or initial buffer to 30 seconds, then rejoins the stream with up to three backed-off retries (2, 4, and 8 seconds). A resume that never reaches Playing is rejoined after 2 seconds. Pausing, stopping, or switching stations cancels stale recovery work; a finished finite stream is not looped. After the retry budget is spent, playback stops with an explicit Play-to-retry message. These timings match the iOS playback controller's defaults and are covered by headless recovery tests; real station/network behavior still needs interactive validation.
+Live radio bounds a stalled or initial buffer to 30 seconds, then rejoins the stream with up to three backed-off retries (2, 4, and 8 seconds). A resume that never reaches Playing is rejoined after 2 seconds. Pausing, stopping, or switching stations cancels stale recovery work; finished finite streams are not looped unless the optional Playback setting is enabled. After the retry budget is spent, playback stops with an explicit Play-to-retry message. These timings match the iOS playback controller's defaults and are covered by headless recovery tests; real station/network behavior still needs interactive validation.
 
 Build and run on Windows ARM64 with the [.NET 11 RC1 ARM64 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/11.0). The repository's `global.json` pins `11.0.100-rc.1.26425.128`; .NET 10 alone will not build this version:
 
@@ -48,158 +48,4 @@ A packaged build uses its Windows package-local `LocalFolder`. On first launch i
 
 Packaged builds also register `holmdel://station` and `holmdel://play` links. An HTTPS `streamURL` is required; a link can include `id`, `name`, and HTTPS `artworkURL`. The parser rejects unknown or duplicate parameters and unsafe URLs. Reopening an already-playing station does not toggle it off. `autoPlay=0` opens Search for that station instead of starting audio. Links do not submit Radio Browser play telemetry because their station IDs are supplied by an untrusted caller. The unpackaged preview has no protocol registration. Windows also pauses requested radio playback when its default output changes, avoiding automatic playback on a different device; resume is manual. Both paths need interactive MSIX/device QA.
 
-## Original smodr project (archival documentation)
-
-The following section describes the upstream podcast app, not the active Shoutkit Windows preview. Its runtime requirements and feature list do not apply to the self-contained preview above.
-
-[![Build Status](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/build.yml/badge.svg)](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/build.yml)
-[![Dev Container](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/devcontainer.yml/badge.svg)](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/devcontainer.yml)
-[![GitHub Pages](https://github.com/cascadiacollections/smodr-winui3/actions/workflows/pages.yml/badge.svg)](https://cascadiacollections.github.io/smodr-winui3/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.txt)
-
-A modern Windows desktop podcast player built with WinUI 3 and .NET 10.
-
-🌐 **[Project Website](https://cascadiacollections.github.io/smodr-winui3/)**
-
-## Features
-
-- 🎧 **RSS Feed Parsing**: Automatically fetch and parse podcast RSS feeds
-- 📻 **Live Radio**: Browse and search Radio Browser stations, then play live streams
-- ▶️ **Media Playback**: Play podcast episodes with pause/resume support
-- 💾 **Smart Caching**: Efficient episode caching with configurable expiry
-- 📥 **Downloads**: Download episodes for offline listening
-- 🎨 **Modern UI**: Clean WinUI 3 interface with Mica backdrop
-- 🏗️ **ARM64 Native**: Builds for x64 and ARM64 (Windows on ARM)
-
-## Quick Start
-
-### 🚀 One-Click Development (Recommended)
-
-This project includes a complete dev container setup for instant development:
-
-[![Open in Dev Containers](https://img.shields.io/static/v1?label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/cascadiacollections/smodr-winui3)
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/cascadiacollections/smodr-winui3)
-
-1. **Prerequisites**
-   - [Visual Studio Code](https://code.visualstudio.com/)
-   - [Docker Desktop](https://www.docker.com/products/docker-desktop) (for local dev containers)
-   - OR use GitHub Codespaces (no local setup needed!)
-
-2. **Get Started**
-   ```bash
-   git clone https://github.com/cascadiacollections/smodr-winui3.git
-   code smodr-winui3
-   ```
-
-3. **Open in Container**
-   - VS Code will prompt to "Reopen in Container"
-   - Click the button and wait for setup to complete
-   - Start coding with all tools and extensions ready!
-
-**Note**: The dev container is perfect for code editing and analysis. To run the WinUI 3 app, you'll need Windows.
-
-### 🪟 Running on Windows
-
-See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed Windows setup instructions.
-
-## Project Structure
-
-```
-smodr/
-├── App.xaml(.cs)           # Application entry point
-├── MainWindow.xaml(.cs)    # Main application window
-├── Models/                 # Data models
-├── ViewModels/             # MVVM ViewModels (CommunityToolkit.Mvvm)
-├── Services/               # Business logic
-│   ├── AudioService.cs     # Media playback
-│   ├── DataService.cs      # RSS feed handling
-│   ├── CacheService.cs     # Episode caching
-│   └── DownloadService.cs  # Download management
-├── Converters/             # XAML value converters
-└── Assets/                 # Application resources
-```
-
-## Technology Stack
-
-| Component | Version |
-|-----------|---------|
-| .NET | 10.0 |
-| C# | 14 (preview) |
-| WinUI 3 | Windows App SDK 1.8 |
-| MVVM | CommunityToolkit.Mvvm 8.4 |
-| RSS | System.ServiceModel.Syndication 10.0 |
-| Platforms | x64, ARM64 |
-
-## Development
-
-- **VS Code**: Pre-configured settings, tasks, and extensions in `.vscode/`
-- **Code Style**: Enforced via `.editorconfig` (file-scoped namespaces, collection expressions)
-- **GitHub Copilot**: Custom instructions in `.github/copilot-instructions.md`
-- **Dev Container**: Complete containerized dev environment
-- **GitHub Actions**: Automated builds (x64 + ARM64), formatting, security scanning
-- **GitHub Pages**: Project website deployed from `www/`
-- **Dependabot**: Automated dependency updates
-
-For complete development setup instructions, see [DEVELOPMENT.md](DEVELOPMENT.md).
-
-## Building
-
-```bash
-# Restore dependencies
-dotnet restore
-
-# Build (x64)
-dotnet build -p:Platform=x64
-
-# Build (ARM64)
-dotnet build -p:Platform=ARM64
-
-# Clean
-dotnet clean
-```
-
-## Documentation
-
-- [Development Setup](DEVELOPMENT.md) - Complete setup guide
-- [Contributing Guide](CONTRIBUTING.md) - How to contribute
-- [Copilot Instructions](.github/copilot-instructions.md) - AI assistance guidelines
-
-## Requirements
-
-### For Running the Application
-- Windows 10 version 1809 (build 17763) or later
-- .NET 10.0 Runtime
-- Windows App SDK 1.8 Runtime
-
-### For Development
-- .NET 10.0 SDK
-- Visual Studio 2022 17.14+ or Visual Studio 2026 (with WinUI 3 workload) **OR**
-- VS Code with Dev Container (any OS for editing)
-
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Use the dev container or GitHub Codespaces for consistent environment
-2. Follow the code style defined in `.editorconfig`
-3. Maintain MVVM architecture patterns
-4. Test changes on Windows before submitting
-5. Review our [Contributing Guide](CONTRIBUTING.md)
-6. Check our [Security Policy](SECURITY.md) for security-related contributions
-
-## Community
-
-- 💬 [Discussions](https://github.com/cascadiacollections/smodr-winui3/discussions) - Ask questions, share ideas
-- 🐛 [Issues](https://github.com/cascadiacollections/smodr-winui3/issues) - Report bugs, request features
-- 🔒 [Security](SECURITY.md) - Report security vulnerabilities
-
-## License
-
-See [LICENSE.txt](LICENSE.txt) for the application license. Settings → Software licenses displays the application license and direct runtime dependency notices offline. [WINDOWS_PARITY.md](WINDOWS_PARITY.md) records the remaining settings differences from iOS and the third-party redistribution notice audit that remains before release.
-
-## Links
-
-- [Project Website](https://cascadiacollections.github.io/smodr-winui3/)
-- [WinUI 3 Documentation](https://learn.microsoft.com/windows/apps/winui/winui3/)
-- [Windows App SDK](https://learn.microsoft.com/windows/apps/windows-app-sdk/)
-- [.NET 10 Documentation](https://learn.microsoft.com/dotnet/core/whats-new/dotnet-10)
+Optional stream preparation, finite-broadcast looping, experimental AudioGraph equalizer presets, packaged jump lists, and key-gated SHOUTcast fallback are documented in [PLAYBACK_FEATURES.md](PLAYBACK_FEATURES.md), including defaults, privacy/network behavior, limitations, and the remaining live validation checklist. The standard MediaPlayer path and Radio Browser remain the defaults.

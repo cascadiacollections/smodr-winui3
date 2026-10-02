@@ -208,6 +208,43 @@ public sealed class IcyTrackMonitorTests
             CancellationToken cancellationToken = default) => get(streamUri);
     }
 
+    private static readonly string[] _expectedTitles = ["Old Song", "Ice Cold Ice"];
+
+    [TestMethod]
+    public async Task DamagedSongInvalidatesOnceButEmptyAndAdvertisingCuesDoNot()
+    {
+        var titles = new List<string>();
+        var invalidations = 0;
+        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var monitor = new IcyTrackMonitor(new StubProbe(_ => Task.FromResult(IcyProbeResult.Unsupported)),
+            continuousReader: new StubContinuousReader(async (_, emit, token) =>
+            {
+                emit("StreamTitle='Artist - Old Song';");
+                emit("StreamTitle='';");
+                emit("StreamTitle='Artist - Commercial break';");
+                emit("StreamTitle='H\uFFFDsker D\uFFFD - Ice Cold Ice';");
+                emit("StreamTitle='H\uFFFDsker D\uFFFD - Ice Cold Ice';");
+                emit("StreamTitle='Hüsker Dü - Ice Cold Ice';");
+                ready.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                return true;
+            }));
+        monitor.TrackChanged += (_, update) => titles.Add(update.Track.Title);
+        monitor.TrackInvalidated += (_, _) => invalidations++;
+        monitor.Start(Station("one"));
+        await ready.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        monitor.Stop();
+        Assert.AreEqual(1, invalidations);
+        CollectionAssert.AreEqual(_expectedTitles, titles);
+    }
+
+    [TestMethod]
+    [DataRow("StreamTitle='';")]
+    [DataRow("StreamTitle='Artist - Commercial break\uFFFD';")]
+    [DataRow("StreamTitle='https://example.com/\uFFFD';")]
+    public void NonSongCuesAreNotClassifiedAsDamagedSongs(string raw) =>
+        Assert.IsFalse(IcyTrackParser.IsDamagedSongCue(raw, "one"));
+
     private sealed class StubContinuousReader(
         Func<Uri, Action<string>, CancellationToken, Task<bool>> listen) : IContinuousTrackMetadataReader
     {

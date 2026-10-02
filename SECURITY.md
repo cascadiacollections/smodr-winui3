@@ -75,7 +75,6 @@ We use Dependabot to keep dependencies up to date and automatically create pull 
 Our key dependencies include:
 - Microsoft.WindowsAppSDK
 - CommunityToolkit.Mvvm
-- System.ServiceModel.Syndication
 
 ### Code Scanning
 

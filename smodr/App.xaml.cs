@@ -12,6 +12,7 @@ public partial class App : Application
     private Window? _window;
     private readonly ServiceProvider _services;
     private static StationLaunchLink? _pendingStationLink;
+    private static string? _pendingStationId;
     public static string StorageDirectory { get; private set; } = AppStorageResolver.LegacyDirectory;
 
     public static Window? MainWindow { get; private set; }
@@ -24,6 +25,14 @@ public partial class App : Application
             && StationLaunchLink.TryParse(protocol.Uri, out var stationLink))
             link = stationLink;
         Interlocked.Exchange(ref _pendingStationLink, link);
+        var arguments = activation.Data switch
+        {
+            Windows.ApplicationModel.Activation.ILaunchActivatedEventArgs launch => launch.Arguments,
+            Windows.ApplicationModel.Activation.ICommandLineActivatedEventArgs command => command.Operation.Arguments,
+            _ => string.Empty
+        };
+        Interlocked.Exchange(ref _pendingStationId,
+            RadioQuickLaunch.TryParse(arguments, out var id, Environment.ProcessPath) ? id : null);
         ActivateMainWindow();
     }
 
@@ -47,6 +56,9 @@ public partial class App : Application
             if (window is MainWindow mainWindow
                 && Interlocked.Exchange(ref _pendingStationLink, null) is { } link)
                 _ = mainWindow.OpenStationLinkAsync(link);
+            if (window is MainWindow quickWindow
+                && Interlocked.Exchange(ref _pendingStationId, null) is { } id)
+                _ = quickWindow.OpenQuickStationAsync(id);
         });
     }
 
@@ -74,6 +86,9 @@ public partial class App : Application
             args.SetObserved();
         };
         var services = new ServiceCollection();
+        services.AddSingleton(new RadioPlaybackPreferences(Path.Combine(StorageDirectory, "playback-settings.json")));
+        services.AddSingleton<RadioStreamPrewarmer>();
+        services.AddSingleton<RadioJumpList>();
         services.AddSingleton<IRadioPlayer, AudioService>();
         services.AddSingleton<ITrackHistoryService>(new TrackHistoryService(
             Path.Combine(StorageDirectory, "track-history.json")));
@@ -95,17 +110,38 @@ public partial class App : Application
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddSingleton<PlaybackSleepTimer>();
         services.AddRadioDirectoryHttpClients();
+        var shoutcastKey = Environment.GetEnvironmentVariable("SHOUTKIT_SHOUTCAST_API_KEY");
+        if (!string.IsNullOrWhiteSpace(shoutcastKey))
+        {
+            services.AddHttpClient("shoutcast", client => client.Timeout = TimeSpan.FromSeconds(8))
+                .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+            services.AddSingleton(provider => new ShoutcastDirectoryService(
+                provider.GetRequiredService<IHttpClientFactory>().CreateClient("shoutcast"), shoutcastKey));
+            services.AddSingleton<IStationStreamResolver>(provider => provider.GetRequiredService<ShoutcastDirectoryService>());
+            services.AddTransient<IRadioDirectoryService>(provider => new FallbackRadioDirectory(
+                provider.GetRequiredService<RadioDirectoryService>(), provider.GetRequiredService<ShoutcastDirectoryService>()));
+        }
         services.AddSingleton<RadioMainViewModel>();
         services.AddSingleton(provider => new RadioSettingsViewModel(
             provider.GetRequiredService<IRadioPrivacySettings>(),
-            provider.GetRequiredService<RadioMainViewModel>().SetAlbumArtworkEnabledAsync));
+            provider.GetRequiredService<RadioMainViewModel>().SetAlbumArtworkEnabledAsync,
+            playback: provider.GetRequiredService<RadioPlaybackPreferences>(),
+            clearWarmup: provider.GetRequiredService<RadioStreamPrewarmer>().Clear,
+            jumpListSupported: RadioJumpList.IsSupported,
+            refreshJumpList: () =>
+            {
+                var viewModel = provider.GetRequiredService<RadioMainViewModel>();
+                _ = provider.GetRequiredService<RadioJumpList>().UpdateAsync(
+                    (RadioStation[])[.. viewModel.Favorites], (RadioStation[])[.. viewModel.Recents]);
+            }));
         _services = services.BuildServiceProvider(validateScopes: true);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         _window = new MainWindow(_services.GetRequiredService<RadioMainViewModel>(),
-            _services.GetRequiredService<RadioSettingsViewModel>());
+            _services.GetRequiredService<RadioSettingsViewModel>(),
+            _services.GetRequiredService<RadioStreamPrewarmer>(), _services.GetRequiredService<RadioJumpList>());
         MainWindow = _window;
         _window.Closed += (_, _) => _services.Dispose();
         _window.Activate();

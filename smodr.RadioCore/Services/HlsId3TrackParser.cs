@@ -13,7 +13,11 @@ public static class HlsId3TrackParser
     private static readonly UnicodeEncoding _strictBigEndian = new(true, false, true);
 
     public static RadioTrackInfo? Parse(ReadOnlySpan<byte> bytes, string stationName)
+        => Parse(bytes, stationName, out _);
+
+    public static RadioTrackInfo? Parse(ReadOnlySpan<byte> bytes, string stationName, out bool hasDamagedText)
     {
+        hasDamagedText = false;
         if (bytes.Length is < 20 or > MaxCueBytes || !bytes[..3].SequenceEqual("ID3"u8)
             || bytes[3] is not (3 or 4) || bytes[5] != 0
             || !TrySynchsafe(bytes.Slice(6, 4), out var tagSize)
@@ -39,18 +43,20 @@ public static class HlsId3TrackParser
                 if (frame[..4].SequenceEqual("TIT2"u8))
                 {
                     title = DecodeText(payload);
-                    if (title is null) return null;
+                    if (title is null) { hasDamagedText = true; return null; }
                 }
                 else if (frame[..4].SequenceEqual("TPE1"u8))
                 {
                     artist = DecodeText(payload);
-                    if (artist is null) return null;
+                    if (artist is null) { hasDamagedText = true; return null; }
                 }
             }
             offset += 10 + frameSize;
         }
 
         if (string.IsNullOrWhiteSpace(title)) return null;
+        hasDamagedText = title.Contains('\uFFFD', StringComparison.Ordinal)
+            || artist?.Contains('\uFFFD', StringComparison.Ordinal) == true;
         return string.IsNullOrWhiteSpace(artist)
             ? IcyTrackParser.Parse(title, stationName)
             : IcyTrackParser.Accept(new RadioTrackInfo(title, artist), stationName);

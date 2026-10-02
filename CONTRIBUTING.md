@@ -174,7 +174,7 @@ public class MainViewModel : INotifyPropertyChanged
 ## Areas for Contribution
 
 ### Feature Enhancements
-- Additional podcast directory integration
+- Radio directory and stream metadata interoperability
 - Playlist management
 - Episode bookmarking
 - Playback speed control

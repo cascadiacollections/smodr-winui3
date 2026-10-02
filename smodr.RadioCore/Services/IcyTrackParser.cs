@@ -27,6 +27,16 @@ public static class IcyTrackParser
     internal static RadioTrackInfo? Accept(RadioTrackInfo info, string stationName) =>
         IsLikelySong(info, stationName) ? info : null;
 
+    /// <summary>Distinguishes a damaged song cue from empty metadata or advertising.</summary>
+    public static bool IsDamagedSongCue(string? raw, string stationName)
+    {
+        if (string.IsNullOrWhiteSpace(raw) || raw.Length > 4096) return false;
+        var info = ParseCore(raw.TrimEnd('\0'), 0);
+        return info is not null && (info.Title.Contains('\uFFFD', StringComparison.Ordinal)
+            || info.Artist?.Contains('\uFFFD', StringComparison.Ordinal) == true)
+            && IsLikelySong(info, stationName, allowDamagedText: true);
+    }
+
     /// <summary>Some broadcasters emit a second cue with title in the artist
     /// field and "artist - album" in the title field for the same song.</summary>
     public static bool IsAlbumEcho(RadioTrackInfo? current, RadioTrackInfo candidate) =>
@@ -135,14 +145,14 @@ public static class IcyTrackParser
         || value.StartsWith("TrackId=", StringComparison.OrdinalIgnoreCase)
         || value.StartsWith("StreamUrl=", StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsLikelySong(RadioTrackInfo info, string stationName)
+    private static bool IsLikelySong(RadioTrackInfo info, string stationName, bool allowDamagedText = false)
     {
         if (info.Title.Length == 0 || info.Title.Length > 300 || info.Artist?.Length > 200) return false;
         foreach (var value in new[] { info.Title, info.Artist }.Where(value => value is not null))
         {
             // Original bytes are unrecoverable once a replacement character is
             // received. Reject damaged text rather than guessing an artist.
-            if (value!.Contains('\uFFFD', StringComparison.Ordinal)) return false;
+            if (!allowDamagedText && value!.Contains('\uFFFD', StringComparison.Ordinal)) return false;
             if (value!.Contains("http://", StringComparison.OrdinalIgnoreCase)
                 || value.Contains("https://", StringComparison.OrdinalIgnoreCase)
                 || value.Contains("www.", StringComparison.OrdinalIgnoreCase)

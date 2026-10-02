@@ -69,12 +69,6 @@
           "Microsoft.WindowsAppSDK.WinUI": "2.3.6"
         }
       },
-      "System.ServiceModel.Syndication": {
-        "type": "Direct",
-        "requested": "[10.0.5, )",
-        "resolved": "10.0.5",
-        "contentHash": "lMzvEBS8dnq+TH4Ff50abQRMlbVTTBMenAmv/ILyaY3Mpf4+k/IlQtIl3uAyoNX/nXfKZp+1NyBWpxDSsMs6iA=="
-      },
       "CommunityToolkit.Common": {
         "type": "Transitive",
         "resolved": "8.2.1",

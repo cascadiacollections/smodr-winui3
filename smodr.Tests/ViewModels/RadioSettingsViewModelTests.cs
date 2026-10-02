@@ -114,6 +114,21 @@ public sealed class RadioSettingsViewModelTests
         Assert.IsFalse(settings.HasError);
     }
 
+    [TestMethod]
+    public async Task ShutdownFlushWaitsForTheEntireSettingsEdit()
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var settings = new RadioSettingsViewModel(new StubPrivacy { BeforeSave = () => completion.Task });
+        var edit = settings.SetPlayReportingEnabledAsync(false);
+        var flush = settings.FlushAsync();
+        Assert.IsFalse(flush.IsCompleted);
+        completion.SetResult();
+        await flush;
+        await edit;
+        Assert.IsFalse(settings.IsSaving);
+        Assert.IsFalse(settings.IsPlayReportingEnabled);
+    }
+
     private sealed class StubPrivacy : IRadioPrivacySettings
     {
         public Func<Task> BeforeSave { get; set; } = () => Task.CompletedTask;

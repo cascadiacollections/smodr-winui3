@@ -848,25 +848,6 @@
       "MetadataSha256": "8fb1a4bf8db0a61d57fd01f1e4631ddec563392f83542d24dae4f18ff589b949"
     },
     {
-      "Id": "System.ServiceModel.Syndication",
-      "Version": "10.0.5",
-      "ContentHash": "lMzvEBS8dnq+TH4Ff50abQRMlbVTTBMenAmv/ILyaY3Mpf4+k/IlQtIl3uAyoNX/nXfKZp+1NyBWpxDSsMs6iA==",
-      "Origin": "App lockfile (includes build-time dependencies)",
-      "BuildOnly": false,
-      "Authors": "Microsoft",
-      "Copyright": "© Microsoft Corporation. All rights reserved.",
-      "LicenseKind": "expression",
-      "License": "MIT",
-      "PackageUrl": "https://www.nuget.org/packages/System.ServiceModel.Syndication/10.0.5",
-      "NoticeFiles": [
-        {
-          "File": "THIRD-PARTY-NOTICES.TXT",
-          "Sha256": "b7d4569659507a00efeea90f15a0a95bb2f8b6ce33737d86090b8e22c74a8c98"
-        }
-      ],
-      "MetadataSha256": "2436db4c8ad9fc2d5a4b7286f4f40217860a3d5ae7a186ecf722793f579057c2"
-    },
-    {
       "Id": "System.Threading.RateLimiting",
       "Version": "8.0.0",
       "ContentHash": "7mu9v0QDv66ar3DpGSZHg9NuNcxDaaAcnMULuZlaTpP9+hwXhrxNGsF5GmLkSHxFdb5bBc1TzeujsRgTrPWi+Q==",

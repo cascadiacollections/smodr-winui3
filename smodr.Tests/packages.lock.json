@@ -464,7 +464,6 @@
           "Microsoft.Extensions.Http.Resilience": "[10.10.0, )",
           "Microsoft.Windows.SDK.BuildTools": "[10.0.26100.7705, )",
           "Microsoft.WindowsAppSDK": "[2.4.0, )",
-          "System.ServiceModel.Syndication": "[10.0.5, )",
           "smodr.RadioCore": "[1.0.0, )"
         }
       },
@@ -537,12 +536,6 @@
           "Microsoft.WindowsAppSDK.Widgets": "2.0.5",
           "Microsoft.WindowsAppSDK.WinUI": "2.3.6"
         }
-      },
-      "System.ServiceModel.Syndication": {
-        "type": "CentralTransitive",
-        "requested": "[10.0.5, )",
-        "resolved": "10.0.5",
-        "contentHash": "lMzvEBS8dnq+TH4Ff50abQRMlbVTTBMenAmv/ILyaY3Mpf4+k/IlQtIl3uAyoNX/nXfKZp+1NyBWpxDSsMs6iA=="
       }
     }
   }

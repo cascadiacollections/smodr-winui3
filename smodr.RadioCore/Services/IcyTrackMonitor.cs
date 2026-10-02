@@ -25,6 +25,7 @@ public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
     private bool _disposed;
 
     public event EventHandler<RadioTrackUpdate>? TrackChanged;
+    public event EventHandler<RadioStation>? TrackInvalidated;
 
     public void Start(RadioStation station)
     {
@@ -86,15 +87,31 @@ public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
         CancellationTokenSource cancellation)
     {
         RadioTrackInfo? previousTrack = null;
+        var previousCueDamaged = false;
         var nextContinuousAttempt = DateTimeOffset.MinValue;
         void Publish(string raw)
         {
             var track = IcyTrackParser.Parse(raw, station.Name);
+            if (track is null && IcyTrackParser.IsDamagedSongCue(raw, station.Name))
+            {
+                lock (_gate)
+                {
+                    if (generation != _generation || _disposed || previousCueDamaged) return;
+                    previousCueDamaged = true;
+                    previousTrack = null;
+                }
+                // Log only the category, never titles, artist names, or stream URLs.
+                AppDiagnostics.Record("track.damaged-icy-cue", new InvalidDataException());
+                try { TrackInvalidated?.Invoke(this, station); }
+                catch (Exception exception) { AppDiagnostics.Record("track.callback", exception); }
+                return;
+            }
             if (track is null || track == previousTrack) return;
             lock (_gate)
             {
                 if (generation != _generation || _disposed) return;
                 previousTrack = track;
+                previousCueDamaged = false;
             }
             try { TrackChanged?.Invoke(this, new RadioTrackUpdate(station, track)); }
             catch (Exception exception) { AppDiagnostics.Record("track.callback", exception); }

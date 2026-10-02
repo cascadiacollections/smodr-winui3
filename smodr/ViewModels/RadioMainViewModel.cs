@@ -20,6 +20,9 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     private readonly PlaybackSleepTimer _sleepTimer;
     private readonly ITrackHistoryService? _trackHistory;
     private readonly IAlbumArtworkLookup? _albumArtworkLookup;
+    private readonly IStationStreamResolver? _streamResolver;
+    private CancellationTokenSource? _selectionCancellation;
+    private int _selectionVersion;
     private readonly Func<bool> _canPrefetch;
     private readonly Action<Action> _dispatch;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
@@ -43,7 +46,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         PlaybackSleepTimer? sleepTimer = null,
         ITrackHistoryService? trackHistory = null,
         IAlbumArtworkLookup? albumArtworkLookup = null,
-        Func<bool>? canPrefetch = null)
+        Func<bool>? canPrefetch = null,
+        IStationStreamResolver? streamResolver = null)
     {
         if (dispatch is null)
         {
@@ -64,6 +68,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _sleepTimer = sleepTimer ?? new PlaybackSleepTimer();
         _trackHistory = trackHistory;
         _albumArtworkLookup = albumArtworkLookup;
+        _streamResolver = streamResolver;
         _canPrefetch = canPrefetch ?? WindowsWarmupPolicy.CanPrefetch;
         _sleepTimer.Elapsed += SleepTimer_Elapsed;
         _audio.StationChanged += Audio_StationChanged;
@@ -314,6 +319,11 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
 
     private async Task PlayStationCoreAsync(RadioStation station, bool reportPlay)
     {
+        CancelPendingSelection();
+        if (Volatile.Read(ref _disposed) != 0) return;
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCancellation.Token);
+        _selectionCancellation = cancellation;
+        var version = _selectionVersion;
         try
         {
             // The player changes station synchronously, while the UI property may
@@ -336,7 +346,10 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             }
 
             _reportCurrentStation = false;
-            await _audio.PlayStationAsync(station);
+            var resolved = _streamResolver is null ? station : await _streamResolver.ResolveAsync(station, cancellation.Token);
+            if (cancellation.IsCancellationRequested || version != _selectionVersion || Volatile.Read(ref _disposed) != 0) return;
+            await _audio.PlayStationAsync(resolved);
+            if (cancellation.IsCancellationRequested || version != _selectionVersion || Volatile.Read(ref _disposed) != 0) return;
             _reportCurrentStation = reportPlay;
             if (reportPlay) ReportExplicitPlay(station);
             try
@@ -350,13 +363,33 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             catch (Exception exception)
             {
                 AppDiagnostics.Record("library.recent-save", exception);
-                Status = "Playing, but recent stations could not be saved.";
+                if (version == _selectionVersion && Volatile.Read(ref _disposed) == 0)
+                    Status = "Playing, but recent stations could not be saved.";
             }
         }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception ex)
         {
-            ReportPlaybackFailure(ex);
+            if (version == _selectionVersion && Volatile.Read(ref _disposed) == 0) ReportPlaybackFailure(ex);
         }
+        finally { if (ReferenceEquals(_selectionCancellation, cancellation)) _selectionCancellation = null; }
+    }
+
+    public Task PlaySavedStationAsync(RadioStation station)
+    {
+        var active = _audio.CurrentStation ?? CurrentStation;
+        if (active is not null && RadioStationIdentity.Matches(active, station) && _audio.IsPlaybackRequested)
+        { CancelPendingSelection(); return Task.CompletedTask; }
+        return PlayStationCoreAsync(station, reportPlay: true);
+    }
+
+    private void CancelPendingSelection()
+    {
+        _selectionVersion++;
+        var pending = _selectionCancellation;
+        _selectionCancellation = null;
+        try { pending?.Cancel(); }
+        catch (ObjectDisposedException) { }
     }
 
     public Task PlayStationFromLinkAsync(RadioStation station)
@@ -365,6 +398,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         if (activeStation is null || !RadioStationIdentity.Matches(activeStation, station))
             return PlayStationCoreAsync(station, reportPlay: false);
         if (!_audio.IsPlaybackRequested) PlayPauseCore(reportPlay: false);
+        else CancelPendingSelection();
         return Task.CompletedTask;
     }
 
@@ -372,6 +406,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
 
     private void PlayPauseCore(bool reportPlay)
     {
+        CancelPendingSelection();
         try
         {
             if (_audio.IsPlaybackRequested)
@@ -404,6 +439,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
 
     public void Stop()
     {
+        CancelPendingSelection();
         try
         {
             _audio.StopStation();
@@ -461,6 +497,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _audio.UserPlaybackStarted -= Audio_UserPlaybackStarted;
         _sleepTimer.Elapsed -= SleepTimer_Elapsed;
         _sleepTimer.Dispose();
+        CancelPendingSelection();
         CancelArtworkLookup();
         _lifetimeCancellation.Cancel();
         var currentSearch = Interlocked.Exchange(ref _searchCancellation, null);
@@ -619,6 +656,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _dispatch(() =>
         {
             if (Volatile.Read(ref _disposed) != 0 || _sleepTimer.EndsAt is not null) return;
+            CancelPendingSelection();
             OnPropertyChanged(nameof(SleepTimerEndsAt));
             if (_audio.CurrentStation is null || !_audio.IsPlaybackRequested) return;
             try { _audio.Pause(); }

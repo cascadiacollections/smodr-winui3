@@ -30,6 +30,7 @@ public sealed class IcyMetadataProbe(HttpClient httpClient) : ITrackMetadataProb
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         var buffer = new byte[4096];
         var audioBytesRead = 0;
+        string? damagedCue = null;
         while (audioBytesRead + interval <= MaxAudioBytes)
         {
             var remaining = interval;
@@ -37,14 +38,14 @@ public sealed class IcyMetadataProbe(HttpClient httpClient) : ITrackMetadataProb
             {
                 var read = await stream.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, remaining)),
                     cancellationToken).ConfigureAwait(false);
-                if (read == 0) return new IcyProbeResult(true, null);
+                if (read == 0) return new IcyProbeResult(true, damagedCue);
                 remaining -= read;
             }
             audioBytesRead += interval;
 
             var lengthByte = new byte[1];
             if (await stream.ReadAsync(lengthByte, cancellationToken).ConfigureAwait(false) == 0)
-                return new IcyProbeResult(true, null);
+                return new IcyProbeResult(true, damagedCue);
             var metadataLength = lengthByte[0] * 16;
             if (metadataLength == 0) continue;
             if (metadataLength > MaxMetadataLength) return new IcyProbeResult(true, null);
@@ -53,9 +54,10 @@ public sealed class IcyMetadataProbe(HttpClient httpClient) : ITrackMetadataProb
             var raw = Decode(metadata).TrimEnd('\0').Trim();
             if (IcyTrackParser.Parse(raw, string.Empty) is not null)
                 return new IcyProbeResult(true, raw);
+            if (IcyTrackParser.IsDamagedSongCue(raw, string.Empty)) damagedCue = raw;
         }
 
-        return new IcyProbeResult(true, null);
+        return new IcyProbeResult(true, damagedCue);
     }
 
     internal static bool TryGetInterval(HttpResponseHeaders responseHeaders,

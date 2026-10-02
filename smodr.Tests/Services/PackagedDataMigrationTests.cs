@@ -16,10 +16,12 @@ public sealed class PackagedDataMigrationTests
             Directory.CreateDirectory(legacy);
             await File.WriteAllTextAsync(Path.Combine(legacy, "library.json"), "legacy-library");
             await File.WriteAllTextAsync(Path.Combine(legacy, "privacy-settings.json"), "legacy-privacy");
+            await File.WriteAllTextAsync(Path.Combine(legacy, "playback-settings.json"), "legacy-playback");
             await File.WriteAllTextAsync(Path.Combine(legacy, "unexpected.json"), "not imported");
 
             PackagedDataMigration.Import(legacy, packaged);
             Assert.AreEqual("legacy-library", await File.ReadAllTextAsync(Path.Combine(packaged, "library.json")));
+            Assert.AreEqual("legacy-playback", await File.ReadAllTextAsync(Path.Combine(packaged, "playback-settings.json")));
             Assert.IsFalse(File.Exists(Path.Combine(packaged, "unexpected.json")));
             await File.WriteAllTextAsync(Path.Combine(packaged, "library.json"), "packaged-library");
             PackagedDataMigration.Import(legacy, packaged);

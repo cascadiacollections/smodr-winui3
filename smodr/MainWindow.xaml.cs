@@ -14,22 +14,30 @@ using Windows.System;
 
 namespace smodr;
 
+#pragma warning disable CA1001 // Window.Closed owns cancellation/teardown; this is not a separately disposable service.
 public sealed partial class MainWindow : Window
+#pragma warning restore CA1001
 {
     private AppWindow? _appWindow;
     private bool _closingAfterFlush;
     private bool _closeAfterFlush;
     private bool _closed;
     private bool _settingsReady;
+    private readonly RadioStreamPrewarmer? _prewarmer;
+    private readonly RadioJumpList? _jumpList;
+    private readonly CancellationTokenSource _warmupCancellation = new();
     private readonly DispatcherTimer _sleepCountdownTimer = new() { Interval = TimeSpan.FromSeconds(30) };
 
     public RadioMainViewModel ViewModel { get; }
     public RadioSettingsViewModel Settings { get; }
 
-    public MainWindow(RadioMainViewModel viewModel, RadioSettingsViewModel settings)
+    internal MainWindow(RadioMainViewModel viewModel, RadioSettingsViewModel settings,
+        RadioStreamPrewarmer? prewarmer = null, RadioJumpList? jumpList = null)
     {
         ViewModel = viewModel;
         Settings = settings;
+        _prewarmer = prewarmer;
+        _jumpList = jumpList;
         InitializeComponent();
         HeroArtwork.AccentColorChanged += HeroArtwork_AccentColorChanged;
         _settingsReady = true;
@@ -45,16 +53,35 @@ public sealed partial class MainWindow : Window
 
         AppNavigation.SelectedItem = ListenNowItem;
         UpdateLibraryVisibility();
+        UpdateJumpList();
         Closed += MainWindow_Closed;
         _ = LoadAndWarmAsync();
     }
 
     private async Task LoadAndWarmAsync()
     {
-        await ViewModel.LoadPopularAsync();
-        if (_closed || ViewModel.PopularStations.Count == 0 || ViewModel.Status.Length != 0) return;
-        await Task.Delay(TimeSpan.FromSeconds(5));
-        if (!_closed) await ViewModel.WarmGenresAsync();
+        try
+        {
+            await ViewModel.LoadPopularAsync();
+            if (_closed) return;
+            await Task.Delay(TimeSpan.FromSeconds(5), _warmupCancellation.Token);
+            if (_prewarmer is not null && ViewModel.CurrentStation is null)
+                await _prewarmer.WarmAsync((RadioStation[])[.. ViewModel.Recents, .. ViewModel.Favorites], _warmupCancellation.Token);
+            if (!_closed && ViewModel.PopularStations.Count != 0 && ViewModel.Status.Length == 0)
+                await ViewModel.WarmGenresAsync();
+        }
+        catch (OperationCanceledException) when (_warmupCancellation.IsCancellationRequested) { }
+        catch (Exception exception) { AppDiagnostics.Record("window.warmup", exception); }
+    }
+
+    public async Task OpenQuickStationAsync(string id)
+    {
+        if (_closed) return;
+        var station = ViewModel.Favorites.Concat(ViewModel.Recents)
+            .FirstOrDefault(station => string.Equals(station.Id, id, StringComparison.OrdinalIgnoreCase));
+        if (station is null) return;
+        AppNavigation.SelectedItem = ListenNowItem;
+        await ViewModel.PlaySavedStationAsync(station);
     }
 
     public async Task OpenStationLinkAsync(StationLaunchLink link)
@@ -99,6 +126,8 @@ public sealed partial class MainWindow : Window
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
         _closed = true;
+        _warmupCancellation.Cancel();
+        _prewarmer?.Clear();
         _sleepCountdownTimer.Stop();
         _sleepCountdownTimer.Tick -= SleepCountdownTimer_Tick;
         if (_appWindow is not null)
@@ -112,6 +141,7 @@ public sealed partial class MainWindow : Window
         ViewModel.TopTracks.CollectionChanged -= LibraryCollectionChanged;
         HeroArtwork.AccentColorChanged -= HeroArtwork_AccentColorChanged;
         ViewModel.Dispose();
+        _warmupCancellation.Dispose();
     }
 
     private async void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
@@ -121,7 +151,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var pending = Task.WhenAll(ViewModel.FlushLibraryAsync(), ViewModel.FlushDirectoryCacheAsync(), ViewModel.FlushPrivacySettingsAsync(), ViewModel.FlushTrackHistoryAsync());
+        var pending = FlushPendingAsync();
         if (pending.IsCompleted)
         {
             return;
@@ -139,7 +169,7 @@ public sealed partial class MainWindow : Window
             do
             {
                 await pending;
-                pending = Task.WhenAll(ViewModel.FlushLibraryAsync(), ViewModel.FlushDirectoryCacheAsync(), ViewModel.FlushPrivacySettingsAsync(), ViewModel.FlushTrackHistoryAsync());
+                pending = FlushPendingAsync();
             } while (!pending.IsCompleted);
         }
         catch (Exception exception)
@@ -152,6 +182,10 @@ public sealed partial class MainWindow : Window
             Close();
         }
     }
+
+    private Task FlushPendingAsync() => Task.WhenAll(ViewModel.FlushLibraryAsync(), ViewModel.FlushDirectoryCacheAsync(),
+        ViewModel.FlushPrivacySettingsAsync(), ViewModel.FlushTrackHistoryAsync(), Settings.FlushAsync(),
+        _jumpList?.FlushAsync() ?? Task.CompletedTask);
 
     private void AppNavigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
@@ -443,8 +477,36 @@ public sealed partial class MainWindow : Window
         StatusInfoBar.Message = isError ? ViewModel.Status : string.Empty;
     }
 
-    private void LibraryCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
+    private void LibraryCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
         UpdateLibraryVisibility();
+        if (ReferenceEquals(sender, ViewModel.Favorites) || ReferenceEquals(sender, ViewModel.Recents)) UpdateJumpList();
+    }
+
+    private void UpdateJumpList()
+    {
+        if (!_closed && _jumpList is not null) _ = _jumpList.UpdateAsync((RadioStation[])[.. ViewModel.Favorites], (RadioStation[])[.. ViewModel.Recents]);
+    }
+
+    private async void PrewarmSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_settingsReady) await Settings.SetStreamPrewarmingEnabledAsync(PrewarmSwitch.IsOn);
+    }
+
+    private async void LoopBroadcastsSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_settingsReady) await Settings.SetLoopFinishedBroadcastsEnabledAsync(LoopBroadcastsSwitch.IsOn);
+    }
+
+    private async void EqualizerBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_settingsReady) await Settings.SetEqualizerPresetAsync(EqualizerBox.SelectedIndex);
+    }
+
+    private async void JumpListSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_settingsReady) await Settings.SetJumpListEnabledAsync(JumpListSwitch.IsOn);
+    }
 
     private void TopTracksTimeframeBox_SelectionChanged(object sender, SelectionChangedEventArgs args)
     {
@@ -471,4 +533,5 @@ public sealed partial class MainWindow : Window
             ? Visibility.Visible
             : Visibility.Collapsed;
     }
+
 }

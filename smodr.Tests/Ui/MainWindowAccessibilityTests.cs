@@ -59,8 +59,8 @@ public sealed class MainWindowAccessibilityTests
         var settings = document.Descendants().Single(element =>
             (string?)element.Attribute(_xaml + "Name") == "SettingsView");
         Assert.IsTrue(settings.Descendants().Any(element => element.Name.LocalName == "ScrollViewer"));
-        Assert.HasCount(3, settings.Descendants().Where(element => element.Name.LocalName == "SettingsCard"));
-        foreach (var action in settings.Descendants().Where(element => element.Name.LocalName == "ToggleSwitch"
+        Assert.HasCount(7, settings.Descendants().Where(element => element.Name.LocalName == "SettingsCard"));
+        foreach (var action in settings.Descendants().Where(element => element.Name.LocalName is "ToggleSwitch" or "ComboBox"
             || (element.Name.LocalName == "SettingsCard" && (string?)element.Attribute("IsClickEnabled") == "True")))
         {
             Assert.IsFalse(string.IsNullOrWhiteSpace((string?)action.Attribute("AutomationProperties.Name")),
@@ -76,11 +76,24 @@ public sealed class MainWindowAccessibilityTests
             (string?)element.Attribute(_xaml + "Name") == "SettingsView");
         foreach (var toggle in settings.Descendants().Where(element => element.Name.LocalName == "ToggleSwitch"))
         {
-            Assert.AreEqual("{x:Bind Settings.CanEdit, Mode=OneWay}", (string?)toggle.Attribute("IsEnabled"));
-            var property = (string?)toggle.Attribute(_xaml + "Name") == "PlayReportingSwitch"
-                ? "IsPlayReportingEnabled" : "IsAlbumArtworkEnabled";
+            var name = (string?)toggle.Attribute(_xaml + "Name");
+            var property = name switch
+            {
+                "PlayReportingSwitch" => "IsPlayReportingEnabled",
+                "AlbumArtworkSwitch" => "IsAlbumArtworkEnabled",
+                "PrewarmSwitch" => "IsStreamPrewarmingEnabled",
+                "LoopBroadcastsSwitch" => "IsLoopFinishedBroadcastsEnabled",
+                "JumpListSwitch" => "IsJumpListEnabled",
+                _ => throw new InvalidOperationException("Unexpected settings toggle")
+            };
+            var busy = name == "JumpListSwitch" ? "CanEditJumpLists"
+                : name is "PrewarmSwitch" or "LoopBroadcastsSwitch" ? "CanEditPlayback" : "CanEdit";
+            Assert.AreEqual($"{{x:Bind Settings.{busy}, Mode=OneWay}}", (string?)toggle.Attribute("IsEnabled"));
             Assert.AreEqual($"{{x:Bind Settings.{property}, Mode=OneWay}}", (string?)toggle.Attribute("IsOn"));
         }
+        var equalizer = settings.Descendants().Single(element => (string?)element.Attribute(_xaml + "Name") == "EqualizerBox");
+        Assert.AreEqual("{x:Bind Settings.CanEditPlayback, Mode=OneWay}", (string?)equalizer.Attribute("IsEnabled"));
+        Assert.AreEqual("{x:Bind Settings.SelectedEqualizerPreset, Mode=OneWay}", (string?)equalizer.Attribute("SelectedIndex"));
         var error = settings.Descendants().Single(element => element.Name.LocalName == "InfoBar");
         Assert.AreEqual("{x:Bind Settings.HasError, Mode=OneWay}", (string?)error.Attribute("IsOpen"));
         Assert.AreEqual("{x:Bind Settings.ErrorMessage, Mode=OneWay}", (string?)error.Attribute("Message"));
