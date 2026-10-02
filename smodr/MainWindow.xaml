@@ -202,14 +202,21 @@
                     <StackPanel Spacing="18" MaxWidth="680" HorizontalAlignment="Left">
                         <TextBlock Text="Settings" Style="{ThemeResource TitleLargeTextBlockStyle}"/>
                         <TextBlock Text="Privacy" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                        <InfoBar Title="Setting not saved" Severity="Error" IsClosable="False"
+                                 IsOpen="{x:Bind Settings.HasError, Mode=OneWay}"
+                                 Message="{x:Bind Settings.ErrorMessage, Mode=OneWay}"/>
                         <toolkit:SettingsCard Header="Report plays to Radio Browser"
                                               Description="Sends the station ID when you start or resume a directory station. Pausing and automatic reconnect do not send a report.">
                             <ToggleSwitch x:Name="PlayReportingSwitch" AutomationProperties.Name="Report plays to Radio Browser"
+                                          IsOn="{x:Bind Settings.IsPlayReportingEnabled, Mode=OneWay}"
+                                          IsEnabled="{x:Bind Settings.CanEdit, Mode=OneWay}"
                                           OnContent="On" OffContent="Off" Toggled="PlayReportingSwitch_Toggled"/>
                         </toolkit:SettingsCard>
                         <toolkit:SettingsCard Header="Show album artwork for live tracks"
                                               Description="Sends recognized artist and title to Apple's iTunes Search API. Station artwork remains the fallback.">
                             <ToggleSwitch x:Name="AlbumArtworkSwitch" AutomationProperties.Name="Show album artwork for live tracks"
+                                          IsOn="{x:Bind Settings.IsAlbumArtworkEnabled, Mode=OneWay}"
+                                          IsEnabled="{x:Bind Settings.CanEdit, Mode=OneWay}"
                                           OnContent="On" OffContent="Off" Toggled="AlbumArtworkSwitch_Toggled"/>
                         </toolkit:SettingsCard>
                         <TextBlock Text="About" Style="{ThemeResource SubtitleTextBlockStyle}"/>

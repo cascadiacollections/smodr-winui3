@@ -21,17 +21,16 @@ public sealed partial class MainWindow : Window
     private bool _closeAfterFlush;
     private bool _closed;
     private bool _settingsReady;
-    private bool _settingsWritePending;
     private readonly DispatcherTimer _sleepCountdownTimer = new() { Interval = TimeSpan.FromSeconds(30) };
 
     public RadioMainViewModel ViewModel { get; }
+    public RadioSettingsViewModel Settings { get; }
 
-    public MainWindow(RadioMainViewModel viewModel)
+    public MainWindow(RadioMainViewModel viewModel, RadioSettingsViewModel settings)
     {
         ViewModel = viewModel;
+        Settings = settings;
         InitializeComponent();
-        PlayReportingSwitch.IsOn = ViewModel.IsPlayReportingEnabled;
-        AlbumArtworkSwitch.IsOn = ViewModel.IsAlbumArtworkEnabled;
         HeroArtwork.AccentColorChanged += HeroArtwork_AccentColorChanged;
         _settingsReady = true;
         _sleepCountdownTimer.Tick += SleepCountdownTimer_Tick;
@@ -294,68 +293,18 @@ public sealed partial class MainWindow : Window
 
     private async void PlayReportingSwitch_Toggled(object sender, RoutedEventArgs e)
     {
-        if (!_settingsReady || _settingsWritePending) return;
-        SetSettingsWritePending(true);
-        try { await ViewModel.SetPlayReportingEnabledAsync(PlayReportingSwitch.IsOn); }
-        catch (Exception exception)
-        {
-            AppDiagnostics.Record("privacy.write", exception);
-            RestoreSettingsSwitches();
-            StatusInfoBar.Severity = InfoBarSeverity.Error;
-            StatusInfoBar.Title = "Setting not saved";
-            StatusInfoBar.Message = "Your play-reporting choice could not be saved. The previous choice was restored.";
-            StatusInfoBar.IsOpen = true;
-        }
-        finally { SetSettingsWritePending(false); }
+        if (_settingsReady) await Settings.SetPlayReportingEnabledAsync(PlayReportingSwitch.IsOn);
     }
 
     private async void AlbumArtworkSwitch_Toggled(object sender, RoutedEventArgs e)
     {
-        if (!_settingsReady || _settingsWritePending) return;
-        SetSettingsWritePending(true);
-        try { await ViewModel.SetAlbumArtworkEnabledAsync(AlbumArtworkSwitch.IsOn); }
-        catch (Exception exception)
-        {
-            AppDiagnostics.Record("privacy.artwork-write", exception);
-            RestoreSettingsSwitches();
-            StatusInfoBar.Severity = InfoBarSeverity.Error;
-            StatusInfoBar.Title = "Setting not saved";
-            StatusInfoBar.Message = "Your album-artwork choice could not be saved. The previous choice was restored.";
-            StatusInfoBar.IsOpen = true;
-        }
-        finally { SetSettingsWritePending(false); }
-    }
-
-    private void SetSettingsWritePending(bool pending)
-    {
-        _settingsWritePending = pending;
-        PlayReportingSwitch.IsEnabled = !pending;
-        AlbumArtworkSwitch.IsEnabled = !pending;
-    }
-
-    private void RestoreSettingsSwitches()
-    {
-        _settingsReady = false;
-        try
-        {
-            PlayReportingSwitch.IsOn = ViewModel.IsPlayReportingEnabled;
-            AlbumArtworkSwitch.IsOn = ViewModel.IsAlbumArtworkEnabled;
-        }
-        finally { _settingsReady = true; }
+        if (_settingsReady) await Settings.SetAlbumArtworkEnabledAsync(AlbumArtworkSwitch.IsOn);
     }
 
     private async void SoftwareLicenses_Click(object sender, RoutedEventArgs e)
     {
-        string notices;
-        try
-        {
-            notices = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "Assets", "SoftwareLicenses.txt"));
-        }
-        catch (Exception exception)
-        {
-            AppDiagnostics.Record("licenses.read", exception);
-            notices = "Software license notices are unavailable in this installation. See LICENSE.txt and the package lockfile in the project repository.";
-        }
+        var notices = await Settings.LoadSoftwareLicensesAsync();
+        if (_closed) return;
 
         var dialog = new ContentDialog
         {

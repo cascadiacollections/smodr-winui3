@@ -96,12 +96,16 @@ public partial class App : Application
         services.AddSingleton<PlaybackSleepTimer>();
         services.AddRadioDirectoryHttpClients();
         services.AddSingleton<RadioMainViewModel>();
+        services.AddSingleton(provider => new RadioSettingsViewModel(
+            provider.GetRequiredService<IRadioPrivacySettings>(),
+            provider.GetRequiredService<RadioMainViewModel>().SetAlbumArtworkEnabledAsync));
         _services = services.BuildServiceProvider(validateScopes: true);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        _window = new MainWindow(_services.GetRequiredService<RadioMainViewModel>());
+        _window = new MainWindow(_services.GetRequiredService<RadioMainViewModel>(),
+            _services.GetRequiredService<RadioSettingsViewModel>());
         MainWindow = _window;
         _window.Closed += (_, _) => _services.Dispose();
         _window.Activate();

@@ -67,4 +67,22 @@ public sealed class MainWindowAccessibilityTests
                 $"Settings action {action.Name.LocalName} needs an accessible name.");
         }
     }
+
+    [TestMethod]
+    public void SettingsBindDurableChoicesBusyStateAndLocalErrors()
+    {
+        var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml"));
+        var settings = document.Descendants().Single(element =>
+            (string?)element.Attribute(_xaml + "Name") == "SettingsView");
+        foreach (var toggle in settings.Descendants().Where(element => element.Name.LocalName == "ToggleSwitch"))
+        {
+            Assert.AreEqual("{x:Bind Settings.CanEdit, Mode=OneWay}", (string?)toggle.Attribute("IsEnabled"));
+            var property = (string?)toggle.Attribute(_xaml + "Name") == "PlayReportingSwitch"
+                ? "IsPlayReportingEnabled" : "IsAlbumArtworkEnabled";
+            Assert.AreEqual($"{{x:Bind Settings.{property}, Mode=OneWay}}", (string?)toggle.Attribute("IsOn"));
+        }
+        var error = settings.Descendants().Single(element => element.Name.LocalName == "InfoBar");
+        Assert.AreEqual("{x:Bind Settings.HasError, Mode=OneWay}", (string?)error.Attribute("IsOpen"));
+        Assert.AreEqual("{x:Bind Settings.ErrorMessage, Mode=OneWay}", (string?)error.Attribute("Message"));
+    }
 }
