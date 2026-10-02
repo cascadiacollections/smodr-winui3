@@ -10,7 +10,7 @@
         </Grid.ContextFlyout>
         <Grid.ColumnDefinitions><ColumnDefinition Width="52"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
         <Border Width="52" Height="52" CornerRadius="12" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
-            <local:StationArtworkControl ArtworkUrl="{x:Bind Station.ArtworkUrl, Mode=OneWay}"/>
+            <local:StationArtworkControl ArtworkUrl="{x:Bind Station.ArtworkUrl, Mode=OneWay}" ImageStretch="Uniform"/>
         </Border>
         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
             <TextBlock Text="{x:Bind Station.Name, Mode=OneWay}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>

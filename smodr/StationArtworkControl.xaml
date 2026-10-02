@@ -5,6 +5,6 @@
     <Grid>
         <FontIcon x:Name="Placeholder" Glyph="&#xE720;" Opacity="0.35"
                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        <Image x:Name="ArtworkImage" Stretch="UniformToFill"/>
+        <Image x:Name="ArtworkImage" Stretch="{x:Bind ImageStretch, Mode=OneWay}"/>
     </Grid>
 </UserControl>
