@@ -14,6 +14,7 @@ public sealed class RadioDirectoryHttpClientsTests
         var reportCount = 0;
         var services = new ServiceCollection();
         services.AddRadioDirectoryHttpClients();
+        services.AddSingleton<IRadioBrowserServerProvider>(new StubServers());
         services.AddHttpClient(RadioDirectoryHttpClients.ReadClient)
             .ConfigurePrimaryHttpMessageHandler(() => new StubHandler(_ =>
             {
@@ -44,5 +45,11 @@ public sealed class RadioDirectoryHttpClientsTests
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken) =>
             Task.FromResult(respond(request));
+    }
+
+    private sealed class StubServers : IRadioBrowserServerProvider
+    {
+        public Task<IReadOnlyList<Uri>> GetServersAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Uri>>((Uri[])[new Uri("https://one.example/"), new Uri("https://two.example/"), new Uri("https://three.example/")]);
     }
 }

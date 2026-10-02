@@ -13,6 +13,7 @@ internal static class RadioDirectoryHttpClients
 
     public static IServiceCollection AddRadioDirectoryHttpClients(this IServiceCollection services)
     {
+        services.AddSingleton<IRadioBrowserServerProvider, RadioBrowserServers>();
         services.AddHttpClient(ReadClient, client => client.Timeout = TimeSpan.FromSeconds(8))
             .AddResilienceHandler("directory-read-retry", builder => builder.AddRetry(new HttpRetryStrategyOptions
             {
@@ -32,7 +33,8 @@ internal static class RadioDirectoryHttpClients
         {
             var factory = provider.GetRequiredService<IHttpClientFactory>();
             return new RadioDirectoryService(factory.CreateClient(ReadClient),
-                reportClient: factory.CreateClient(ReportClient));
+                reportClient: factory.CreateClient(ReportClient),
+                serverProvider: provider.GetRequiredService<IRadioBrowserServerProvider>());
         });
         services.AddTransient<IRadioDirectoryService>(provider => provider.GetRequiredService<RadioDirectoryService>());
         services.AddTransient<IStationPlayReporter>(provider => provider.GetRequiredService<RadioDirectoryService>());

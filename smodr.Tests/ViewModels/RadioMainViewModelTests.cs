@@ -287,7 +287,7 @@ public sealed class RadioMainViewModelTests
     }
 
     [TestMethod]
-    public async Task NewSelectionReportsOnceButResumeDoesNot()
+    public async Task NewSelectionAndExplicitResumeReportButPauseDoesNot()
     {
         var station = new RadioStation { Id = "bdb9fa3b-5672-4e0e-9b75-dcb19295c483", Name = "Example" };
         var reporter = new StubReporter();
@@ -302,7 +302,26 @@ public sealed class RadioMainViewModelTests
         await viewModel.TogglePlaybackAsync(station);
         viewModel.PlayPause();
 
-        Assert.AreEqual(1, reporter.Count);
+        Assert.AreEqual(2, reporter.Count);
+    }
+
+    [TestMethod]
+    public async Task SystemPlayReportsTrustedStationButLinkResumeDoesNot()
+    {
+        var station = new RadioStation { Id = "bdb9fa3b-5672-4e0e-9b75-dcb19295c483" };
+        var reporter = new StubReporter();
+        var player = new StubPlayer();
+        using var viewModel = new RadioMainViewModel(player,
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            new StubLibrary(), action => action(), playReporter: reporter, privacySettings: new StubPrivacy(true));
+        await viewModel.TogglePlaybackAsync(station);
+        player.EmitUserPlaybackStarted();
+        Assert.AreEqual(2, reporter.Count);
+        await viewModel.PlayStationFromLinkAsync(new RadioStation { Id = "untrusted", StreamUrl = "https://example.com/live" });
+        player.EmitUserPlaybackStarted();
+        viewModel.PlayPause();
+        viewModel.PlayPause();
+        Assert.AreEqual(2, reporter.Count);
     }
 
     [TestMethod]
@@ -672,6 +691,8 @@ public sealed class RadioMainViewModelTests
         public bool IsPlaybackRequested => playbackRequested;
         public event EventHandler<RadioStation?>? StationChanged;
         public event EventHandler<RadioTrackUpdate?>? TrackChanged;
+        public event EventHandler? UserPlaybackStarted;
+        public void EmitUserPlaybackStarted() => UserPlaybackStarted?.Invoke(this, EventArgs.Empty);
         public void EmitTrack(RadioTrackUpdate update) => TrackChanged?.Invoke(this, update);
         public void SetNowPlayingArtwork(RadioStation station, Uri? artworkUrl) => LastArtworkUrl = artworkUrl;
         public event EventHandler<MediaPlaybackState>? PlaybackStateChanged
@@ -688,11 +709,20 @@ public sealed class RadioMainViewModelTests
         {
             var operation = playStation?.Invoke(station) ?? Task.CompletedTask;
             CurrentStation = station;
+            playbackRequested = true;
             StationChanged?.Invoke(this, station);
             return operation;
         }
-        public void Play() => play?.Invoke();
-        public void Pause() => pause?.Invoke();
+        public void Play()
+        {
+            play?.Invoke();
+            playbackRequested = true;
+        }
+        public void Pause()
+        {
+            pause?.Invoke();
+            playbackRequested = false;
+        }
         public void StopStation()
         {
             stopStation?.Invoke();

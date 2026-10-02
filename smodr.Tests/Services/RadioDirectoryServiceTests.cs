@@ -205,7 +205,8 @@ public sealed class RadioDirectoryServiceTests
         {
             requests.Add(request.RequestUri!);
             return new HttpResponseMessage(request.RequestUri!.Host == "first.example"
-                ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.OK);
+                ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.OK)
+            { Content = new StringContent("""{"ok":"true"}""") };
         });
         using var client = new HttpClient(handler, disposeHandler: false);
         var service = new RadioDirectoryService(client,
@@ -219,6 +220,27 @@ public sealed class RadioDirectoryServiceTests
         Assert.AreEqual("/json/url/bdb9fa3b-5672-4e0e-9b75-dcb19295c483", requests[0].AbsolutePath);
         Assert.AreEqual("second.example", requests[1].Host);
         Assert.IsTrue(client.DefaultRequestHeaders.UserAgent.Count > 0);
+    }
+
+    [TestMethod]
+    public async Task RejectedPlayReportFallsBackAndCountryCodeReplacesDeprecatedCountry()
+    {
+        var reports = 0;
+        using var handler = new StubHandler(request =>
+        {
+            var body = request.RequestUri!.AbsolutePath.Contains("/url/", StringComparison.Ordinal)
+                ? (++reports == 1 ? """{"ok":false}""" : """{"ok":true}""")
+                : """[{"stationuuid":"one","name":"Example","url_resolved":"https://example.com/live","countrycode":"US","country":"Wrong legacy name"}]""";
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) };
+        });
+        using var client = new HttpClient(handler);
+        var service = new RadioDirectoryService(client, (Uri[])[new Uri("https://first.example/"), new Uri("https://second.example/")]);
+        await service.ReportPlayAsync("bdb9fa3b-5672-4e0e-9b75-dcb19295c483");
+        Assert.AreEqual(2, reports);
+        var station = (await service.GetPopularStationsAsync()).Single();
+        Assert.AreEqual("US", station.CountryCode);
+        Assert.AreEqual(string.Empty, station.Country);
+        Assert.AreEqual(new System.Globalization.RegionInfo("US").DisplayName, station.CountryDisplayName);
     }
 
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler

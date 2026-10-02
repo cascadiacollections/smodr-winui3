@@ -2,6 +2,8 @@
 
 This is a source-level audit of this checkout against the sibling `shoutkit` iOS checkout. It is not a claim that every path has been exercised on a live stream or an installed MSIX. Prefer Windows-native behavior over a literal SwiftUI port.
 
+See [Radio Browser API usage audit](RADIO_BROWSER_API_AUDIT.md) for upstream iOS guidance gaps, source anchors, and the Windows adaptations.
+
 ## Already represented
 
 | iOS behavior | Windows implementation |
@@ -30,7 +32,8 @@ Windows widgets, cross-device Handoff, watch/TV targets, and CarPlay do not have
 
 ## Runtime and enlistment follow-up
 
-- Radio Browser payloads are now bounded to 2 MiB, 1,000 scanned records, and 100 returned stations. Requests use response-header streaming so a faulty mirror cannot force an unbounded JSON allocation. Play reporting does not download a response body.
+- Radio Browser payloads are bounded to 2 MiB, 1,000 scanned records, and 100 returned stations. Requests use response-header streaming so a faulty mirror cannot force an unbounded JSON allocation. Play reports validate the API's `ok` result with a 16 KiB limit; response bodies have an eight-second deadline.
+- Directory mirrors are discovered using the official aggregate DNS hostname and reverse lookup, cached for six hours, and shuffled for each operation. DNS failures retain stale mirrors or use the official aggregate hostname, with a one-minute discovery retry delay. Requests identify the app and assembly version. Directory responses use `countrycode`; legacy saved country names remain readable. Explicit user starts and resumes report only trusted directory UUIDs when enabled; pause and automatic recovery do not report.
 - Genre warmup now re-evaluates the Windows connection-cost and Energy Saver policy between requests, so a newly metered connection or low-power state stops remaining speculative traffic.
 - Directory reads now have one bounded per-host retry through `Microsoft.Extensions.Http.Resilience`. Radio Browser play reports use a separate client without that handler, so a lost response is not automatically replayed. Live ICY and artwork traffic retain their existing policies. Sleep-timer tests use virtual time; Settings uses Windows Community Toolkit cards.
 - The old podcast view model and supporting services remain compiled but dormant. Keep them isolated until the product decision is made to restore a podcast surface or split them into an archival project; deleting them during radio hardening would erase unrelated functionality.

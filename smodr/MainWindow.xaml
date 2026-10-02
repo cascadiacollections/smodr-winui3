@@ -203,7 +203,7 @@
                         <TextBlock Text="Settings" Style="{ThemeResource TitleLargeTextBlockStyle}"/>
                         <TextBlock Text="Privacy" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                         <toolkit:SettingsCard Header="Report plays to Radio Browser"
-                                              Description="Sends a station ID to Radio Browser once when you start a directory station. Retries and resume do not report again.">
+                                              Description="Sends the station ID when you start or resume a directory station. Pausing and automatic reconnect do not send a report.">
                             <ToggleSwitch x:Name="PlayReportingSwitch" AutomationProperties.Name="Report plays to Radio Browser"
                                           OnContent="On" OffContent="Off" Toggled="PlayReportingSwitch_Toggled"/>
                         </toolkit:SettingsCard>

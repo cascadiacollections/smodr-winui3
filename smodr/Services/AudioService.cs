@@ -66,6 +66,7 @@ public partial class AudioService : IRadioPlayer, IDisposable
     public event EventHandler<RadioStation?>? StationChanged;
     public event EventHandler<RadioTrackUpdate?>? TrackChanged;
     public event EventHandler<string>? PlaybackFailed;
+    public event EventHandler? UserPlaybackStarted;
     public event EventHandler<MediaPlaybackState>? PlaybackStateChanged;
     public event EventHandler<TimeSpan>? PositionChanged;
     public event EventHandler<TimeSpan>? DurationChanged;
@@ -409,7 +410,14 @@ public partial class AudioService : IRadioPlayer, IDisposable
         args.Handled = true;
         if (_dispatcher?.TryEnqueue(() =>
             {
-                try { if (ReferenceEquals(sender, _mediaPlayer?.CommandManager)) Play(); }
+                try
+                {
+                    if (ReferenceEquals(sender, _mediaPlayer?.CommandManager) && !IsPlaybackRequested)
+                    {
+                        Play();
+                        UserPlaybackStarted?.Invoke(this, EventArgs.Empty);
+                    }
+                }
                 catch (Exception exception) { AppDiagnostics.Record("station.system-play", exception); }
                 finally { deferral.Complete(); }
             }) != true) deferral.Complete();

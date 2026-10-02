@@ -29,6 +29,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     private int _searchVersion;
     private bool _loadingPopular;
     private bool _loadingSearch;
+    private bool _reportCurrentStation;
     private int _disposed;
 
     public RadioMainViewModel(
@@ -69,6 +70,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _audio.TrackChanged += Audio_TrackChanged;
         _audio.PlaybackStateChanged += Audio_PlaybackStateChanged;
         _audio.PlaybackFailed += Audio_PlaybackFailed;
+        _audio.UserPlaybackStarted += Audio_UserPlaybackStarted;
         RefreshLibraryCollections();
         if (_trackHistory is not null) RefreshTrackCollections();
     }
@@ -326,16 +328,17 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
                 else
                 {
                     _audio.Play();
+                    if (reportPlay) _reportCurrentStation = true;
+                    if (reportPlay) ReportExplicitPlay(station);
                 }
 
                 return;
             }
 
+            _reportCurrentStation = false;
             await _audio.PlayStationAsync(station);
-            if (reportPlay && _privacySettings?.IsPlayReportingEnabled == true && _playReporter is not null)
-            {
-                _ = ReportPlayBestEffortAsync(station.Id);
-            }
+            _reportCurrentStation = reportPlay;
+            if (reportPlay) ReportExplicitPlay(station);
             try
             {
                 await _library.LogRecentAsync(station);
@@ -361,11 +364,13 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         var activeStation = _audio.CurrentStation ?? CurrentStation;
         if (activeStation is null || !RadioStationIdentity.Matches(activeStation, station))
             return PlayStationCoreAsync(station, reportPlay: false);
-        if (!_audio.IsPlaybackRequested) PlayPause();
+        if (!_audio.IsPlaybackRequested) PlayPauseCore(reportPlay: false);
         return Task.CompletedTask;
     }
 
-    public void PlayPause()
+    public void PlayPause() => PlayPauseCore(reportPlay: true);
+
+    private void PlayPauseCore(bool reportPlay)
     {
         try
         {
@@ -376,12 +381,25 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             else
             {
                 _audio.Play();
+                if (reportPlay && _reportCurrentStation && (_audio.CurrentStation ?? CurrentStation) is { } station)
+                    ReportExplicitPlay(station);
             }
         }
         catch (Exception ex)
         {
             ReportPlaybackFailure(ex);
         }
+    }
+
+    private void Audio_UserPlaybackStarted(object? sender, EventArgs args)
+    {
+        if (_reportCurrentStation && _audio.CurrentStation is { } station) ReportExplicitPlay(station);
+    }
+
+    private void ReportExplicitPlay(RadioStation station)
+    {
+        if (Volatile.Read(ref _disposed) == 0 && _privacySettings?.IsPlayReportingEnabled == true && _playReporter is not null)
+            _ = ReportPlayBestEffortAsync(station.Id);
     }
 
     public void Stop()
@@ -440,6 +458,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _audio.TrackChanged -= Audio_TrackChanged;
         _audio.PlaybackStateChanged -= Audio_PlaybackStateChanged;
         _audio.PlaybackFailed -= Audio_PlaybackFailed;
+        _audio.UserPlaybackStarted -= Audio_UserPlaybackStarted;
         _sleepTimer.Elapsed -= SleepTimer_Elapsed;
         _sleepTimer.Dispose();
         CancelArtworkLookup();
@@ -671,7 +690,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
 
     private async Task ReportPlayBestEffortAsync(string stationId)
     {
-        try { await _playReporter!.ReportPlayAsync(stationId).ConfigureAwait(false); }
+        try { await _playReporter!.ReportPlayAsync(stationId, _lifetimeCancellation.Token).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (Volatile.Read(ref _disposed) != 0) { }
         catch (Exception exception) { AppDiagnostics.Record("directory.play-report", exception); }
     }
 }
