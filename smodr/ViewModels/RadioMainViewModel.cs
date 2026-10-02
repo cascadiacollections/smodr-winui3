@@ -576,6 +576,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
                 CurrentTrack = null;
                 CurrentArtworkUrl = CurrentStation?.ArtworkUrl ?? string.Empty;
                 CurrentAppleMusicUrl = string.Empty;
+                if (CurrentStation is { } station)
+                    _audio.SetNowPlayingArtwork(station, ParseArtworkUrl(station.ArtworkUrl));
                 return;
             }
             if (!ReferenceEquals(_audio.CurrentStation, update.Station)) return;

@@ -120,3 +120,16 @@ Raw local JSON is under `out/headless-performance/arm64-final/` and
 `out/headless-performance/x64-local/`; timings, allocation counts, and p95 outliers are
 retained there, not committed as machine-independent expectations. The local workflow
 has not been pushed or run remotely.
+# Integrated metadata scenarios
+
+`MetadataOrchestrationTests` connects the real ICY monitor/parser, view model,
+privacy settings, station library, and persisted listening history. Scripted
+continuous-stream callbacks and deliberately late catalog responses exercise
+rapid titles, station changes, opt-out during lookup, reconnect deduplication,
+and damaged-cue artwork fallback. A queued dispatcher reproduces asynchronous
+UI delivery without opening a window. Assertions cover title, player-facing
+artwork, and history reloaded from disk together.
+
+The player and catalog are controlled test doubles: these tests do not prove
+native MediaPlayer decoding, audible playback, XAML layout, or actual SMTC
+rendering. Their category is `MetadataScenario` for repeated headless runs.
