@@ -14,6 +14,8 @@ The current local package build warns that `mspdbcmf.exe` is unavailable, so it 
 
 ## Before external distribution
 
+Software notices are generated from the restored app lockfile and self-contained runtime packs; both architectures check drift and published assets in CI. Follow [LICENSE_INVENTORY.md](LICENSE_INVENTORY.md) after dependency/SDK updates. Review packages without bundled terms, the exact signed artifact, vendor redistribution requirements, and MIT/GPL source provenance before distribution; a passing inventory check is not licensing clearance.
+
 1. Choose the distribution channel: Microsoft Store MSIX, signed direct-download MSIX, or a signed installer for an unpackaged app. MSIX is preferred when package identity, reliable installation/update, and Windows integration are needed.
 2. Replace the development identity in `smodr/Package.appxmanifest` (`CN=excel` and a GUID package name) with the publisher identity actually owned by the publisher. Replace the inherited podcast icon/splash artwork with approved Shoutkit assets. Confirm versioning and privacy/support URLs. Do not guess a certificate subject or commit signing secrets.
 3. Build a packaged configuration and sign it with a certificate trusted by the chosen channel. Store submissions are signed by the Store; non-Store MSIX distribution requires the publisher's signing setup. Test install, upgrade, uninstall, and rollback on clean x64 and ARM64 Windows systems.

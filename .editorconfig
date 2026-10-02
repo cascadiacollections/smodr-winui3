@@ -304,3 +304,7 @@ dotnet_diagnostic.IDE0052.severity = warning       # Remove unread private membe
 dotnet_diagnostic.IDE0060.severity = suggestion     # Unused params — suggestion only (XAML event handlers require fixed signatures)
 dotnet_diagnostic.IDE0161.severity = warning       # Use file-scoped namespace
 dotnet_diagnostic.IDE0090.severity = warning       # Simplify new expression
+
+# Generated vendor notice text preserves the publishers' trailing whitespace.
+[smodr/Assets/SoftwareLicenses.txt]
+trim_trailing_whitespace = false

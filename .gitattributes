@@ -4,3 +4,7 @@
 # Binary assets
 *.png binary
 *.ico binary
+
+# Generated vendor notices preserve the publishers' text, including whitespace.
+smodr/Assets/SoftwareLicenses.txt linguist-generated=true whitespace=-blank-at-eol
+smodr/Assets/SoftwareLicenseInventory.json linguist-generated=true

@@ -57,6 +57,12 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore ${{ env.SOLUTION_PATH }} -p:Platform=${{ matrix.platform }} --locked-mode
 
+    - name: Verify generated software notices and test inventory tooling
+      shell: pwsh
+      run: |
+        ./scripts/Update-LicenseInventory.ps1 -Check
+        ./scripts/Test-LicenseInventory.ps1
+
     - name: Build solution
       run: dotnet build ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-restore -p:Platform=${{ matrix.platform }} -warnaserror
 
@@ -66,8 +72,16 @@ jobs:
     - name: Publish self-contained app
       run: dotnet publish smodr/smodr.csproj --configuration ${{ env.CONFIGURATION }} --no-restore -p:Platform=${{ matrix.platform }} -r ${{ matrix.rid }} --self-contained true -o out/shoutkit-${{ matrix.platform }}
 
+    - name: Verify published software notices
+      shell: pwsh
+      run: ./scripts/Test-LicenseInventory.ps1 -PublishedDirectory out/shoutkit-${{ matrix.platform }}
+
     - name: Validate unsigned MSIX packaging
       run: dotnet msbuild smodr/smodr.csproj -restore -p:RestoreLockedMode=true -p:Configuration=${{ env.CONFIGURATION }} -p:Platform=${{ matrix.platform }} -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=false -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageDir=out/msix-${{ matrix.platform }}/ -v:q
+
+    - name: Verify packaged software notices
+      shell: pwsh
+      run: ./scripts/Test-LicenseInventory.ps1 -MsixDirectory out/msix-${{ matrix.platform }}
 
     - name: Install and upgrade disposable signed MSIX
       if: matrix.platform == 'ARM64'
