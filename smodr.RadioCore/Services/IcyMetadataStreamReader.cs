@@ -54,6 +54,8 @@ public sealed class IcyMetadataStreamReader(HttpClient client) : IContinuousTrac
             var raw = IcyMetadataProbe.Decode(metadata).TrimEnd('\0').Trim();
             if (raw.Length > 0) onMetadata(raw);
         }
+        // Cancellation can arrive between the header read and the first loop iteration.
+        cancellationToken.ThrowIfCancellationRequested();
         return true;
     }
 

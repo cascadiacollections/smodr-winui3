@@ -1,5 +1,7 @@
 # Shoutkit for Windows — local preview
 
+Repeatable, offline stream transport checks are documented in [STREAM_HARNESS.md](STREAM_HARNESS.md).
+
 This branch is a Windows ARM64 adaptation of the [Shoutkit iOS app](https://github.com/cascadiacollections/shoutkit), built in the `smodr-winui3` host. It is an unpackaged, self-contained desktop preview, not a direct SwiftUI port or a complete feature-equivalent release. The application is radio-only. The inherited podcast models, RSS, downloads, cache, and playback surface have been removed; their history remains recoverable in Git. Existing radio profile data is unchanged.
 
 Listen Now shows popular stations and recently played stations. Search supports station names and genre browsing. Favorites and the 20 most recent stations are saved in the user's local app data. Playback uses Windows MediaPlayer and the mini-player is shared across views. Windows media controls receive explicit station title/details, and their Play/Pause commands go through the app's recovery-aware player. The mini-player's Sleep menu offers 15, 30, 45, or 60 minutes plus Cancel; expiry pauses the current station without removing it, even if the station changed while the timer ran. Station artwork is downloaded with timeout, size, format, concurrency, and cache limits before WinUI receives it. A second launch activates the existing window instead of opening a second player.

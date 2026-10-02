@@ -65,11 +65,11 @@ public sealed class IcyMetadataStreamReaderTests
         using var client = new HttpClient(handler);
         var titles = new List<string>();
         using var cancellation = new CancellationTokenSource();
-        await new IcyMetadataStreamReader(client).ListenAsync(new Uri("https://example.com/live"), raw =>
+        await Assert.ThrowsAsync<OperationCanceledException>(() => new IcyMetadataStreamReader(client).ListenAsync(new Uri("https://example.com/live"), raw =>
         {
             titles.Add(raw);
             cancellation.Cancel();
-        }, cancellation.Token);
+        }, cancellation.Token));
         Assert.HasCount(1, titles);
         Assert.AreEqual("StreamTitle='Björk - Jóga';", titles[0]);
     }

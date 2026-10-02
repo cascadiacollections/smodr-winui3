@@ -69,6 +69,14 @@ jobs:
     - name: Run tests
       run: dotnet test ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-build --no-restore -p:Platform=${{ matrix.platform }} --logger "trx;LogFileName=test-results.trx"
 
+    - name: Repeat local synthetic stream transport tests
+      shell: pwsh
+      run: |
+        foreach ($iteration in 1..3) {
+          dotnet test ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-build --no-restore -p:Platform=${{ matrix.platform }} --filter "TestCategory=Loopback" --logger "trx;LogFileName=loopback-$iteration.trx"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        }
+
     - name: Publish self-contained app
       run: dotnet publish smodr/smodr.csproj --configuration ${{ env.CONFIGURATION }} --no-restore -p:Platform=${{ matrix.platform }} -r ${{ matrix.rid }} --self-contained true -o out/shoutkit-${{ matrix.platform }}
 
