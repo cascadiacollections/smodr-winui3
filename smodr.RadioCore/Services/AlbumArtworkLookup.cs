@@ -30,15 +30,21 @@ public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = nu
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_cache.TryGetValue(key, out var cached)) return cached;
+            if (_cache.TryGetValue(key, out var cached))
+            {
+                RuntimeDiagnostics.Counters.Increment(RuntimeCounter.AlbumCacheHit);
+                return cached;
+            }
             if (!_inFlight.TryGetValue(key, out pending!))
             {
+                RuntimeDiagnostics.Counters.Increment(RuntimeCounter.AlbumLookupStarted);
                 completion = new TaskCompletionSource<AlbumArtworkMatch?>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
                 pending = completion.Task;
                 _inFlight[key] = pending;
                 _ = _background.RunAsync(token => FetchAndCompleteAsync(key, artist, title, country, completion, token));
             }
+            else RuntimeDiagnostics.Counters.Increment(RuntimeCounter.AlbumLookupJoined);
         }
 
         // The request belongs to the shared lookup, not one UI listener. A
@@ -84,23 +90,23 @@ public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = nu
             using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
                 .ConfigureAwait(false);
             if (response.StatusCode != HttpStatusCode.OK
-                || response.Content.Headers.ContentLength > MaxResponseBytes) return new(false, null);
+                || response.Content.Headers.ContentLength > MaxResponseBytes) return RejectResponse();
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             using var buffer = new MemoryStream();
             var chunk = new byte[4096];
             int read;
             while ((read = await stream.ReadAsync(chunk, cancellationToken).ConfigureAwait(false)) != 0)
             {
-                if (buffer.Length + read > MaxResponseBytes) return new(false, null);
+                if (buffer.Length + read > MaxResponseBytes) return RejectResponse();
                 await buffer.WriteAsync(chunk.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
             }
 
-            if (response.Content.Headers.ContentLength is { } length && length != buffer.Length) return new(false, null);
+            if (response.Content.Headers.ContentLength is { } length && length != buffer.Length) return RejectResponse();
             buffer.Position = 0;
             using var document = await JsonDocument.ParseAsync(buffer, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (document.RootElement.ValueKind != JsonValueKind.Object
                 || !document.RootElement.TryGetProperty("results", out var results)
-                || results.ValueKind != JsonValueKind.Array) return new(false, null);
+                || results.ValueKind != JsonValueKind.Array) return RejectResponse();
             foreach (var item in results.EnumerateArray())
             {
                 if (item.ValueKind != JsonValueKind.Object
@@ -111,15 +117,29 @@ public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = nu
                 var resized = Regex.Replace(artwork.AbsoluteUri, @"/100x100bb(?=\.)", "/600x600bb",
                     RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
                 ReadStoreUri(item, out var store);
+                RuntimeDiagnostics.Counters.Increment(RuntimeCounter.AlbumMatch);
                 return new(true, new AlbumArtworkMatch(new Uri(resized), store));
             }
+            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.AlbumMiss);
             return new(true, null); // A valid response without usable artwork is a cacheable miss.
         }
-        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException
+        catch (OperationCanceledException)
+        {
+            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.AlbumTransportCanceled);
+            return new(false, null);
+        }
+        catch (Exception exception) when (exception is HttpRequestException
             or IOException or JsonException)
         {
+            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.AlbumTransportFailed);
             return new(false, null); // Network and malformed responses may be retried.
         }
+    }
+
+    private static LookupResult RejectResponse()
+    {
+        RuntimeDiagnostics.Counters.Increment(RuntimeCounter.AlbumResponseRejected);
+        return new(false, null);
     }
 
     public void Dispose()

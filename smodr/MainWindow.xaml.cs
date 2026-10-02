@@ -186,7 +186,8 @@ public sealed partial class MainWindow : Window
 
     private Task FlushPendingAsync() => Task.WhenAll(ViewModel.FlushLibraryAsync(), ViewModel.FlushDirectoryCacheAsync(),
         ViewModel.FlushPrivacySettingsAsync(), ViewModel.FlushTrackHistoryAsync(), Settings.FlushAsync(),
-        _jumpList?.FlushAsync() ?? Task.CompletedTask);
+        _jumpList?.FlushAsync() ?? Task.CompletedTask,
+        RuntimeDiagnostics.FlushAsync(Path.Combine(App.StorageDirectory, "runtime-counters.json")));
 
     private void AppNavigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {

@@ -96,6 +96,14 @@ public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
         var nextContinuousAttempt = DateTimeOffset.MinValue;
         void Publish(string raw)
         {
+            lock (_gate)
+            {
+                if (generation != _generation || _disposed)
+                {
+                    RuntimeDiagnostics.Counters.Increment(RuntimeCounter.MetadataRetired);
+                    return;
+                }
+            }
             var track = IcyTrackParser.Parse(raw, station.Name);
             if (track is null && IcyTrackParser.IsDamagedSongCue(raw, station.Name))
             {
@@ -105,19 +113,29 @@ public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
                     previousCueDamaged = true;
                     previousTrack = null;
                 }
-                // Log only the category, never titles, artist names, or stream URLs.
-                AppDiagnostics.Record("track.damaged-icy-cue", new InvalidDataException());
+                RuntimeDiagnostics.Counters.Increment(RuntimeCounter.MetadataRejectedDamaged);
                 try { TrackInvalidated?.Invoke(this, station); }
                 catch (Exception exception) { AppDiagnostics.Record("track.callback", exception); }
                 return;
             }
-            if (track is null || track == previousTrack) return;
+            if (track is null)
+            {
+                RuntimeDiagnostics.Counters.Increment(string.IsNullOrWhiteSpace(raw) ? RuntimeCounter.MetadataRejectedEmpty
+                    : raw.Length > 4096 ? RuntimeCounter.MetadataRejectedOversize : RuntimeCounter.MetadataRejectedNonSong);
+                return;
+            }
             lock (_gate)
             {
                 if (generation != _generation || _disposed) return;
+                if (track == previousTrack)
+                {
+                    RuntimeDiagnostics.Counters.Increment(RuntimeCounter.MetadataDuplicate);
+                    return;
+                }
                 previousTrack = track;
                 previousCueDamaged = false;
             }
+            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.MetadataAccepted);
             try { TrackChanged?.Invoke(this, new RadioTrackUpdate(station, track)); }
             catch (Exception exception) { AppDiagnostics.Record("track.callback", exception); }
         }

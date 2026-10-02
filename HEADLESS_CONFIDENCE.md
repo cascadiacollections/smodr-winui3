@@ -1,5 +1,38 @@
 # Headless runtime confidence and performance
 
+## Local aggregate diagnostics
+
+Normal close writes `runtime-counters.json` in the app's storage directory
+(unpackaged: `%LOCALAPPDATA%\CascadiaCollections\ShoutkitWindows`; packaged:
+the package's `LocalFolder`). It atomically replaces the last session report:
+schema version, UTC capture time, and 24 fixed-name integer counters only.
+Counts start at zero for each process; they are not a durable lifetime total.
+Forced termination may leave the preceding session's report.
+
+Counters cover scheduled retries/restart requests/exhaustion, accepted/duplicate
+metadata, empty/oversize/damaged/non-song rejections, retired callbacks, artwork
+memory hits/misses/expiry, catalog hits/shared requests/matches/misses, rejected
+responses, transport cancellations, and transport failures. Rejection categories
+are intentionally coarse, not a transcript of what a station sent. Artwork
+memory counts aggregate encoded and dispatcher-local decoded caches; expiry also
+counts as a miss, and a download may check memory again after acquiring a slot.
+Cancellations include deadlines, caller cancellation, and normal shutdown, not
+just failures. Recovery restart counts are requests, not proof of audible success.
+
+Hot-path recording uses atomic memory increments with no disk IO. JSON serialization
+and atomic replacement run in background work during the final close flush.
+Snapshots read each counter atomically but are not transactions across counters.
+No URLs, station IDs, names, song/artist text, queries, HTTP bodies, or exception
+messages are accepted as labels or persisted. Nothing is sent remotely; existing
+Radio Browser reporting and artwork privacy settings are unchanged. Concurrent
+increment, detached-snapshot, allow-list, JSON-shape, and atomic-replacement tests
+cover the report contract. The existing rotated error log remains separate.
+
+Metadata counters describe ICY sidecar/probe monitoring, not native HLS ID3 cues.
+Consecutive damaged cues count once per invalidation until a valid cue resumes.
+Redirect-hop assertions use the production policy's explicit redirect handling
+(its HTTP client has automatic redirects disabled).
+
 ## Shutdown lifecycle
 
 `BackgroundWorkScope` registers work before invoking it, seals new admission during
@@ -144,3 +177,20 @@ artwork, and history reloaded from disk together.
 The player and catalog are controlled test doubles: these tests do not prove
 native MediaPlayer decoding, audible playback, XAML layout, or actual SMTC
 rendering. Their category is `MetadataScenario` for repeated headless runs.
+
+## Local shutdown/metadata hardening verification (2026-10-02)
+
+Both ARM64 and x64 Release builds/tests passed with warnings treated as errors:
+330 tests per architecture. Full formatter verification passed for RadioCore,
+the WinUI project, and tests. The expanded 20-test soak suite passed 21 ARM64
+iterations and 14 x64 iterations in separate one-minute runs (x64 emulated on
+this ARM64 host). Reports are under `out/headless-soak/arm64-shutdown-metadata/`
+and `out/headless-soak/x64-shutdown-metadata/`, not committed or treated as timing
+SLAs. These iterations include the new metadata and transport scenarios.
+
+A self-contained ARM64 preview was published to
+`out/shoutkit-arm64-runtime-hardening/`; its license assets matched the committed
+46-package/20-notice inventory and all eight inventory fixture checks passed.
+No app, audio session, computer-use interaction, or remote CI run was started.
+Native shutdown, audible reconnect, actual media controls, visual/accessibility
+interaction, and release signing still require the documented release checks.

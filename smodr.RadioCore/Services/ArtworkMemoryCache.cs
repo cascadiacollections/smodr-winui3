@@ -15,8 +15,19 @@ public sealed class ArtworkMemoryCache<T>(int maxEntries, long maxWeight, TimePr
         lock (_gate)
         {
             value = default;
-            if (!_entries.TryGetValue(key, out var entry)) return false;
-            if (_clock.GetElapsedTime(entry.CreatedAt) >= TimeSpan.FromMinutes(30)) { Remove(key); return false; }
+            if (!_entries.TryGetValue(key, out var entry))
+            {
+                RuntimeDiagnostics.Counters.Increment(RuntimeCounter.ArtworkMemoryMiss);
+                return false;
+            }
+            if (_clock.GetElapsedTime(entry.CreatedAt) >= TimeSpan.FromMinutes(30))
+            {
+                Remove(key);
+                RuntimeDiagnostics.Counters.Increment(RuntimeCounter.ArtworkMemoryExpired);
+                RuntimeDiagnostics.Counters.Increment(RuntimeCounter.ArtworkMemoryMiss);
+                return false;
+            }
+            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.ArtworkMemoryHit);
             _order.Remove(entry.Node);
             _order.AddLast(entry.Node);
             value = entry.Value;

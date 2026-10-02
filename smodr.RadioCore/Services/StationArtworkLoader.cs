@@ -47,17 +47,17 @@ public sealed class StationArtworkLoader(HttpClient client, StationArtworkDiskCa
                 if (_cache.TryGet(uri.AbsoluteUri, out cached)) return cached;
                 using var response = await GetResponseAsync(uri, token).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > MaxArtworkBytes
-                    || response.Content.Headers.ContentType?.MediaType is not ("image/png" or "image/jpeg" or "image/gif" or "image/webp")) return null;
+                    || response.Content.Headers.ContentType?.MediaType is not ("image/png" or "image/jpeg" or "image/gif" or "image/webp")) return RejectResponse();
                 await using var source = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
                 using var buffer = new MemoryStream();
                 var chunk = new byte[16_384];
                 int read;
                 while ((read = await source.ReadAsync(chunk, token).ConfigureAwait(false)) > 0)
                 {
-                    if (buffer.Length + read > MaxArtworkBytes) return null;
+                    if (buffer.Length + read > MaxArtworkBytes) return RejectResponse();
                     await buffer.WriteAsync(chunk.AsMemory(0, read), token).ConfigureAwait(false);
                 }
-                if (buffer.Length == 0 || response.Content.Headers.ContentLength is { } length && length != buffer.Length) return null;
+                if (buffer.Length == 0 || response.Content.Headers.ContentLength is { } length && length != buffer.Length) return RejectResponse();
                 token.ThrowIfCancellationRequested();
                 var bytes = buffer.ToArray();
                 _cache.Put(uri.AbsoluteUri, bytes, bytes.Length);
@@ -66,8 +66,23 @@ public sealed class StationArtworkLoader(HttpClient client, StationArtworkDiskCa
             }
             finally { _downloads.Release(); }
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { return null; }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or UnauthorizedAccessException) { return null; }
+        catch (OperationCanceledException)
+        {
+            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.ArtworkTransportCanceled);
+            if (cancellationToken.IsCancellationRequested) throw;
+            return null;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or IOException or UnauthorizedAccessException)
+        {
+            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.ArtworkTransportFailed);
+            return null;
+        }
+    }
+
+    private static byte[]? RejectResponse()
+    {
+        RuntimeDiagnostics.Counters.Increment(RuntimeCounter.ArtworkResponseRejected);
+        return null;
     }
 
     public Task ShutdownAsync()

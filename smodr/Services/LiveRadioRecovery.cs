@@ -132,10 +132,12 @@ internal sealed class LiveRadioRecovery : IDisposable
         if (_attempts >= _maxRetries)
         {
             _requested = false;
+            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.RecoveryExhausted);
             return new(_epoch, null, TimeSpan.Zero);
         }
 
         _attempts++;
+        RuntimeDiagnostics.Counters.Increment(RuntimeCounter.RecoveryRetryScheduled);
         _waitingForRetry = true;
         var delay = TimeSpan.FromTicks(_retryBaseDelay.Ticks * (1L << (_attempts - 1)));
         return new(null, _epoch, delay);
@@ -226,6 +228,7 @@ internal sealed class LiveRadioRecovery : IDisposable
                     _waitingForRetry = false;
                     ArmLocked(TimerKind.Stall, _stallTimeout);
                     callback = _restart;
+                    RuntimeDiagnostics.Counters.Increment(RuntimeCounter.RecoveryRestartRequested);
                 }
             }
 
