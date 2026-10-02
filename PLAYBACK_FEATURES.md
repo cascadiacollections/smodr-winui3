@@ -38,6 +38,8 @@ Valid UTF-8/Latin-1 ICY names and declared ID3 text encodings retain Unicode. A 
 
 ## Native validation checklist
 
+Listen Now and Search use compact station rows rather than large directory-artwork cards. The library section selector gives favorites, recent stations, top tracks and heard tracks their own bounded list viewport; there is no outer scroll host around these lists. Rows show station details, an explicit favorite action, and current playback state. Recycled/unloaded rows detach subscriptions. Main Now Playing stays track-focused. Headless XAML/state checks do not replace native keyboard, screen-reader, narrow-window and high-text-scale validation. See [WinUI list virtualization guidance](https://learn.microsoft.com/en-us/windows/apps/develop/performance/optimize-gridview-and-listview).
+
 Software-license notices use a bounded, virtualized ListView, rather than laying out the entire bundled inventory in one TextBlock. Reading and lossless section preparation run on a worker and are cached per Settings view model. The dialog shows a loading state immediately; closing stops its UI continuation without cancelling a shared cache load. All notices remain bundled and available offline. Headless checks cover content preservation, Unicode/CRLF boundaries, caching, and the XAML virtualization constraints; scrolling, text selection, keyboard access, high text scaling, and actual opening latency still require native QA.
 
 1. Keep all options Off: play/switch/pause/resume KEXP and Brookdale, check titles, artwork, history, sleep timer, and system controls.

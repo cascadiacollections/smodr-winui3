@@ -9,6 +9,8 @@ namespace smodr.ViewModels;
 
 public partial class RadioMainViewModel : ObservableObject, IDisposable
 {
+    [ObservableProperty]
+    public partial MediaPlaybackState CurrentPlaybackState { get; set; }
     private static readonly string[] _warmGenres =
         ["alternative", "classical", "electronic", "hip hop", "jazz", "news", "rock"];
     private readonly IRadioPlayer _audio;
@@ -518,6 +520,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _dispatch(() =>
         {
             if (Volatile.Read(ref _disposed) != 0) return;
+            CurrentPlaybackState = MediaPlaybackState.None;
             CancelArtworkLookup();
             _currentHistoryRecord = null;
             CurrentStation = station;
@@ -632,8 +635,10 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     private void Audio_PlaybackStateChanged(object? sender, MediaPlaybackState state) =>
         _dispatch(() =>
         {
+            if (Volatile.Read(ref _disposed) != 0) return;
             // Buffering/reconnect still represents an active listening intent;
             // the transport button must offer Pause, not start another Play.
+            CurrentPlaybackState = state;
             IsPlaying = _audio.IsPlaybackRequested;
             Status = state switch
             {

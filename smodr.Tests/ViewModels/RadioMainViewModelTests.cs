@@ -9,6 +9,21 @@ namespace smodr.Tests.ViewModels;
 public sealed class RadioMainViewModelTests
 {
     [TestMethod]
+    public async Task RowPlaybackStateTracksBufferingAndResetsOnStationChange()
+    {
+        var player = new StubPlayer();
+        using var viewModel = new RadioMainViewModel(player,
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])), new StubLibrary(), action => action());
+        await player.PlayStationAsync(new RadioStation { Id = "first", StreamUrl = "https://stream.example/first" });
+        player.EmitPlaybackState(MediaPlaybackState.Buffering);
+        Assert.AreEqual(MediaPlaybackState.Buffering, viewModel.CurrentPlaybackState);
+        Assert.IsTrue(viewModel.IsPlaying); // Transport offers Pause while the row identifies Buffering.
+        player.EmitPlaybackState(MediaPlaybackState.Playing);
+        Assert.AreEqual(MediaPlaybackState.Playing, viewModel.CurrentPlaybackState);
+        await player.PlayStationAsync(new RadioStation { Id = "second", StreamUrl = "https://stream.example/second" });
+        Assert.AreEqual(MediaPlaybackState.None, viewModel.CurrentPlaybackState);
+    }
+    [TestMethod]
     public async Task OlderSearchCannotReplaceNewerResults()
     {
         var firstResult = new TaskCompletionSource<IReadOnlyList<RadioStation>>(
@@ -756,11 +771,8 @@ public sealed class RadioMainViewModelTests
         public void EmitUserPlaybackStarted() => UserPlaybackStarted?.Invoke(this, EventArgs.Empty);
         public void EmitTrack(RadioTrackUpdate update) => TrackChanged?.Invoke(this, update);
         public void SetNowPlayingArtwork(RadioStation station, Uri? artworkUrl) => LastArtworkUrl = artworkUrl;
-        public event EventHandler<MediaPlaybackState>? PlaybackStateChanged
-        {
-            add { }
-            remove { }
-        }
+        public event EventHandler<MediaPlaybackState>? PlaybackStateChanged;
+        public void EmitPlaybackState(MediaPlaybackState state) => PlaybackStateChanged?.Invoke(this, state);
         public event EventHandler<string>? PlaybackFailed
         {
             add { }

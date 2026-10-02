@@ -1,6 +1,11 @@
+using System.Collections.Specialized;
+using System.ComponentModel;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using smodr.Models;
+using smodr.ViewModels;
+using Windows.Media.Playback;
 
 namespace smodr;
 
@@ -10,11 +15,16 @@ public sealed partial class StationRowControl : UserControl
         nameof(Station),
         typeof(RadioStation),
         typeof(StationRowControl),
-        new PropertyMetadata(new RadioStation()));
+        new PropertyMetadata(new RadioStation(), (sender, _) => ((StationRowControl)sender).UpdateState()));
+
+    private RadioMainViewModel? _viewModel;
+    private bool _observing;
 
     public StationRowControl()
     {
         InitializeComponent();
+        Loaded += (_, _) => { Observe(); UpdateState(); };
+        Unloaded += (_, _) => Unobserve();
     }
 
     public RadioStation Station
@@ -25,6 +35,64 @@ public sealed partial class StationRowControl : UserControl
 
     public event EventHandler<RadioStation>? FavoriteRequested;
 
-    private void FavoriteMenuItem_Click(object sender, RoutedEventArgs e) =>
+    internal void SetViewModel(RadioMainViewModel? viewModel)
+    {
+        if (ReferenceEquals(viewModel, _viewModel)) return;
+        Unobserve();
+        _viewModel = viewModel;
+        if (IsLoaded) Observe();
+        UpdateState();
+    }
+
+    private void Observe()
+    {
+        if (_observing || _viewModel is null) return;
+        _viewModel.PropertyChanged += StateChanged;
+        _viewModel.Favorites.CollectionChanged += FavoritesChanged;
+        _observing = true;
+    }
+
+    private void Unobserve()
+    {
+        if (!_observing || _viewModel is null) return;
+        _viewModel.PropertyChanged -= StateChanged;
+        _viewModel.Favorites.CollectionChanged -= FavoritesChanged;
+        _observing = false;
+    }
+
+    private void StateChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName is nameof(RadioMainViewModel.CurrentStation) or nameof(RadioMainViewModel.CurrentPlaybackState)) UpdateState();
+    }
+
+    private void FavoritesChanged(object? sender, NotifyCollectionChangedEventArgs args) => UpdateState();
+
+    private void UpdateState()
+    {
+        if (RowRoot is null) return; // A dependency-property change can precede XAML initialization.
+        var favorite = _viewModel?.IsFavorite(Station) == true;
+        var active = _viewModel?.CurrentStation is { } current && RadioStationIdentity.Matches(current, Station);
+        var state = active ? _viewModel!.CurrentPlaybackState : MediaPlaybackState.None;
+        var label = state switch
+        {
+            MediaPlaybackState.Playing => "Playing",
+            MediaPlaybackState.Buffering => "Buffering…",
+            MediaPlaybackState.Opening => "Loading…",
+            MediaPlaybackState.Paused => "Paused",
+            _ => string.Empty
+        };
+        PlaybackLabel.Text = label;
+        PlaybackLabel.Visibility = label.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        PlaybackIcon.Glyph = state is MediaPlaybackState.Playing or MediaPlaybackState.Buffering or MediaPlaybackState.Opening ? "\uE769" : "\uE768";
+        FavoriteIcon.Glyph = favorite ? "\uEB52" : "\uEB51";
+        var favoriteAction = favorite ? "Remove favorite" : "Add favorite";
+        AutomationProperties.SetName(FavoriteButton, $"{favoriteAction}: {Station.Name}");
+        ToolTipService.SetToolTip(FavoriteButton, favoriteAction);
+        AutomationProperties.SetName(RowRoot, string.Join(" · ", new[] { Station.Name, Station.Details, label, favorite ? "Favorite" : string.Empty }.Where(value => value.Length > 0)));
+    }
+
+    private void FavoriteMenuItem_Click(object sender, RoutedEventArgs e)
+    {
         FavoriteRequested?.Invoke(this, Station);
+    }
 }

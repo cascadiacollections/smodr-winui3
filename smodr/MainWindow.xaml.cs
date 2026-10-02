@@ -224,18 +224,13 @@ public sealed partial class MainWindow : Window
         await ViewModel.LoadPopularAsync();
     }
 
-    private async void StationGrid_ItemClick(object sender, ItemClickEventArgs e) =>
-        await PlayStationAsync(e.ClickedItem as RadioStation);
-
     private async void StationList_ItemClick(object sender, ItemClickEventArgs e) =>
         await PlayStationAsync(e.ClickedItem as RadioStation);
 
-    private async void StationButton_Click(object sender, RoutedEventArgs e)
+    private void StationList_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
-        if (sender is Button { Tag: RadioStation station })
-        {
-            await PlayStationAsync(station);
-        }
+        if (args.ItemContainer.ContentTemplateRoot is StationRowControl row)
+            row.SetViewModel(args.InRecycleQueue ? null : ViewModel);
     }
 
     private async Task PlayStationAsync(RadioStation? station)
@@ -273,14 +268,6 @@ public sealed partial class MainWindow : Window
     private async void FavoriteNowPlayingButton_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel.CurrentStation is { } station)
-        {
-            await ViewModel.ToggleFavoriteAsync(station);
-        }
-    }
-
-    private async void StationFavoriteMenuItem_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is MenuFlyoutItem { Tag: RadioStation station })
         {
             await ViewModel.ToggleFavoriteAsync(station);
         }
@@ -533,16 +520,22 @@ public sealed partial class MainWindow : Window
 
     private void UpdateLibraryVisibility()
     {
+        if (!_settingsReady) return;
+        var section = LibrarySectionBox.SelectedIndex;
         RecentSection.Visibility = ViewModel.Recents.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        FavoritesSection.Visibility = ViewModel.Favorites.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        HistorySection.Visibility = ViewModel.Recents.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        HeardTracksSection.Visibility = ViewModel.HeardTracks.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        TopTracksSection.Visibility = ViewModel.HeardTracks.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        FavoritesSection.Visibility = section == 0 ? Visibility.Visible : Visibility.Collapsed;
+        HistorySection.Visibility = section == 1 ? Visibility.Visible : Visibility.Collapsed;
+        TopTracksSection.Visibility = section == 2 ? Visibility.Visible : Visibility.Collapsed;
+        HeardTracksSection.Visibility = section == 3 ? Visibility.Visible : Visibility.Collapsed;
         TopTracksEmpty.Visibility = ViewModel.TopTracks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         TopTracksList.Visibility = ViewModel.TopTracks.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        EmptyLibraryView.Visibility = ViewModel.Favorites.Count == 0 && ViewModel.Recents.Count == 0 && ViewModel.HeardTracks.Count == 0
+        EmptyLibraryTitle.Text = section switch { 1 => "No Recently Played Stations", 3 => "No Heard Tracks Yet", _ => "No Favorites Yet" };
+        var empty = section switch { 0 => ViewModel.Favorites.Count == 0, 1 => ViewModel.Recents.Count == 0, 3 => ViewModel.HeardTracks.Count == 0, _ => false };
+        EmptyLibraryView.Visibility = empty
             ? Visibility.Visible
             : Visibility.Collapsed;
     }
+
+    private void LibrarySectionBox_SelectionChanged(object sender, SelectionChangedEventArgs args) => UpdateLibraryVisibility();
 
 }

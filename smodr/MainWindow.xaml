@@ -8,6 +8,13 @@
         Title="Shoutkit">
     <Window.SystemBackdrop><MicaBackdrop Kind="BaseAlt"/></Window.SystemBackdrop>
     <Grid>
+        <Grid.Resources>
+            <Style x:Key="StationListStyle" TargetType="ListView">
+                <Setter Property="ItemContainerStyle">
+                    <Setter.Value><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></Setter.Value>
+                </Setter>
+            </Style>
+        </Grid.Resources>
         <Grid.RowDefinitions><RowDefinition Height="32"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <Grid x:Name="AppTitleBar" Grid.Row="0" Background="Transparent">
             <Grid.ColumnDefinitions><ColumnDefinition Width="48"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -30,10 +37,9 @@
                 </NavigationViewItem>
             </NavigationView.MenuItems>
             <Grid>
-                <Grid x:Name="ListenNowView">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel Padding="28,20,28,32" Spacing="24">
-                            <Grid>
+                <Grid x:Name="ListenNowView" Padding="20,20,20,20" RowSpacing="12">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                            <Grid Margin="8,0,8,8">
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="Listen Now" Style="{ThemeResource TitleLargeTextBlockStyle}"/>
                                     <TextBlock Text="Live radio picked for right now" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
@@ -41,56 +47,21 @@
                                 <Button HorizontalAlignment="Right" VerticalAlignment="Top" Click="RefreshButton_Click"
                                         ToolTipService.ToolTip="Refresh stations" AutomationProperties.Name="Refresh stations"><FontIcon Glyph="&#xE72C;"/></Button>
                             </Grid>
-                            <StackPanel x:Name="RecentSection" Spacing="12" Visibility="Collapsed">
-                                <TextBlock Text="Recently Played" Style="{ThemeResource SubtitleTextBlockStyle}"/>
-                                <ListView ItemsSource="{x:Bind ViewModel.Recents, Mode=OneWay}" SelectionMode="None" AutomationProperties.Name="Recently played stations"
-                                          ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Hidden"
-                                          ScrollViewer.VerticalScrollMode="Disabled">
-                                    <ListView.ItemsPanel><ItemsPanelTemplate><ItemsStackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ListView.ItemsPanel>
-                                    <ListView.ItemTemplate>
-                                        <DataTemplate x:DataType="models:RadioStation">
-                                            <Button Width="164" Padding="0" Margin="0,0,14,0" Background="Transparent" BorderThickness="0"
-                                                    Tag="{x:Bind}" Click="StationButton_Click" AutomationProperties.Name="{x:Bind Name}">
-                                                <Button.ContextFlyout>
-                                                    <MenuFlyout><MenuFlyoutItem Text="Toggle Favorite" Tag="{x:Bind}" Click="StationFavoriteMenuItem_Click"/></MenuFlyout>
-                                                </Button.ContextFlyout>
-                                                <StackPanel Width="164" Spacing="8">
-                                                    <Border Width="164" Height="164" CornerRadius="18" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
-                                                        <local:StationArtworkControl ArtworkUrl="{x:Bind ArtworkUrl}"/>
-                                                    </Border>
-                                                    <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{x:Bind Details}" Style="{ThemeResource CaptionTextBlockStyle}"
-                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
-                                                </StackPanel>
-                                            </Button>
-                                        </DataTemplate>
-                                    </ListView.ItemTemplate>
+                            <Grid x:Name="RecentSection" Grid.Row="1" Height="196" RowSpacing="8" Visibility="Collapsed">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                <TextBlock Text="Recently Played" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="8,0"/>
+                                <ListView Grid.Row="1" Style="{StaticResource StationListStyle}" ItemsSource="{x:Bind ViewModel.Recents, Mode=OneWay}" SelectionMode="None"
+                                          IsItemClickEnabled="True" ItemClick="StationList_ItemClick" ContainerContentChanging="StationList_ContainerContentChanging"
+                                          AutomationProperties.Name="Recently played stations">
+                                    <ListView.ItemTemplate><DataTemplate x:DataType="models:RadioStation"><local:StationRowControl Station="{x:Bind}" FavoriteRequested="StationRow_FavoriteRequested"/></DataTemplate></ListView.ItemTemplate>
                                 </ListView>
-                            </StackPanel>
-                            <StackPanel Spacing="12">
-                                <TextBlock Text="Popular Stations" Style="{ThemeResource SubtitleTextBlockStyle}"/>
-                                <GridView ItemsSource="{x:Bind ViewModel.PopularStations, Mode=OneWay}" AutomationProperties.Name="Popular stations"
-                                          IsItemClickEnabled="True" ItemClick="StationGrid_ItemClick" SelectionMode="None">
-                                    <GridView.ItemTemplate>
-                                        <DataTemplate x:DataType="models:RadioStation">
-                                            <Grid Width="180" Margin="4,4,12,18" RowSpacing="8" AutomationProperties.Name="{x:Bind Name}">
-                                                <Grid.ContextFlyout>
-                                                    <MenuFlyout><MenuFlyoutItem Text="Toggle Favorite" Tag="{x:Bind}" Click="StationFavoriteMenuItem_Click"/></MenuFlyout>
-                                                </Grid.ContextFlyout>
-                                                <Grid.RowDefinitions><RowDefinition Height="180"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                                                <Border CornerRadius="20" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
-                                                    <local:StationArtworkControl ArtworkUrl="{x:Bind ArtworkUrl}"/>
-                                                </Border>
-                                                <TextBlock Grid.Row="1" Text="{x:Bind Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Grid.Row="2" Text="{x:Bind Details}" Style="{ThemeResource CaptionTextBlockStyle}"
-                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
-                                            </Grid>
-                                        </DataTemplate>
-                                    </GridView.ItemTemplate>
-                                </GridView>
-                            </StackPanel>
-                        </StackPanel>
-                    </ScrollViewer>
+                            </Grid>
+                            <TextBlock Grid.Row="2" Text="Popular Stations" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="8,0"/>
+                            <ListView Grid.Row="3" Style="{StaticResource StationListStyle}" ItemsSource="{x:Bind ViewModel.PopularStations, Mode=OneWay}" AutomationProperties.Name="Popular stations"
+                                      IsItemClickEnabled="True" ItemClick="StationList_ItemClick" SelectionMode="None"
+                                      ContainerContentChanging="StationList_ContainerContentChanging">
+                                <ListView.ItemTemplate><DataTemplate x:DataType="models:RadioStation"><local:StationRowControl Station="{x:Bind}" FavoriteRequested="StationRow_FavoriteRequested"/></DataTemplate></ListView.ItemTemplate>
+                            </ListView>
                 </Grid>
                 <Grid x:Name="SearchView" Visibility="Collapsed">
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
@@ -117,33 +88,43 @@
                     </StackPanel>
                     <ListView x:Name="SearchResultsList" Grid.Row="2" Padding="20,0,20,20" AutomationProperties.Name="Search results"
                               ItemsSource="{x:Bind ViewModel.SearchResults, Mode=OneWay}" IsItemClickEnabled="True"
-                              ItemClick="StationList_ItemClick" SelectionMode="None" Visibility="Collapsed">
+                              ItemClick="StationList_ItemClick" SelectionMode="None" Visibility="Collapsed"
+                              Style="{StaticResource StationListStyle}" ContainerContentChanging="StationList_ContainerContentChanging">
                         <ListView.ItemTemplate><DataTemplate x:DataType="models:RadioStation"><local:StationRowControl Station="{x:Bind}" FavoriteRequested="StationRow_FavoriteRequested"/></DataTemplate></ListView.ItemTemplate>
                     </ListView>
                 </Grid>
                 <Grid x:Name="FavoritesView" Visibility="Collapsed">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                     <StackPanel Padding="28,20,28,12" Spacing="4">
                         <TextBlock Text="Favorites" Style="{ThemeResource TitleLargeTextBlockStyle}"/>
                         <TextBlock Text="Your stations and listening history" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
-                    <ScrollViewer Grid.Row="1">
-                        <StackPanel Padding="20,8,20,28" Spacing="22">
-                            <StackPanel x:Name="FavoritesSection" Spacing="10">
+                    <ComboBox x:Name="LibrarySectionBox" Grid.Row="1" Margin="28,0,28,12" HorizontalAlignment="Stretch"
+                              AutomationProperties.Name="Library section" SelectedIndex="0" SelectionChanged="LibrarySectionBox_SelectionChanged">
+                        <ComboBoxItem Content="Favorite stations"/><ComboBoxItem Content="Recently played stations"/>
+                        <ComboBoxItem Content="Top tracks"/><ComboBoxItem Content="Recently heard tracks"/>
+                    </ComboBox>
+                        <Grid Grid.Row="2" Padding="20,8,20,28">
+                            <Grid x:Name="FavoritesSection" RowSpacing="10">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                                 <TextBlock Text="Favorites" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="8,0"/>
-                                <ListView ItemsSource="{x:Bind ViewModel.Favorites, Mode=OneWay}" IsItemClickEnabled="True"
-                                          ItemClick="StationList_ItemClick" SelectionMode="None">
+                                <ListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.Favorites, Mode=OneWay}" IsItemClickEnabled="True"
+                                          ItemClick="StationList_ItemClick" SelectionMode="None" AutomationProperties.Name="Favorite stations"
+                                          Style="{StaticResource StationListStyle}" ContainerContentChanging="StationList_ContainerContentChanging">
                                     <ListView.ItemTemplate><DataTemplate x:DataType="models:RadioStation"><local:StationRowControl Station="{x:Bind}" FavoriteRequested="StationRow_FavoriteRequested"/></DataTemplate></ListView.ItemTemplate>
                                 </ListView>
-                            </StackPanel>
-                            <StackPanel x:Name="HistorySection" Spacing="10">
+                            </Grid>
+                            <Grid x:Name="HistorySection" RowSpacing="10" Visibility="Collapsed">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                                 <TextBlock Text="Recently Played" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="8,0"/>
-                                <ListView ItemsSource="{x:Bind ViewModel.Recents, Mode=OneWay}" IsItemClickEnabled="True"
-                                          ItemClick="StationList_ItemClick" SelectionMode="None">
+                                <ListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.Recents, Mode=OneWay}" IsItemClickEnabled="True"
+                                          ItemClick="StationList_ItemClick" SelectionMode="None" AutomationProperties.Name="Recently played library stations"
+                                          Style="{StaticResource StationListStyle}" ContainerContentChanging="StationList_ContainerContentChanging">
                                     <ListView.ItemTemplate><DataTemplate x:DataType="models:RadioStation"><local:StationRowControl Station="{x:Bind}" FavoriteRequested="StationRow_FavoriteRequested"/></DataTemplate></ListView.ItemTemplate>
                                 </ListView>
-                            </StackPanel>
-                            <StackPanel x:Name="TopTracksSection" Spacing="10" Visibility="Collapsed">
+                            </Grid>
+                            <Grid x:Name="TopTracksSection" RowSpacing="10" Visibility="Collapsed">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                                 <Grid Margin="8,0">
                                     <TextBlock Text="Top Tracks" Style="{ThemeResource SubtitleTextBlockStyle}" VerticalAlignment="Center"/>
                                     <ComboBox x:Name="TopTracksTimeframeBox" HorizontalAlignment="Right"
@@ -153,9 +134,9 @@
                                         <ComboBoxItem Content="All Time"/>
                                     </ComboBox>
                                 </Grid>
-                                <TextBlock x:Name="TopTracksEmpty" Text="No tracks with both title and artist in this timeframe."
+                                <TextBlock x:Name="TopTracksEmpty" Grid.Row="1" Text="No tracks with both title and artist in this timeframe."
                                            Margin="12,0" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                <ListView x:Name="TopTracksList" ItemsSource="{x:Bind ViewModel.TopTracks, Mode=OneWay}"
+                                <ListView x:Name="TopTracksList" Grid.Row="2" ItemsSource="{x:Bind ViewModel.TopTracks, Mode=OneWay}"
                                           SelectionMode="None" AutomationProperties.Name="Top tracks">
                                     <ListView.ItemTemplate>
                                         <DataTemplate x:DataType="models:TopTrack">
@@ -173,10 +154,11 @@
                                         </DataTemplate>
                                     </ListView.ItemTemplate>
                                 </ListView>
-                            </StackPanel>
-                            <StackPanel x:Name="HeardTracksSection" Spacing="10" Visibility="Collapsed">
+                            </Grid>
+                            <Grid x:Name="HeardTracksSection" RowSpacing="10" Visibility="Collapsed">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                                 <TextBlock Text="Recently Heard" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="8,0"/>
-                                <ListView ItemsSource="{x:Bind ViewModel.HeardTracks, Mode=OneWay}" SelectionMode="None"
+                                <ListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.HeardTracks, Mode=OneWay}" SelectionMode="None"
                                           AutomationProperties.Name="Recently heard tracks">
                                     <ListView.ItemTemplate>
                                         <DataTemplate x:DataType="models:HeardTrack">
@@ -188,14 +170,13 @@
                                         </DataTemplate>
                                     </ListView.ItemTemplate>
                                 </ListView>
-                            </StackPanel>
+                            </Grid>
                             <StackPanel x:Name="EmptyLibraryView" HorizontalAlignment="Center" Spacing="10" Padding="0,64" Visibility="Collapsed">
                                 <FontIcon Glyph="&#xEB51;" FontSize="40" Opacity="0.55"/>
-                                <TextBlock Text="No Favorites Yet" Style="{ThemeResource SubtitleTextBlockStyle}" HorizontalAlignment="Center"/>
-                                <TextBlock Text="Favorite and recently played stations appear here." Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="EmptyLibraryTitle" Text="No Favorites Yet" Style="{ThemeResource SubtitleTextBlockStyle}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Listen to a station or add a favorite to grow your library." TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                             </StackPanel>
-                        </StackPanel>
-                    </ScrollViewer>
+                        </Grid>
                 </Grid>
                 <Grid x:Name="SettingsView" Visibility="Collapsed" Padding="28,20">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">

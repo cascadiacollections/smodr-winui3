@@ -8,6 +8,29 @@ public sealed class MainWindowAccessibilityTests
     private static readonly XNamespace _xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
 
     [TestMethod]
+    public void StationBrowsersUseRowsWithoutOuterScrollHosts()
+    {
+        var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml"));
+        foreach (var viewName in new[] { "ListenNowView", "FavoritesView", "SearchView" })
+        {
+            var view = document.Descendants().Single(element => (string?)element.Attribute(_xaml + "Name") == viewName);
+            Assert.IsFalse(view.Descendants().Any(element => element.Name.LocalName is "ScrollViewer" or "GridView"));
+            foreach (var list in view.Descendants().Where(element => element.Name.LocalName == "ListView"
+                && element.Descendants().Any(child => child.Name.LocalName == "StationRowControl")))
+            {
+                Assert.AreEqual("StationList_ContainerContentChanging", (string?)list.Attribute("ContainerContentChanging"));
+                Assert.IsFalse(string.IsNullOrWhiteSpace((string?)list.Attribute("AutomationProperties.Name")));
+                Assert.AreEqual("StationList_ItemClick", (string?)list.Attribute("ItemClick"));
+                Assert.IsTrue(int.Parse((string)list.Attribute("Grid.Row")!, System.Globalization.CultureInfo.InvariantCulture) > 0);
+            }
+        }
+        var row = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "StationRowControl.xaml"));
+        Assert.IsTrue(row.Descendants().Any(element => (string?)element.Attribute(_xaml + "Name") == "PlaybackLabel"));
+        Assert.IsTrue(row.Descendants().Any(element => (string?)element.Attribute(_xaml + "Name") == "FavoriteButton"
+            && element.Attribute("AutomationProperties.Name") is not null));
+    }
+
+    [TestMethod]
     public void SoftwareLicenseNoticesUseBoundedVirtualizedAccessibleList()
     {
         var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "SoftwareLicensesView.xaml"));
