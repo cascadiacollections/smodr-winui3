@@ -1,23 +1,27 @@
 using Windows.Media.Audio;
 using Windows.Media.Core;
+using Windows.Media.Playback;
 using Windows.Media.Render;
 
 namespace smodr.Services;
 
 /// <summary>Opt-in AudioGraph pipeline. The source feeds the equalizer and output, never a second decoder.</summary>
-internal sealed class RadioDspSession : IDisposable
+internal sealed class AudioGraphRadioEngine : IRadioAudioEngine
 {
     private readonly AudioGraph _graph;
     private readonly MediaSourceAudioInputNode _input;
     private readonly MediaSource _source;
     private int _disposed;
     public RadioEqualizerPreset Preset { get; }
+    public RadioAudioEngineKind Kind => RadioAudioEngineKind.AudioGraph;
+    public MediaPlaybackState State { get; private set; } = MediaPlaybackState.Opening;
+    public event EventHandler<MediaPlaybackState>? StateChanged;
     public TimeSpan Duration => _input.Duration;
     public TimeSpan Position => _input.Position;
     public event EventHandler? Completed;
     public event EventHandler? Failed;
 
-    private RadioDspSession(AudioGraph graph, MediaSourceAudioInputNode input, MediaSource source,
+    private AudioGraphRadioEngine(AudioGraph graph, MediaSourceAudioInputNode input, MediaSource source,
         RadioEqualizerPreset preset)
     {
         _graph = graph;
@@ -39,7 +43,7 @@ internal sealed class RadioDspSession : IDisposable
             Failed?.Invoke(this, EventArgs.Empty);
     }
 
-    public static async Task<RadioDspSession> CreateAsync(Uri uri, RadioEqualizerPreset preset,
+    public static async Task<AudioGraphRadioEngine> CreateAsync(Uri uri, RadioEqualizerPreset preset,
         CancellationToken cancellationToken)
     {
         AudioGraph? graph = null;
@@ -65,7 +69,7 @@ internal sealed class RadioDspSession : IDisposable
             input.Node.EffectDefinitions.Add(equalizer);
             input.Node.AddOutgoingConnection(output.DeviceOutputNode);
             cancellationToken.ThrowIfCancellationRequested();
-            return new RadioDspSession(graph, input.Node, source, preset);
+            return new AudioGraphRadioEngine(graph, input.Node, source, preset);
         }
         catch
         {
@@ -76,8 +80,8 @@ internal sealed class RadioDspSession : IDisposable
     }
 
     public void SetVolume(double volume) => _input.OutgoingGain = Math.Clamp(volume, 0, 1) * RadioEqualizerProfiles.Headroom(Preset);
-    public void Play() => _graph.Start();
-    public void Pause() => _graph.Stop();
+    public void Play() { _graph.Start(); State = MediaPlaybackState.Playing; StateChanged?.Invoke(this, State); }
+    public void Pause() { _graph.Stop(); State = MediaPlaybackState.Paused; StateChanged?.Invoke(this, State); }
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

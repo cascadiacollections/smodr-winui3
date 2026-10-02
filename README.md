@@ -1,6 +1,7 @@
 # Shoutkit for Windows — local preview
 
 Repeatable, offline stream transport checks are documented in [STREAM_HARNESS.md](STREAM_HARNESS.md).
+Native decoder ownership and the common playback-control boundary are documented in [AUDIO_ENGINES.md](AUDIO_ENGINES.md).
 
 This branch is a Windows ARM64 adaptation of the [Shoutkit iOS app](https://github.com/cascadiacollections/shoutkit), built in the `smodr-winui3` host. It is an unpackaged, self-contained desktop preview, not a direct SwiftUI port or a complete feature-equivalent release. The application is radio-only. The inherited podcast models, RSS, downloads, cache, and playback surface have been removed; their history remains recoverable in Git. Existing radio profile data is unchanged.
 

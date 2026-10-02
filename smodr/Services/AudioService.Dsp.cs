@@ -8,7 +8,7 @@ namespace smodr.Services;
 
 public partial class AudioService
 {
-    private RadioDspSession? _dsp;
+    private AudioGraphRadioEngine? _dsp;
     private CancellationTokenSource? _dspStart;
     private SystemMediaTransportControls? _manualControls;
     private MediaPlaybackState _dspState = MediaPlaybackState.None;
@@ -20,29 +20,28 @@ public partial class AudioService
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(12));
         _dspStart = cancellation;
         var version = _sourceVersion;
-        RadioDspSession? pending = null;
+        AudioGraphRadioEngine? pending = null;
         try
         {
             PublishDspState(MediaPlaybackState.Opening);
-            pending = await RadioDspSession.CreateAsync(uri, preset, cancellation.Token);
+            pending = await AudioGraphRadioEngine.CreateAsync(uri, preset, cancellation.Token);
             if (cancellation.IsCancellationRequested || version != _sourceVersion
                 || !ReferenceEquals(station, CurrentStation) || !_recovery.IsRequested) return;
             _dsp = pending;
             pending = null;
             // A source-less player supplies SMTC only. It never opens or decodes this stream.
-            _mediaPlayer!.CommandManager.IsEnabled = false;
-            _manualControls = _mediaPlayer.SystemMediaTransportControls;
+            if (SystemPlayer!.Source is not null) throw new InvalidOperationException("DSP system-control bridge must have no source.");
+            SystemPlayer.CommandManager.IsEnabled = false;
+            _manualControls = SystemPlayer.SystemMediaTransportControls;
             _manualControls.IsEnabled = true;
             _manualControls.IsPlayEnabled = true;
             _manualControls.IsPauseEnabled = true;
             _manualControls.ButtonPressed += ManualControls_ButtonPressed;
-            _dsp.Completed += Dsp_Completed;
-            _dsp.Failed += Dsp_Failed;
+            // Preserve the source-less MediaPlayer solely as the manual SMTC bridge.
+            _engines.Replace(_dsp, disposePrevious: false);
             UpdateManualMetadata();
-            _dsp.SetVolume(_volume);
-            _dsp.Play();
             StartDspWatchdog();
-            PublishDspState(MediaPlaybackState.Playing);
+            _engines.Play();
         }
         catch (OperationCanceledException) when (version != _sourceVersion || !_recovery.IsRequested) { }
         catch (Exception exception)
@@ -79,9 +78,8 @@ public partial class AudioService
         if (_dsp is { } dsp)
         {
             _dsp = null;
-            dsp.Completed -= Dsp_Completed;
-            dsp.Failed -= Dsp_Failed;
-            dsp.Dispose();
+            if (ReferenceEquals(_engines.Current, dsp)) _engines.Replace(null);
+            else dsp.Dispose();
         }
         _dspState = MediaPlaybackState.None;
     }
@@ -137,31 +135,6 @@ public partial class AudioService
         }
     }
 
-    private void Dsp_Failed(object? sender, EventArgs args) => RunOnPlayerThread(() =>
-    {
-        if (!ReferenceEquals(sender, _dsp) || !_recovery.IsRequested) return;
-        AppDiagnostics.Record("station.dsp-failed", new InvalidOperationException());
-        PublishDspState(MediaPlaybackState.Buffering);
-        _recovery.Fail();
-    });
-
-    private void Dsp_Completed(object? sender, EventArgs args) => RunOnPlayerThread(() =>
-    {
-        if (!ReferenceEquals(sender, _dsp) || !_recovery.IsRequested) return;
-        var loop = FinishedBroadcastPolicy.ShouldLoop(_preferences?.Current.LoopFinishedBroadcasts == true, true, Duration);
-        var intent = _intentVersion;
-        _radioEnded = true;
-        _dsp!.Pause();
-        _recovery.Pause();
-        PublishDspState(MediaPlaybackState.Paused);
-        if (loop) RunOnPlayerThread(() =>
-        {
-            if (intent != _intentVersion || !ReferenceEquals(sender, _dsp)) return;
-            try { Play(); }
-            catch (Exception exception) { AppDiagnostics.Record("station.dsp-loop", exception); }
-        });
-    });
-
     private void ManualControls_ButtonPressed(SystemMediaTransportControls sender,
         SystemMediaTransportControlsButtonPressedEventArgs args) => RunOnPlayerThread(() =>
     {
@@ -183,9 +156,7 @@ public partial class AudioService
         if (_manualControls is not { } controls || CurrentStation is not { } station) return;
         try
         {
-            var metadata = CurrentTrack is { } track
-                ? new NowPlayingMetadata(track.Title, track.Artist ?? station.Name, station.Name)
-                : NowPlayingMetadata.ForStation(station);
+            var metadata = NowPlayingMetadata.ForPlayback(station, CurrentTrack);
             var display = controls.DisplayUpdater;
             display.Type = MediaPlaybackType.Music;
             display.MusicProperties.Title = metadata.Title;

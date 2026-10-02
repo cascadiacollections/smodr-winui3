@@ -14,8 +14,9 @@ public partial class AudioService : IRadioPlayer, IDisposable
 {
     private bool _isInitialized;
     private bool _radioEnded;
-    private MediaPlayer? _mediaPlayer;
-    private MediaSource? _mediaSource;
+    private MediaPlayerRadioEngine? _mediaEngine;
+    private MediaPlayer? SystemPlayer => _mediaEngine?.Player;
+    private readonly RadioAudioEngineCoordinator _engines;
     private MediaPlaybackItem? _playbackItem;
     private Uri? _currentArtworkUri;
     private readonly List<TimedMetadataTrack> _timedTracks = [];
@@ -26,7 +27,6 @@ public partial class AudioService : IRadioPlayer, IDisposable
     private bool _observingDefaultRenderDevice;
     private readonly RadioPlaybackPreferences? _preferences;
     private readonly RadioStreamPrewarmer? _prewarmer;
-    private double _volume = 0.5;
     private long _sourceVersion;
     private long _intentVersion;
 
@@ -35,6 +35,10 @@ public partial class AudioService : IRadioPlayer, IDisposable
     {
         _preferences = preferences;
         _prewarmer = prewarmer;
+        _engines = new RadioAudioEngineCoordinator(RunOnPlayerThread);
+        _engines.StateChanged += Engine_StateChanged;
+        _engines.Completed += Engine_Completed;
+        _engines.Failed += Engine_Failed;
         _trackMonitor = trackMonitor;
         _trackMonitor.TrackChanged += TrackMonitor_TrackChanged;
         _trackMonitor.TrackInvalidated += TrackMonitor_TrackInvalidated;
@@ -46,8 +50,8 @@ public partial class AudioService : IRadioPlayer, IDisposable
     public RadioTrackInfo? CurrentTrack { get; private set; }
 
     public MediaPlaybackState PlaybackState => _dsp is not null || _dspStart is not null
-        ? _dspState : _mediaPlayer?.PlaybackSession?.PlaybackState ?? MediaPlaybackState.None;
-    public TimeSpan Duration => _dsp?.Duration ?? _mediaPlayer?.PlaybackSession?.NaturalDuration ?? TimeSpan.Zero;
+        ? _dspState : _engines.Current?.State ?? MediaPlaybackState.None;
+    public TimeSpan Duration => _engines.Duration;
     public bool IsPlaying => PlaybackState == MediaPlaybackState.Playing;
     public bool IsPaused => PlaybackState == MediaPlaybackState.Paused;
     public bool IsPlaybackRequested => CurrentStation is not null && _recovery.IsRequested;
@@ -64,10 +68,11 @@ public partial class AudioService : IRadioPlayer, IDisposable
         _trackMonitor.TrackInvalidated -= TrackMonitor_TrackInvalidated;
         _trackMonitor.Dispose();
         _recovery.Dispose();
-        if (_mediaPlayer is not null)
+        if (SystemPlayer is not null)
         {
             ReleasePlayer();
         }
+        _engines.Dispose();
 
         _isInitialized = false;
         GC.SuppressFinalize(this);
@@ -105,28 +110,17 @@ public partial class AudioService : IRadioPlayer, IDisposable
     private void CreatePlayer(PreparedRadioSource? prepared = null)
     {
         ReleasePlayer();
+        var engine = new MediaPlayerRadioEngine(prepared);
+        _engines.Replace(engine);
+        _mediaEngine = engine;
         if (prepared is not null)
         {
-            (_mediaPlayer, _mediaSource) = prepared.Transfer();
-            _mediaPlayer.Volume = _volume;
-            _mediaPlayer.CommandManager.IsEnabled = true;
-            _mediaPlayer.SystemMediaTransportControls.IsEnabled = true;
-            _playbackItem = (MediaPlaybackItem)_mediaPlayer.Source;
+            _playbackItem = (MediaPlaybackItem)SystemPlayer!.Source;
             _playbackItem.TimedMetadataTracksChanged += PlaybackItem_TimedMetadataTracksChanged;
             RegisterTimedTracks(_playbackItem);
         }
-        else _mediaPlayer = new MediaPlayer
-        {
-            AudioCategory = MediaPlayerAudioCategory.Media,
-            AudioDeviceType = MediaPlayerAudioDeviceType.Multimedia,
-            Volume = _volume
-        };
-
-        _mediaPlayer.PlaybackSession.PlaybackStateChanged += PlaybackSession_PlaybackStateChanged;
-        _mediaPlayer.MediaFailed += MediaPlayer_MediaFailed;
-        _mediaPlayer.MediaEnded += MediaPlayer_MediaEnded;
-        _mediaPlayer.CommandManager.PlayReceived += CommandManager_PlayReceived;
-        _mediaPlayer.CommandManager.PauseReceived += CommandManager_PauseReceived;
+        SystemPlayer!.CommandManager.PlayReceived += CommandManager_PlayReceived;
+        SystemPlayer.CommandManager.PauseReceived += CommandManager_PauseReceived;
     }
 
     private void ReleasePlayer()
@@ -135,17 +129,14 @@ public partial class AudioService : IRadioPlayer, IDisposable
         ReleaseDsp();
         _trackMonitor.Stop();
         DetachTimedTracks();
-        if (_mediaPlayer is not { } player) return;
-        _mediaPlayer = null;
-        player.PlaybackSession.PlaybackStateChanged -= PlaybackSession_PlaybackStateChanged;
-        player.MediaFailed -= MediaPlayer_MediaFailed;
-        player.MediaEnded -= MediaPlayer_MediaEnded;
+        if (_mediaEngine is not { } engine) return;
+        var player = engine.Player;
+        _mediaEngine = null;
         player.CommandManager.PlayReceived -= CommandManager_PlayReceived;
         player.CommandManager.PauseReceived -= CommandManager_PauseReceived;
-        player.Source = null;
-        player.Dispose();
-        _mediaSource?.Dispose();
-        _mediaSource = null;
+        // A DSP engine has already been retired above; its source-less SMTC bridge is owned here.
+        if (ReferenceEquals(_engines.Current, engine)) _engines.Replace(null);
+        else engine.Dispose();
     }
 
     public Task PlayStationAsync(RadioStation station)
@@ -201,12 +192,10 @@ public partial class AudioService : IRadioPlayer, IDisposable
             _ = StartDspAsync(station, streamUri, preset);
             return;
         }
-        var metadata = CurrentTrack is { } track
-            ? new NowPlayingMetadata(track.Title, track.Artist ?? station.Name, station.Name)
-            : NowPlayingMetadata.ForStation(station);
+        var metadata = NowPlayingMetadata.ForPlayback(station, CurrentTrack);
         if (prepared is null) SetPlayerSource(streamUri, metadata);
         SetNowPlayingArtwork(station, _currentArtworkUri);
-        _mediaPlayer!.Play();
+        _engines.Play();
     }
 
     private void SetPlayerSource(Uri uri, NowPlayingMetadata metadata)
@@ -222,8 +211,7 @@ public partial class AudioService : IRadioPlayer, IDisposable
                 item.TimedMetadataTracksChanged += PlaybackItem_TimedMetadataTracksChanged;
                 RegisterTimedTracks(item);
             }
-            _mediaPlayer!.Source = item;
-            _mediaSource = source;
+            _mediaEngine!.AdoptSource(source, item);
         }
         catch
         {
@@ -263,11 +251,10 @@ public partial class AudioService : IRadioPlayer, IDisposable
             if (_dsp is { } dsp && !_radioEnded && dsp.Preset == preset)
             {
                 _recovery.ResumePending();
-                dsp.Play();
-                PublishDspState(MediaPlaybackState.Playing);
+                _engines.Play();
                 return;
             }
-            if (_radioEnded || _dsp is not null || _mediaPlayer?.Source is null || preset != RadioEqualizerPreset.Off)
+            if (_radioEnded || _dsp is not null || SystemPlayer?.Source is null || preset != RadioEqualizerPreset.Off)
             {
                 _recovery.Begin();
                 _radioEnded = false;
@@ -286,7 +273,7 @@ public partial class AudioService : IRadioPlayer, IDisposable
             _recovery.ResumePending();
         }
 
-        _mediaPlayer?.Play();
+        _engines.Play();
     }
 
     public void Pause()
@@ -294,11 +281,10 @@ public partial class AudioService : IRadioPlayer, IDisposable
         _intentVersion++;
         _prewarmer?.Clear();
         _dspStart?.Cancel();
-        _dsp?.Pause();
+        _engines.Pause();
         _trackMonitor.Stop();
         _recovery.Pause();
-        if (_dsp is not null || _dspStart is not null) PublishDspState(MediaPlaybackState.Paused);
-        _mediaPlayer?.Pause();
+        if (_dspStart is not null) PublishDspState(MediaPlaybackState.Paused);
         if (CurrentStation is not null)
         {
             PlaybackStateChanged?.Invoke(this, MediaPlaybackState.Paused);
@@ -326,22 +312,17 @@ public partial class AudioService : IRadioPlayer, IDisposable
 
     public void SetVolume(double volume)
     {
-        _volume = Math.Clamp(volume, 0, 1);
-        _dsp?.SetVolume(_volume);
-        if (_mediaPlayer is not null)
-        {
-            _mediaPlayer.Volume = Math.Clamp(volume, 0, 1);
-        }
+        _engines.SetVolume(volume);
     }
 
-    public double GetVolume() => _volume;
+    public double GetVolume() => _engines.Volume;
 
     public void SetNowPlayingArtwork(RadioStation station, Uri? artworkUrl)
     {
         if (!ReferenceEquals(CurrentStation, station)) return;
         _currentArtworkUri = artworkUrl;
         if (_manualControls is not null) { UpdateManualMetadata(); return; }
-        if (_mediaPlayer?.Source is not MediaPlaybackItem item) return;
+        if (SystemPlayer?.Source is not MediaPlaybackItem item) return;
         try
         {
             var display = item.GetDisplayProperties();
@@ -356,14 +337,19 @@ public partial class AudioService : IRadioPlayer, IDisposable
         Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http"
             ? uri : null;
 
-    private void PlaybackSession_PlaybackStateChanged(MediaPlaybackSession sender, object args)
+    private void Engine_StateChanged(object? sender, MediaPlaybackState state)
     {
+        if (_engines.Current?.Kind == RadioAudioEngineKind.AudioGraph)
+        {
+            if (!_recovery.IsRequested && state is MediaPlaybackState.Playing or MediaPlaybackState.Buffering or MediaPlaybackState.Opening) return;
+            PublishDspState(state);
+            return;
+        }
         if (_dspStart is not null || _manualControls is not null) return;
-        if (!ReferenceEquals(sender, _mediaPlayer?.PlaybackSession)) return;
-        if (CurrentStation is not null && !_recovery.IsRequested) return;
+        if (CurrentStation is not null && !_recovery.IsRequested && state != MediaPlaybackState.Paused) return;
         if (CurrentStation is not null)
         {
-            switch (sender.PlaybackState)
+            switch (state)
             {
                 case MediaPlaybackState.Buffering:
                     _trackMonitor.Stop();
@@ -379,20 +365,15 @@ public partial class AudioService : IRadioPlayer, IDisposable
             }
         }
 
-        PlaybackStateChanged?.Invoke(this, sender.PlaybackState);
-        Debug.WriteLine($"Playback state changed: {sender.PlaybackState}");
+        PlaybackStateChanged?.Invoke(this, state);
     }
 
-    private void MediaPlayer_MediaFailed(MediaPlayer sender, MediaPlayerFailedEventArgs args)
+    private void Engine_Failed(object? sender, EventArgs args)
     {
-        if (!ReferenceEquals(sender, _mediaPlayer)) return;
-        var message = string.IsNullOrWhiteSpace(args.ErrorMessage)
-            ? args.Error.ToString()
-            : args.ErrorMessage;
-        Debug.WriteLine($"Media failed: {args.Error} - {message}");
-        AppDiagnostics.Record("station.media-failed", new InvalidOperationException(args.Error.ToString()));
+        AppDiagnostics.Record("station.engine-failed", new InvalidOperationException(_engines.Current?.Kind.ToString()));
         if (CurrentStation is not null && _recovery.IsRequested)
         {
+            if (_dsp is not null) PublishDspState(MediaPlaybackState.Buffering);
             _recovery.Fail();
             if (_recovery.IsRequested)
             {
@@ -407,25 +388,25 @@ public partial class AudioService : IRadioPlayer, IDisposable
         }
     }
 
-    private void MediaPlayer_MediaEnded(MediaPlayer sender, object args)
-        => RunOnPlayerThread(() => HandleMediaEnded(sender));
-
-    private void HandleMediaEnded(MediaPlayer sender)
+    private void Engine_Completed(object? sender, EventArgs args)
     {
-        if (!ReferenceEquals(sender, _mediaPlayer)) return;
-        if (CurrentStation is not null)
+        if (_engines.Current is not { } engine) return;
+        if (CurrentStation is not null && _recovery.IsRequested)
         {
             var loop = FinishedBroadcastPolicy.ShouldLoop(_preferences?.Current.LoopFinishedBroadcasts == true,
                 _recovery.IsRequested, Duration);
             var intent = _intentVersion;
+            var version = _sourceVersion;
             // A finite programme ended normally. Reopen only under explicit opt-in.
             _radioEnded = true;
+            _engines.Pause();
             _trackMonitor.Stop();
             _recovery.Pause();
+            if (_dsp is not null) PublishDspState(MediaPlaybackState.Paused);
             PlaybackStateChanged?.Invoke(this, MediaPlaybackState.Paused);
             if (loop) RunOnPlayerThread(() =>
             {
-                if (intent != _intentVersion || !ReferenceEquals(sender, _mediaPlayer)) return;
+                if (intent != _intentVersion || version != _sourceVersion || !ReferenceEquals(engine, _engines.Current)) return;
                 try { Play(); }
                 catch (Exception exception) { AppDiagnostics.Record("station.loop", exception); }
             });
@@ -436,14 +417,14 @@ public partial class AudioService : IRadioPlayer, IDisposable
     private void CommandManager_PlayReceived(MediaPlaybackCommandManager sender,
         MediaPlaybackCommandManagerPlayReceivedEventArgs args)
     {
-        if (!ReferenceEquals(sender, _mediaPlayer?.CommandManager) || CurrentStation is null) return;
+        if (!ReferenceEquals(sender, SystemPlayer?.CommandManager) || CurrentStation is null) return;
         var deferral = args.GetDeferral();
         args.Handled = true;
         if (_dispatcher?.TryEnqueue(() =>
             {
                 try
                 {
-                    if (ReferenceEquals(sender, _mediaPlayer?.CommandManager) && !IsPlaybackRequested)
+                    if (ReferenceEquals(sender, SystemPlayer?.CommandManager) && !IsPlaybackRequested)
                     {
                         Play();
                         UserPlaybackStarted?.Invoke(this, EventArgs.Empty);
@@ -457,12 +438,12 @@ public partial class AudioService : IRadioPlayer, IDisposable
     private void CommandManager_PauseReceived(MediaPlaybackCommandManager sender,
         MediaPlaybackCommandManagerPauseReceivedEventArgs args)
     {
-        if (!ReferenceEquals(sender, _mediaPlayer?.CommandManager) || CurrentStation is null) return;
+        if (!ReferenceEquals(sender, SystemPlayer?.CommandManager) || CurrentStation is null) return;
         var deferral = args.GetDeferral();
         args.Handled = true;
         if (_dispatcher?.TryEnqueue(() =>
             {
-                try { if (ReferenceEquals(sender, _mediaPlayer?.CommandManager)) Pause(); }
+                try { if (ReferenceEquals(sender, SystemPlayer?.CommandManager)) Pause(); }
                 catch (Exception exception) { AppDiagnostics.Record("station.system-pause", exception); }
                 finally { deferral.Complete(); }
             }) != true) deferral.Complete();
@@ -507,10 +488,10 @@ public partial class AudioService : IRadioPlayer, IDisposable
     {
         var nextDeviceId = args.Id;
         var isDefaultRole = args.Role == AudioDeviceRole.Default;
-        var playerAtEvent = _mediaPlayer;
+        var playerAtEvent = SystemPlayer;
         RunOnPlayerThread(() =>
         {
-            if (!_observingDefaultRenderDevice || !ReferenceEquals(playerAtEvent, _mediaPlayer)) return;
+            if (!_observingDefaultRenderDevice || !ReferenceEquals(playerAtEvent, SystemPlayer)) return;
             var previous = _defaultRenderDeviceId;
             _defaultRenderDeviceId = nextDeviceId;
             if (AudioOutputChangePolicy.ShouldPause(previous, nextDeviceId,
@@ -534,7 +515,7 @@ public partial class AudioService : IRadioPlayer, IDisposable
         ClearTrack();
         UpdateManualMetadata();
         SetNowPlayingArtwork(station, ParseArtworkUri(station.ArtworkUrl));
-        if (_mediaPlayer?.Source is not MediaPlaybackItem item) return;
+        if (SystemPlayer?.Source is not MediaPlaybackItem item) return;
         try
         {
             var metadata = NowPlayingMetadata.ForStation(station);
@@ -613,7 +594,7 @@ public partial class AudioService : IRadioPlayer, IDisposable
         SetNowPlayingArtwork(update.Station, ParseArtworkUri(update.Station.ArtworkUrl));
         try
         {
-            if (_mediaPlayer?.Source is MediaPlaybackItem item)
+            if (SystemPlayer?.Source is MediaPlaybackItem item)
             {
                 var display = item.GetDisplayProperties();
                 display.Type = MediaPlaybackType.Music;

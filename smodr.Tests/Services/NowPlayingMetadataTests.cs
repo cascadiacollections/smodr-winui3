@@ -9,6 +9,17 @@ namespace smodr.Tests.Services;
 public sealed class NowPlayingMetadataTests
 {
     [TestMethod]
+    public void BothEnginePathsUseIdenticalTrackAndStationMetadata()
+    {
+        var station = new RadioStation { Name = "Example Radio" };
+        Assert.AreEqual(NowPlayingMetadata.ForStation(station), NowPlayingMetadata.ForPlayback(station, null));
+        Assert.AreEqual(new NowPlayingMetadata("Song", "Artist", "Example Radio"),
+            NowPlayingMetadata.ForPlayback(station, new RadioTrackInfo("Song", "Artist")));
+        Assert.AreEqual(new NowPlayingMetadata("Song", "Example Radio", "Example Radio"),
+            NowPlayingMetadata.ForPlayback(station, new RadioTrackInfo("Song", null)));
+    }
+
+    [TestMethod]
     public void StationMetadataIsStableWithoutTrackTitle()
     {
         var metadata = NowPlayingMetadata.ForStation(new RadioStation

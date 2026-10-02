@@ -4,6 +4,14 @@ The downloadable CI artifacts are **unsigned, unpackaged previews**, not install
 
 ## Automated checks
 
+Local headless validation on 2026-10-02: all 300 tests passed on ARM64 and x64
+with warnings treated as errors, plus three additional seven-test loopback runs per
+architecture. Formatting checks passed. The self-contained ARM64 publish and unsigned
+ARM64 MSIX built successfully; license inventory, fixture checks, and notices in both
+artifacts passed. The MSIX build still has the documented missing-symbols-tool warning.
+This validates the station-row, artwork, stream-harness, and engine-ownership changes;
+it does not replace the interactive or signing gates below. No live playback was launched.
+
 Optional playback and shell features have additional native gates in [PLAYBACK_FEATURES.md](PLAYBACK_FEATURES.md): prepared-player handoff and cancellation, finite looping races, experimental AudioGraph audibility/recovery/resource cleanup, signed-MSIX jump-list activation/removal, and authorized-key SHOUTcast tune-in. Keep these gates open until checked on real devices; source-level and synthetic tests do not complete them.
 
 The GitHub Actions build uses the exact .NET 11 RC SDK in `global.json`, locked NuGet restores, warning-free x64 and native ARM64 builds and unit tests, formatting checks, self-contained publish artifacts, and unsigned MSIX package validation for both architectures. The ARM64 lane uses GitHub's Windows 11 ARM64 runner with Visual Studio 2026. It also creates a disposable certificate matching the development package identity, builds a signed CI-only MSIX, installs version 1.0.0.0, invokes the installed executable in a CI-only headless mode to import synthetic unpackaged files, upgrades to 1.0.0.1, and checks that package identity, imported bytes, and a LocalState marker survive. The temporary package, synthetic legacy files, and certificate are removed afterward and never uploaded. Unit tests independently cover the import rules. This is not production signing and does not prove interactive UI launch, live playback, or accessibility; those still require an interactive Windows host.
