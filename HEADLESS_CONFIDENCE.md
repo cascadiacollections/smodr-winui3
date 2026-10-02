@@ -28,6 +28,16 @@ without a window or audio device. There are no new third-party dependencies.
 
 ## Race coverage
 
+`TransportStress` tests stop a loader with four stalled bodies and twenty queued
+requests, verify all accepted requests finish before semaphore disposal, and check
+that the caller's HTTP client remains usable. Redirect cycles stop after three
+hops; every response is disposed. Advertised body-length mismatches are rejected
+before artwork or catalog misses can be cached, and a stalled catalog body has a
+whole-request deadline. The normal close drain includes shared station artwork
+transport. Native bitmap decode already in progress remains an interactive QA
+boundary. The soak script repeats `MetadataScenario` and `TransportStress` along
+with the existing engine ownership/race tests.
+
 `RadioRuntimeRaceTests` checks rapid MediaPlayer/AudioGraph identity replacement,
 late startup/failure/completion delivery, retry invalidation after pause or station
 switch, shutdown while events are queued, prepared-resource ownership transfer,
@@ -120,7 +130,8 @@ Raw local JSON is under `out/headless-performance/arm64-final/` and
 `out/headless-performance/x64-local/`; timings, allocation counts, and p95 outliers are
 retained there, not committed as machine-independent expectations. The local workflow
 has not been pushed or run remotely.
-# Integrated metadata scenarios
+
+## Integrated metadata scenarios
 
 `MetadataOrchestrationTests` connects the real ICY monitor/parser, view model,
 privacy settings, station library, and persisted listening history. Scripted

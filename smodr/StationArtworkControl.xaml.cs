@@ -16,6 +16,7 @@ public sealed partial class StationArtworkControl : UserControl, IDisposable
     private static readonly StationArtworkDiskCache _diskCache = new(
         Path.Combine(App.StorageDirectory, "station-artwork"));
     private static readonly StationArtworkLoader _loader = new(_client, _diskCache);
+    internal static Task ShutdownTransportAsync() => _loader.ShutdownAsync();
 #pragma warning disable IDE0028 // A weak-key native dispatcher table is not a normal collection initializer.
     private static readonly ConditionalWeakTable<DispatcherQueue, ArtworkMemoryCache<DecodedArtwork>> _decoded = new();
 #pragma warning restore IDE0028

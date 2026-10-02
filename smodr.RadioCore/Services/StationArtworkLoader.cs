@@ -2,18 +2,31 @@ namespace smodr.Services;
 
 /// <summary>Optional, bounded artwork transport. The deadline includes response-body reads and queue time.</summary>
 public sealed class StationArtworkLoader(HttpClient client, StationArtworkDiskCache? diskCache = null,
-    TimeSpan? timeout = null) : IDisposable
+    TimeSpan? timeout = null) : IDisposable, IAsyncDisposable
 {
     public const int MaxArtworkBytes = 1_000_000;
     private readonly ArtworkMemoryCache<byte[]> _cache = new(48, 8 * 1024 * 1024);
     private readonly SemaphoreSlim _downloads = new(4);
+    private readonly Lock _gate = new();
+    private readonly BackgroundWorkScope _background = new();
+    private Task? _shutdown;
 
-    public async Task<byte[]?> GetAsync(Uri uri, CancellationToken cancellationToken = default)
+    public Task<byte[]?> GetAsync(Uri uri, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(uri);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_shutdown is not null, this);
+            return _background.RunAsync(token => GetCoreAsync(uri, cancellationToken, token));
+        }
+    }
+
+    private async Task<byte[]?> GetCoreAsync(Uri uri, CancellationToken cancellationToken, CancellationToken lifetime)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (!IsSafe(uri)) return null;
         if (_cache.TryGet(uri.AbsoluteUri, out var cached)) return cached;
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime);
         deadline.CancelAfter(timeout ?? TimeSpan.FromSeconds(8));
         var token = deadline.Token;
         try
@@ -26,6 +39,11 @@ public sealed class StationArtworkLoader(HttpClient client, StationArtworkDiskCa
             await _downloads.WaitAsync(token).ConfigureAwait(false);
             try
             {
+                // Semaphore release can win over linked-token callbacks during shutdown.
+                // Check the parent lifetimes too before starting another network request.
+                lifetime.ThrowIfCancellationRequested();
+                cancellationToken.ThrowIfCancellationRequested();
+                token.ThrowIfCancellationRequested();
                 if (_cache.TryGet(uri.AbsoluteUri, out cached)) return cached;
                 using var response = await GetResponseAsync(uri, token).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > MaxArtworkBytes
@@ -39,7 +57,8 @@ public sealed class StationArtworkLoader(HttpClient client, StationArtworkDiskCa
                     if (buffer.Length + read > MaxArtworkBytes) return null;
                     await buffer.WriteAsync(chunk.AsMemory(0, read), token).ConfigureAwait(false);
                 }
-                if (buffer.Length == 0) return null;
+                if (buffer.Length == 0 || response.Content.Headers.ContentLength is { } length && length != buffer.Length) return null;
+                token.ThrowIfCancellationRequested();
                 var bytes = buffer.ToArray();
                 _cache.Put(uri.AbsoluteUri, bytes, bytes.Length);
                 if (diskCache is not null) await Task.Run(() => diskCache.StoreAsync(uri, bytes, token), token).ConfigureAwait(false);
@@ -51,7 +70,19 @@ public sealed class StationArtworkLoader(HttpClient client, StationArtworkDiskCa
         catch (Exception exception) when (exception is HttpRequestException or IOException or UnauthorizedAccessException) { return null; }
     }
 
-    public void Dispose() { _downloads.Dispose(); GC.SuppressFinalize(this); }
+    public Task ShutdownAsync()
+    {
+        lock (_gate) return _shutdown ??= DrainAndReleaseAsync();
+    }
+
+    private async Task DrainAndReleaseAsync()
+    {
+        await _background.StopAsync().ConfigureAwait(false);
+        _downloads.Dispose();
+    }
+
+    public void Dispose() { _ = ShutdownAsync(); GC.SuppressFinalize(this); }
+    public async ValueTask DisposeAsync() { await ShutdownAsync().ConfigureAwait(false); GC.SuppressFinalize(this); }
 
     private static bool IsSafe(Uri uri) => uri.IsAbsoluteUri && uri.Scheme is "http" or "https" && uri.UserInfo.Length == 0 && !uri.IsLoopback;
 

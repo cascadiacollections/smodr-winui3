@@ -95,6 +95,7 @@ public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = nu
                 await buffer.WriteAsync(chunk.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
             }
 
+            if (response.Content.Headers.ContentLength is { } length && length != buffer.Length) return new(false, null);
             buffer.Position = 0;
             using var document = await JsonDocument.ParseAsync(buffer, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (document.RootElement.ValueKind != JsonValueKind.Object

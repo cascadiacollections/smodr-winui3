@@ -164,7 +164,8 @@ public sealed partial class MainWindow : Window
         AppNavigation.IsEnabled = false;
         try
         {
-            await Task.WhenAll(ViewModel.ShutdownAsync(), _prewarmer?.ShutdownAsync() ?? Task.CompletedTask)
+            await Task.WhenAll(ViewModel.ShutdownAsync(), _prewarmer?.ShutdownAsync() ?? Task.CompletedTask,
+                StationArtworkControl.ShutdownTransportAsync())
                 .WaitAsync(TimeSpan.FromSeconds(15));
         }
         catch (Exception exception) { AppDiagnostics.Record("app.shutdown", exception); }

@@ -23,7 +23,7 @@ try {
     $iteration = 0
     do {
         $iteration++
-        & $DotnetPath test smodr.Tests/smodr.Tests.csproj -c Release --no-build --no-restore "-p:Platform=$Platform" --filter 'TestCategory=Soak|TestCategory=RuntimeRace' --results-directory $OutputDirectory --logger "trx;LogFileName=soak-$iteration.trx"
+        & $DotnetPath test smodr.Tests/smodr.Tests.csproj -c Release --no-build --no-restore "-p:Platform=$Platform" --filter 'TestCategory=Soak|TestCategory=RuntimeRace|TestCategory=MetadataScenario|TestCategory=TransportStress' --results-directory $OutputDirectory --logger "trx;LogFileName=soak-$iteration.trx"
         if ($LASTEXITCODE -ne 0) { throw "Headless soak iteration $iteration failed: $LASTEXITCODE" }
     } while ($clock.Elapsed.TotalMinutes -lt $Minutes)
     [ordered]@{ schemaVersion = 1; platform = $Platform; iterations = $iteration; elapsedSeconds = $clock.Elapsed.TotalSeconds; capturedAtUtc = [DateTimeOffset]::UtcNow.ToString('O'); scope = 'Synthetic engine ownership, virtual-time recovery, bounded caches/history, real loopback HTTP; not native audio or WinUI.' } |
