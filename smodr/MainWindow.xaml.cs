@@ -152,12 +152,6 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var pending = FlushPendingAsync();
-        if (pending.IsCompleted)
-        {
-            return;
-        }
-
         args.Cancel = true;
         if (_closingAfterFlush)
         {
@@ -165,13 +159,18 @@ public sealed partial class MainWindow : Window
         }
 
         _closingAfterFlush = true;
+        _warmupCancellation.Cancel();
+        if (Content is UIElement root) root.IsHitTestVisible = false;
+        AppNavigation.IsEnabled = false;
         try
         {
-            do
-            {
-                await pending;
-                pending = FlushPendingAsync();
-            } while (!pending.IsCompleted);
+            await Task.WhenAll(ViewModel.ShutdownAsync(), _prewarmer?.ShutdownAsync() ?? Task.CompletedTask)
+                .WaitAsync(TimeSpan.FromSeconds(15));
+        }
+        catch (Exception exception) { AppDiagnostics.Record("app.shutdown", exception); }
+        try
+        {
+            await FlushPendingAsync().WaitAsync(TimeSpan.FromSeconds(15));
         }
         catch (Exception exception)
         {

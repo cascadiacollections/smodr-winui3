@@ -23,6 +23,7 @@ public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
     private RadioStation? _station;
     private long _generation;
     private bool _disposed;
+    private readonly BackgroundWorkScope _background = new();
 
     public event EventHandler<RadioTrackUpdate>? TrackChanged;
     public event EventHandler<RadioStation>? TrackInvalidated;
@@ -48,10 +49,11 @@ public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
             _cancellation = current;
             _station = station;
             generation = ++_generation;
+            // Even already-canceled work must enter PollAsync's finally to release its owner CTS.
+            _ = _background.RunAsync(_ => Task.Run(() => PollAsync(station, uri, generation, current), CancellationToken.None));
         }
 
         CancelPrevious(previous);
-        _ = PollAsync(station, uri, generation, current);
     }
 
     public void Stop()
@@ -68,6 +70,8 @@ public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
         CancelPrevious(previous);
     }
 
+    public Task ShutdownAsync() { Dispose(); return _background.StopAsync(); }
+
     public void Dispose()
     {
         CancellationTokenSource? previous;
@@ -81,6 +85,7 @@ public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
             ++_generation;
         }
         CancelPrevious(previous);
+        _background.Dispose();
     }
 
     private async Task PollAsync(RadioStation station, Uri uri, long generation,

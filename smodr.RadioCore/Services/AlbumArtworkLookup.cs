@@ -7,13 +7,15 @@ using smodr.Models;
 namespace smodr.Services;
 
 /// <summary>Best-effort song artwork and store-page lookup. Never participates in playback.</summary>
-public sealed class AlbumArtworkLookup(HttpClient client) : IAlbumArtworkLookup
+public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = null) : IAlbumArtworkLookup, IDisposable, IAsyncDisposable
 {
     private const int MaxResponseBytes = 64 * 1024;
     private const int MaxCacheEntries = 256;
     private readonly Lock _gate = new();
     private readonly Dictionary<string, AlbumArtworkMatch?> _cache = [];
     private readonly Dictionary<string, Task<AlbumArtworkMatch?>> _inFlight = [];
+    private readonly BackgroundWorkScope _background = new();
+    private bool _disposed;
 
     public async Task<AlbumArtworkMatch?> FindAsync(RadioTrackInfo track,
         CancellationToken cancellationToken = default)
@@ -27,6 +29,7 @@ public sealed class AlbumArtworkLookup(HttpClient client) : IAlbumArtworkLookup
         Task<AlbumArtworkMatch?> pending;
         lock (_gate)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             if (_cache.TryGetValue(key, out var cached)) return cached;
             if (!_inFlight.TryGetValue(key, out pending!))
             {
@@ -34,21 +37,26 @@ public sealed class AlbumArtworkLookup(HttpClient client) : IAlbumArtworkLookup
                     TaskCreationOptions.RunContinuationsAsynchronously);
                 pending = completion.Task;
                 _inFlight[key] = pending;
+                _ = _background.RunAsync(token => FetchAndCompleteAsync(key, artist, title, country, completion, token));
             }
         }
 
         // The request belongs to the shared lookup, not one UI listener. A
         // canceled listener stops waiting; another listener can reuse it.
-        if (completion is not null) _ = FetchAndCompleteAsync(key, artist, title, country, completion);
         try { return await pending.WaitAsync(cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return null; }
     }
 
     private async Task FetchAndCompleteAsync(string key, string artist, string title, string country,
-        TaskCompletionSource<AlbumArtworkMatch?> completion)
+        TaskCompletionSource<AlbumArtworkMatch?> completion, CancellationToken cancellationToken)
     {
         LookupResult result;
-        try { result = await FetchAsync(artist, title, country).ConfigureAwait(false); }
+        try
+        {
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            deadline.CancelAfter(timeout ?? TimeSpan.FromSeconds(8));
+            result = await FetchAsync(artist, title, country, deadline.Token).ConfigureAwait(false);
+        }
         catch (Exception exception)
         {
             AppDiagnostics.Record("artwork.lookup", exception);
@@ -58,7 +66,7 @@ public sealed class AlbumArtworkLookup(HttpClient client) : IAlbumArtworkLookup
         lock (_gate)
         {
             _inFlight.Remove(key);
-            if (result.Cacheable)
+            if (result.Cacheable && !_disposed)
             {
                 if (_cache.Count >= MaxCacheEntries) _cache.Clear();
                 _cache[key] = result.Match;
@@ -67,28 +75,28 @@ public sealed class AlbumArtworkLookup(HttpClient client) : IAlbumArtworkLookup
         completion.TrySetResult(result.Match);
     }
 
-    private async Task<LookupResult> FetchAsync(string artist, string title, string country)
+    private async Task<LookupResult> FetchAsync(string artist, string title, string country, CancellationToken cancellationToken)
     {
         var query = Uri.EscapeDataString($"{artist} {title}");
         var uri = new Uri($"https://itunes.apple.com/search?term={query}&media=music&entity=song&limit=5&country={Uri.EscapeDataString(country)}");
         try
         {
-            using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead)
+            using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
                 .ConfigureAwait(false);
             if (response.StatusCode != HttpStatusCode.OK
                 || response.Content.Headers.ContentLength > MaxResponseBytes) return new(false, null);
-            await using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             using var buffer = new MemoryStream();
             var chunk = new byte[4096];
             int read;
-            while ((read = await stream.ReadAsync(chunk).ConfigureAwait(false)) != 0)
+            while ((read = await stream.ReadAsync(chunk, cancellationToken).ConfigureAwait(false)) != 0)
             {
                 if (buffer.Length + read > MaxResponseBytes) return new(false, null);
-                await buffer.WriteAsync(chunk.AsMemory(0, read)).ConfigureAwait(false);
+                await buffer.WriteAsync(chunk.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
             }
 
             buffer.Position = 0;
-            using var document = await JsonDocument.ParseAsync(buffer).ConfigureAwait(false);
+            using var document = await JsonDocument.ParseAsync(buffer, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (document.RootElement.ValueKind != JsonValueKind.Object
                 || !document.RootElement.TryGetProperty("results", out var results)
                 || results.ValueKind != JsonValueKind.Array) return new(false, null);
@@ -112,6 +120,22 @@ public sealed class AlbumArtworkLookup(HttpClient client) : IAlbumArtworkLookup
             return new(false, null); // Network and malformed responses may be retried.
         }
     }
+
+    public void Dispose()
+    {
+        lock (_gate) { if (_disposed) return; _disposed = true; _cache.Clear(); }
+        _background.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
+    public Task ShutdownAsync()
+    {
+#pragma warning disable CA1849 // Dispose initiates nonblocking cancellation; StopAsync is the actual drain.
+        Dispose();
+#pragma warning restore CA1849
+        return _background.StopAsync();
+    }
+    public async ValueTask DisposeAsync() { await ShutdownAsync().ConfigureAwait(false); GC.SuppressFinalize(this); }
 
     private static bool IsPlausibleMatch(string artist, string title, string foundArtist,
         string foundTitle) => Normalize(LeadArtist(artist)) == Normalize(LeadArtist(foundArtist))

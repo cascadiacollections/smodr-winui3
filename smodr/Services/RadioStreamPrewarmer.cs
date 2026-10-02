@@ -7,20 +7,34 @@ namespace smodr.Services;
 /// <summary>Opt-in silent native source preparation, handed to playback without reopening its URL.</summary>
 public sealed class RadioStreamPrewarmer(RadioPlaybackPreferences preferences,
     Func<bool>? canPrefetch = null,
-    Func<RadioStation, CancellationToken, Task<PreparedRadioSource?>>? prepare = null) : IDisposable
+    Func<RadioStation, CancellationToken, Task<PreparedRadioSource?>>? prepare = null,
+    TimeProvider? clock = null) : IDisposable
 {
     private readonly Func<bool> _canPrefetch = canPrefetch ?? WindowsWarmupPolicy.CanPrefetch;
     private readonly Func<RadioStation, CancellationToken, Task<PreparedRadioSource?>> _prepare = prepare ?? PrepareNativeAsync;
-    private readonly RadioStreamWarmupSlot<PreparedRadioSource> _slot = new();
+    private readonly RadioStreamWarmupSlot<PreparedRadioSource> _slot = new(clock);
     private CancellationTokenSource? _operation;
     private int _warming;
     private int _disposed;
     private int _version;
+    private readonly BackgroundWorkScope _background = new();
+    private readonly TimeProvider _clock = clock ?? TimeProvider.System;
+    private CancellationTokenSource? _expiry;
+    private readonly Lock _gate = new();
 
-    public async Task WarmAsync(IReadOnlyList<RadioStation> stations, CancellationToken cancellationToken = default)
+    public Task WarmAsync(IReadOnlyList<RadioStation> stations, CancellationToken cancellationToken = default)
     {
-        if (!Allowed || Interlocked.CompareExchange(ref _warming, 1, 0) != 0) return;
-        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        lock (_gate)
+        {
+            if (!Allowed || Interlocked.CompareExchange(ref _warming, 1, 0) != 0) return Task.CompletedTask;
+            return _background.RunAsync(token => WarmCoreAsync(stations, cancellationToken, token));
+        }
+    }
+
+    private async Task WarmCoreAsync(IReadOnlyList<RadioStation> stations, CancellationToken cancellationToken,
+        CancellationToken lifetime)
+    {
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime);
         _operation = cancellation;
         var version = Volatile.Read(ref _version);
         try
@@ -36,7 +50,13 @@ public sealed class RadioStreamPrewarmer(RadioPlaybackPreferences preferences,
             if (!Allowed || cancellation.IsCancellationRequested || version != Volatile.Read(ref _version))
             { prepared.Dispose(); return; }
             _slot.Put(station.StreamUrl, prepared);
-            _ = ExpireAsync(Interlocked.Increment(ref _version));
+            lock (_gate)
+            {
+                if (Volatile.Read(ref _disposed) != 0) return;
+                CancelOne(_expiry);
+                var expiry = _expiry = CancellationTokenSource.CreateLinkedTokenSource(lifetime);
+                _ = _background.RunAsync(_ => ExpireAsync(Interlocked.Increment(ref _version), expiry));
+            }
         }
         catch (OperationCanceledException) { /* Auxiliary warmup never blocks or fails playback. */ }
         catch (Exception exception) { AppDiagnostics.Record("stream.prewarm", exception); }
@@ -62,18 +82,26 @@ public sealed class RadioStreamPrewarmer(RadioPlaybackPreferences preferences,
 
     private void CancelPending()
     {
-        try { _operation?.Cancel(); }
+        CancelOne(_operation);
+        CancelOne(_expiry);
+    }
+
+    private static void CancelOne(CancellationTokenSource? cancellation)
+    {
+        try { cancellation?.Cancel(); }
         catch (ObjectDisposedException) { }
     }
 
-    private async Task ExpireAsync(int version)
+    private async Task ExpireAsync(int version, CancellationTokenSource cancellation)
     {
-        await Task.Delay(TimeSpan.FromSeconds(30));
         try
         {
+            await Task.Delay(TimeSpan.FromSeconds(30), _clock, cancellation.Token);
             if (version == Volatile.Read(ref _version)) Clear();
         }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception exception) { AppDiagnostics.Record("stream.prewarm-expire", exception); }
+        finally { Interlocked.CompareExchange(ref _expiry, null, cancellation); cancellation.Dispose(); }
     }
 
     private static async Task<PreparedRadioSource?> PrepareNativeAsync(RadioStation station, CancellationToken token)
@@ -118,11 +146,17 @@ public sealed class RadioStreamPrewarmer(RadioPlaybackPreferences preferences,
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        Clear();
-        _slot.Dispose();
+        lock (_gate)
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+            Clear();
+            _slot.Dispose();
+            _background.Dispose();
+        }
         GC.SuppressFinalize(this);
     }
+
+    public Task ShutdownAsync() { Dispose(); return _background.StopAsync(); }
 }
 
 public sealed class PreparedRadioSource : IDisposable

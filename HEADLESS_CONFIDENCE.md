@@ -1,5 +1,26 @@
 # Headless runtime confidence and performance
 
+## Shutdown lifecycle
+
+`BackgroundWorkScope` registers work before invoking it, seals new admission during
+shutdown, cancels the shared lifetime, and drains all accepted operations. Metadata
+monitoring, album lookup, prewarm preparation/expiry, DSP creation, and view-model
+search/selection/history/report tasks use this boundary. The async operation owns its
+cancellation source until cleanup finishes; an obsolete artwork callback is also
+checked against a generation, even if the same song appears again.
+
+Normal window close initiates native teardown on the player dispatcher, waits up to
+15 seconds for background shutdown, then independently allows up to 15 seconds to flush
+durable saves. A timeout/error is recorded locally and close proceeds. Accepted history
+and library writes are drained rather than discarded. Forced termination cannot promise
+these guarantees; an uncooperative provider can outlive the shutdown deadline. The
+existing atomic-write and schema-preservation rules remain unchanged.
+
+Album requests have an eight-second whole-request deadline including body reads. One
+listener's cancellation still does not abort another listener's shared request; app
+shutdown cancels the shared transport. Injected fakes test body cancellation, retired
+metadata probes, prewarm cleanup, and concurrent admission versus shutdown without audio.
+
 These checks do not open WinUI, play audio, contact stations, or use your saved profile.
 They use disposable synthetic profile files, fake engines, virtual time, and a loopback
 HTTP listener. The performance harness also invokes the Windows bitmap decoder directly,

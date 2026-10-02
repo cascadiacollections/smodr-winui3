@@ -10,7 +10,7 @@ using Windows.Storage.Streams;
 
 namespace smodr.Services;
 
-public partial class AudioService : IRadioPlayer, IDisposable
+public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
 {
     private bool _isInitialized;
     private bool _radioEnded;
@@ -29,6 +29,8 @@ public partial class AudioService : IRadioPlayer, IDisposable
     private readonly RadioStreamPrewarmer? _prewarmer;
     private long _sourceVersion;
     private long _intentVersion;
+    private int _disposed;
+    private readonly BackgroundWorkScope _background = new();
 
     public AudioService(IcyTrackMonitor trackMonitor, RadioPlaybackPreferences? preferences = null,
         RadioStreamPrewarmer? prewarmer = null)
@@ -58,6 +60,7 @@ public partial class AudioService : IRadioPlayer, IDisposable
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         if (_observingDefaultRenderDevice)
         {
             try { MediaDevice.DefaultAudioRenderDeviceChanged -= MediaDevice_DefaultAudioRenderDeviceChanged; }
@@ -68,15 +71,26 @@ public partial class AudioService : IRadioPlayer, IDisposable
         _trackMonitor.TrackInvalidated -= TrackMonitor_TrackInvalidated;
         _trackMonitor.Dispose();
         _recovery.Dispose();
-        if (SystemPlayer is not null)
+        try
         {
-            ReleasePlayer();
+            if (SystemPlayer is not null) ReleasePlayer();
         }
-        _engines.Dispose();
-
-        _isInitialized = false;
-        GC.SuppressFinalize(this);
+        finally
+        {
+            try { _engines.Dispose(); }
+            finally { _background.Dispose(); _isInitialized = false; GC.SuppressFinalize(this); }
+        }
     }
+
+    public Task ShutdownAsync()
+    {
+#pragma warning disable CA1849 // Native release must run on the owner thread; Dispose never waits on async work.
+        Dispose();
+#pragma warning restore CA1849
+        return Task.WhenAll(_background.StopAsync(), _trackMonitor.ShutdownAsync());
+    }
+
+    public async ValueTask DisposeAsync() { await ShutdownAsync().ConfigureAwait(false); GC.SuppressFinalize(this); }
 
     public event EventHandler<RadioStation?>? StationChanged;
     public event EventHandler<RadioTrackUpdate?>? TrackChanged;
@@ -86,6 +100,7 @@ public partial class AudioService : IRadioPlayer, IDisposable
 
     public void Initialize()
     {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         if (_isInitialized)
         {
             return;
@@ -189,7 +204,7 @@ public partial class AudioService : IRadioPlayer, IDisposable
         CreatePlayer(prepared);
         if (preset != RadioEqualizerPreset.Off)
         {
-            _ = StartDspAsync(station, streamUri, preset);
+            _ = _background.RunAsync(_ => StartDspAsync(station, streamUri, preset));
             return;
         }
         var metadata = NowPlayingMetadata.ForPlayback(station, CurrentTrack);

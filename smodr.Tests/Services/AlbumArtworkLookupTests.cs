@@ -18,7 +18,7 @@ public sealed class AlbumArtworkLookupTests
             return Json("""{"results":[{"artistName":"Artist","trackName":"Song","artworkUrl100":"https://is1-ssl.mzstatic.com/image/thumb/100x100bb.jpg","trackViewUrl":"https://music.apple.com/us/album/song/123"}]}""");
         });
         using var client = new HttpClient(handler, disposeHandler: false);
-        var lookup = new AlbumArtworkLookup(client);
+        using var lookup = new AlbumArtworkLookup(client);
         var track = new RadioTrackInfo("Song", "Artist");
 
         var first = await lookup.FindAsync(track);
@@ -36,7 +36,7 @@ public sealed class AlbumArtworkLookupTests
         var requests = 0;
         using var handler = new Handler(_ => { requests++; return Json("""{"results":[]}"""); });
         using var client = new HttpClient(handler, disposeHandler: false);
-        var lookup = new AlbumArtworkLookup(client);
+        using var lookup = new AlbumArtworkLookup(client);
         Assert.IsNull(await lookup.FindAsync(new RadioTrackInfo("Song", null)));
         Assert.IsNull(await lookup.FindAsync(new RadioTrackInfo("Song", "Artist")));
         Assert.IsNull(await lookup.FindAsync(new RadioTrackInfo("Song", "Artist")));
@@ -55,7 +55,7 @@ public sealed class AlbumArtworkLookupTests
                 : Json("""{"results":[{"artistName":"Artist","trackName":"Song","artworkUrl100":"https://example.com/art.jpg","trackViewUrl":"https://music.apple.com/us/album/song/123"}]}""");
         });
         using var client = new HttpClient(handler, disposeHandler: false);
-        var lookup = new AlbumArtworkLookup(client);
+        using var lookup = new AlbumArtworkLookup(client);
         var track = new RadioTrackInfo("Song", "Artist");
         Assert.IsNull(await lookup.FindAsync(track));
         Assert.IsNull(await lookup.FindAsync(track));
@@ -68,7 +68,8 @@ public sealed class AlbumArtworkLookupTests
     {
         using var handler = new Handler(_ => Json("""{"results":[{"artistName":"Waxahatchee","trackName":"Right Back to It (feat. MJ Lenderman)","artworkUrl100":"https://is1-ssl.mzstatic.com/right/100x100bb.jpg","trackViewUrl":"https://music.apple.com/right"}]}"""));
         using var client = new HttpClient(handler, disposeHandler: false);
-        var match = await new AlbumArtworkLookup(client).FindAsync(
+        using var lookup = new AlbumArtworkLookup(client);
+        var match = await lookup.FindAsync(
             new RadioTrackInfo("Right Back to It", "Waxahatchee feat. MJ Lenderman"));
         Assert.AreEqual("https://is1-ssl.mzstatic.com/right/600x600bb.jpg", match?.ArtworkUrl.AbsoluteUri);
     }
@@ -78,7 +79,8 @@ public sealed class AlbumArtworkLookupTests
     {
         using var handler = new Handler(_ => Json("""{"results":[{"artistName":"Red Hot Chili Peppers","trackName":"Soul to Squeeze","artworkUrl100":"https://is1-ssl.mzstatic.com/wrong.jpg"},{"artistName":"Red Hot Chili Peppers","trackName":"Show Me Your Soul","artworkUrl100":"https://is1-ssl.mzstatic.com/right.jpg"}]}"""));
         using var client = new HttpClient(handler, disposeHandler: false);
-        var match = await new AlbumArtworkLookup(client).FindAsync(
+        using var lookup = new AlbumArtworkLookup(client);
+        var match = await lookup.FindAsync(
             new RadioTrackInfo("Show Me Your Soul", "Red Hot Chili Peppers"));
         Assert.AreEqual("https://is1-ssl.mzstatic.com/right.jpg", match?.ArtworkUrl.AbsoluteUri);
     }
@@ -88,7 +90,8 @@ public sealed class AlbumArtworkLookupTests
     {
         using var handler = new Handler(_ => Json("""{"results":[{"artistName":"Red Hot Chili Peppers","trackName":"Soul to Squeeze","artworkUrl100":"https://is1-ssl.mzstatic.com/wrong.jpg"}]}"""));
         using var client = new HttpClient(handler, disposeHandler: false);
-        Assert.IsNull(await new AlbumArtworkLookup(client).FindAsync(
+        using var lookup = new AlbumArtworkLookup(client);
+        Assert.IsNull(await lookup.FindAsync(
             new RadioTrackInfo("Show Me Your Soul", "Red Hot Chili Peppers")));
     }
 
@@ -97,7 +100,8 @@ public sealed class AlbumArtworkLookupTests
     {
         using var handler = new Handler(_ => Json("""{"results":[{"artistName":"Leif Vollebekk","trackName":"Long Blue Light (Live at Starling Farm)","artworkUrl100":"https://is1-ssl.mzstatic.com/live.jpg"}]}"""));
         using var client = new HttpClient(handler, disposeHandler: false);
-        Assert.IsNull(await new AlbumArtworkLookup(client).FindAsync(
+        using var lookup = new AlbumArtworkLookup(client);
+        Assert.IsNull(await lookup.FindAsync(
             new RadioTrackInfo("Long Blue Light", "Leif Vollebekk")));
     }
 
@@ -106,7 +110,8 @@ public sealed class AlbumArtworkLookupTests
     {
         using var handler = new Handler(_ => Json("""{"results":[{"artistName":"Solange","trackName":"Time (Is)","artworkUrl100":"https://is1-ssl.mzstatic.com/right.jpg"}]}"""));
         using var client = new HttpClient(handler, disposeHandler: false);
-        Assert.IsNotNull(await new AlbumArtworkLookup(client).FindAsync(
+        using var lookup = new AlbumArtworkLookup(client);
+        Assert.IsNotNull(await lookup.FindAsync(
             new RadioTrackInfo("Time (Is)", "Solange")));
     }
 
@@ -115,7 +120,8 @@ public sealed class AlbumArtworkLookupTests
     {
         using var handler = new Handler(_ => Json("""{"results":[{"artistName":"Artist","trackName":"Song","artworkUrl100":"https://is1-ssl.mzstatic.com/art/100x100bb.jpg"}]}"""));
         using var client = new HttpClient(handler, disposeHandler: false);
-        var match = await new AlbumArtworkLookup(client).FindAsync(new RadioTrackInfo("Song", "Artist"));
+        using var lookup = new AlbumArtworkLookup(client);
+        var match = await lookup.FindAsync(new RadioTrackInfo("Song", "Artist"));
         Assert.IsNotNull(match);
         Assert.IsNull(match.StoreUrl);
     }
@@ -131,7 +137,7 @@ public sealed class AlbumArtworkLookupTests
             return response.Task;
         });
         using var client = new HttpClient(handler, disposeHandler: false);
-        var lookup = new AlbumArtworkLookup(client);
+        using var lookup = new AlbumArtworkLookup(client);
         var track = new RadioTrackInfo("Song", "Artist");
         using var cancellation = new CancellationTokenSource();
         var first = lookup.FindAsync(track, cancellation.Token);

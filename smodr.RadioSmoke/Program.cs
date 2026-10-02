@@ -15,7 +15,7 @@ using var probeClient = new HttpClient { Timeout = TimeSpan.FromSeconds(35) };
 using var listenerClient = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
 using var catalogClient = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
 var probe = new IcyMetadataProbe(probeClient);
-var artwork = new AlbumArtworkLookup(catalogClient);
+using var artwork = new AlbumArtworkLookup(catalogClient);
 var continuousTracks = new List<RadioTrackInfo>();
 using (var listenerTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(35)))
 {

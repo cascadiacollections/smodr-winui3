@@ -36,6 +36,9 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     private bool _loadingSearch;
     private bool _reportCurrentStation;
     private int _disposed;
+    private int _artworkVersion;
+    private readonly BackgroundWorkScope _background = new();
+    private Task? _shutdown;
 
     public RadioMainViewModel(
         IRadioPlayer audio,
@@ -146,7 +149,9 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(SleepTimerEndsAt));
     }
 
-    public async Task LoadPopularAsync()
+    public Task LoadPopularAsync() => RunTracked(LoadPopularCoreAsync);
+
+    private async Task LoadPopularCoreAsync()
     {
         if (_lifetimeCancellation.IsCancellationRequested || PopularStations.Count > 0)
         {
@@ -208,7 +213,9 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         $"Browsing {genre}…",
         RadioDirectorySnapshotCache.GenreKey(genre));
 
-    public async Task WarmGenresAsync()
+    public Task WarmGenresAsync() => RunTracked(WarmGenresCoreAsync);
+
+    private async Task WarmGenresCoreAsync()
     {
         if (_cache is null) return;
         foreach (var genre in _warmGenres)
@@ -235,7 +242,10 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task SearchCoreAsync(
+    private Task SearchCoreAsync(Func<CancellationToken, Task<IReadOnlyList<RadioStation>>> search,
+        string loadingStatus, string cacheKey) => RunTracked(() => SearchWorkAsync(search, loadingStatus, cacheKey));
+
+    private async Task SearchWorkAsync(
         Func<CancellationToken, Task<IReadOnlyList<RadioStation>>> search,
         string loadingStatus,
         string cacheKey)
@@ -319,7 +329,10 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
 
     public Task TogglePlaybackAsync(RadioStation station) => PlayStationCoreAsync(station, reportPlay: true);
 
-    private async Task PlayStationCoreAsync(RadioStation station, bool reportPlay)
+    private Task PlayStationCoreAsync(RadioStation station, bool reportPlay) =>
+        RunTracked(() => PlayStationWorkAsync(station, reportPlay));
+
+    private async Task PlayStationWorkAsync(RadioStation station, bool reportPlay)
     {
         CancelPendingSelection();
         if (Volatile.Read(ref _disposed) != 0) return;
@@ -436,7 +449,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     private void ReportExplicitPlay(RadioStation station)
     {
         if (Volatile.Read(ref _disposed) == 0 && _privacySettings?.IsPlayReportingEnabled == true && _playReporter is not null)
-            _ = ReportPlayBestEffortAsync(station.Id);
+            _ = _background.RunAsync(_ => ReportPlayBestEffortAsync(station.Id));
     }
 
     public void Stop()
@@ -454,7 +467,9 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         }
     }
 
-    public async Task ToggleFavoriteAsync(RadioStation station)
+    public Task ToggleFavoriteAsync(RadioStation station) => RunTracked(() => ToggleFavoriteCoreAsync(station));
+
+    private async Task ToggleFavoriteCoreAsync(RadioStation station)
     {
         try
         {
@@ -511,9 +526,30 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         {
             // A completed search may dispose its token concurrently.
         }
-        currentSearch?.Dispose();
-        _lifetimeCancellation.Dispose();
+        _background.Dispose();
+        _ = DisposeLifetimeAfterDrainAsync();
         GC.SuppressFinalize(this);
+    }
+
+    public Task ShutdownAsync() => _shutdown ??= ShutdownCoreAsync();
+
+    private Task RunTracked(Func<Task> operation) => Volatile.Read(ref _disposed) != 0
+        ? Task.CompletedTask : _background.RunAsync(_ => operation());
+
+    private async Task DisposeLifetimeAfterDrainAsync()
+    {
+        await _background.StopAsync().ConfigureAwait(false);
+        _lifetimeCancellation.Dispose();
+    }
+
+    private async Task ShutdownCoreAsync()
+    {
+        Dispose();
+        // Invoke native teardown on the owner thread before awaiting. The awaited work never requires a live window.
+        var artwork = (_albumArtworkLookup as IAsyncDisposable)?.DisposeAsync().AsTask() ?? Task.CompletedTask;
+        var audio = (_audio as IAsyncDisposable)?.DisposeAsync().AsTask() ?? Task.CompletedTask;
+        await Task.WhenAll(_background.StopAsync(), artwork, audio).ConfigureAwait(false);
+        await Task.WhenAll(FlushTrackHistoryAsync(), FlushLibraryAsync(), FlushDirectoryCacheAsync()).ConfigureAwait(false);
     }
 
     private void Audio_StationChanged(object? sender, RadioStation? station) =>
@@ -544,7 +580,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             }
             if (!ReferenceEquals(_audio.CurrentStation, update.Station)) return;
             CurrentTrack = update.Track;
-            _currentHistoryRecord = _trackHistory is null ? null : RecordTrackBestEffortAsync(update);
+            _currentHistoryRecord = _trackHistory is null ? null : _background.RunAsync(_ => RecordTrackBestEffortAsync(update));
             StartArtworkLookup(update.Station, update.Track);
         });
 
@@ -558,11 +594,12 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             || string.IsNullOrWhiteSpace(track.Artist)) return;
         var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCancellation.Token);
         _artworkCancellation = cancellation;
-        _ = ResolveArtworkAsync(station, track, _currentHistoryRecord, cancellation);
+        var version = _artworkVersion;
+        _ = _background.RunAsync(_ => ResolveArtworkAsync(station, track, _currentHistoryRecord, cancellation, version));
     }
 
     private async Task ResolveArtworkAsync(RadioStation station, RadioTrackInfo track,
-        Task<Guid?>? historyRecord, CancellationTokenSource cancellation)
+        Task<Guid?>? historyRecord, CancellationTokenSource cancellation, int version)
     {
         try
         {
@@ -571,6 +608,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             _dispatch(() =>
             {
                 if (Volatile.Read(ref _disposed) == 0 && !cancellation.IsCancellationRequested
+                    && version == _artworkVersion
                     && ReferenceEquals(_audio.CurrentStation, station) && CurrentTrack == track
                     && _privacySettings?.IsAlbumArtworkEnabled == true)
                 {
@@ -578,20 +616,26 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
                     CurrentAppleMusicUrl = match.StoreUrl?.AbsoluteUri ?? string.Empty;
                     _audio.SetNowPlayingArtwork(station, match.ArtworkUrl);
                     if (_trackHistory is not null && historyRecord is not null)
-                        _ = UpdateHistoryArtworkBestEffortAsync(historyRecord, match);
+                        _ = _background.RunAsync(_ => UpdateHistoryArtworkBestEffortAsync(historyRecord, match));
                 }
             });
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception exception) { AppDiagnostics.Record("artwork.lookup", exception); }
+        finally
+        {
+            if (ReferenceEquals(_artworkCancellation, cancellation)) _artworkCancellation = null;
+            cancellation.Dispose();
+        }
     }
 
     private void CancelArtworkLookup()
     {
+        _artworkVersion++;
         var previous = _artworkCancellation;
         _artworkCancellation = null;
-        previous?.Cancel();
-        previous?.Dispose();
+        try { previous?.Cancel(); }
+        catch (ObjectDisposedException) { }
     }
 
     private static Uri? ParseArtworkUrl(string? value) =>
