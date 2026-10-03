@@ -80,4 +80,3 @@ public sealed class DnsMirrorProvider(
         return (await Task.WhenAll(lookups).ConfigureAwait(false)).OfType<Uri>().ToArray();
     }
 }
-

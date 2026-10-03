@@ -16,12 +16,11 @@ public sealed class TrackHistoryService : ITrackHistoryService
     private HistoryData _data;
     private bool _readOnly;
 
-    public TrackHistoryService(string? filePath = null, int limit = 1000, TimeProvider? clock = null)
+    public TrackHistoryService(string filePath, int limit = 1000, TimeProvider? clock = null)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         if (limit is < 1 or > 1000) throw new ArgumentOutOfRangeException(nameof(limit));
-        _filePath = filePath ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "CascadiaCollections", "ShoutkitWindows", "track-history.json");
+        _filePath = Path.GetFullPath(filePath);
         _limit = limit;
         _clock = clock ?? TimeProvider.System;
         _data = Load();

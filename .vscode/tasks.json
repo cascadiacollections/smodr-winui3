@@ -2,6 +2,15 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "test: portable radio SDK (.NET 10)",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["test", "-c", "Release", "-warnaserror", "-p:NuGetAudit=false"],
+      "options": { "cwd": "${workspaceFolder}/Cascadia.Radio.Tests" },
+      "problemMatcher": "$msCompile",
+      "group": "test"
+    },
+    {
       "label": "restore: ARM64 (Windows)",
       "type": "process",
       "command": "powershell.exe",

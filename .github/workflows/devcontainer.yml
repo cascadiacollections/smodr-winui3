@@ -2,12 +2,12 @@ name: Dev Container Validation
 
 on:
   push:
-    branches: [ master, develop ]
+    branches: [ main, master, develop ]
     paths:
       - '.devcontainer/**'
       - '.github/workflows/devcontainer.yml'
   pull_request:
-    branches: [ master, develop ]
+    branches: [ main, master, develop ]
     paths:
       - '.devcontainer/**'
       - '.github/workflows/devcontainer.yml'
@@ -34,3 +34,6 @@ jobs:
           dotnet --version
           dotnet restore smodr.RadioCore/smodr.RadioCore.csproj --locked-mode -p:NuGetAudit=false --ignore-failed-sources
           dotnet build smodr.RadioCore/smodr.RadioCore.csproj -c Release --no-restore -warnaserror
+          cd Cascadia.Radio.Tests
+          dotnet restore --locked-mode -p:NuGetAudit=false --ignore-failed-sources
+          dotnet test -c Release --no-restore -warnaserror

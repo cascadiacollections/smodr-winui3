@@ -127,8 +127,11 @@ public sealed class RadioLibraryServiceTests
             var library = new RadioLibraryService(filePath);
             var station = new RadioStation { Id = "one", StreamUrl = "https://example.com/live" };
 
-            await Assert.ThrowsExactlyAsync<UnauthorizedAccessException>(
-                () => library.ToggleFavoriteAsync(station));
+            // Directory replacement maps to access-denied on Windows and IO failure on Unix.
+            if (OperatingSystem.IsWindows())
+                await Assert.ThrowsExactlyAsync<UnauthorizedAccessException>(() => library.ToggleFavoriteAsync(station));
+            else
+                await Assert.ThrowsExactlyAsync<IOException>(() => library.ToggleFavoriteAsync(station));
             Assert.IsFalse(library.IsFavorite(station));
 
             Directory.Delete(filePath);

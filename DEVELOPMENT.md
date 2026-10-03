@@ -1,5 +1,7 @@
 # Shoutkit Windows development
 
+Portable radio libraries target stable .NET 10 alongside the Windows app's pinned .NET 11 RC. See [RADIO_SDK.md](RADIO_SDK.md) for extraction boundaries, headless tests, local package consumers and compatibility/trim checks. VS Code and Zed have a portable test task; the dev container installs both SDKs and runs portable tests after its RadioCore build.
+
 This is the active Windows ARM64/x64 WinUI 3 preview. The solution is `smodr.slnx`,
 and `global.json` pins .NET SDK `11.0.100-rc.1.26425.128`. See [README.md](README.md)
 for the current app behavior and self-contained publish command.

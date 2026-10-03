@@ -5,6 +5,9 @@
     <LangVersion>14.0</LangVersion>
     <VersionPrefix>0.1.0</VersionPrefix>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/cascadiacollections/smodr-winui3</RepositoryUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <EnablePackageValidation>true</EnablePackageValidation>
     <Authors>Cascadia Collections</Authors>
     <Description>Reusable radio Services primitives extracted from Shoutkit Windows.</Description>

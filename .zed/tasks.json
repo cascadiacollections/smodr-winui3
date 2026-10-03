@@ -1,5 +1,11 @@
 [
   {
+    "label": "Test portable radio SDK (.NET 10)",
+    "command": "dotnet",
+    "args": ["test", "-c", "Release", "-warnaserror", "-p:NuGetAudit=false"],
+    "cwd": "$ZED_WORKTREE_ROOT/Cascadia.Radio.Tests"
+  },
+  {
     "label": "Restore Windows ARM64 (offline-friendly)",
     "command": "powershell.exe",
     "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/dotnet-dev.ps1", "ARM64", "restore", "smodr.slnx", "-p:Platform=ARM64", "--locked-mode", "-p:NuGetAudit=false", "--ignore-failed-sources"],

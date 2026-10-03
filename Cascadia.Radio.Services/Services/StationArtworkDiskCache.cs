@@ -4,14 +4,18 @@ using System.Text;
 namespace smodr.Services;
 
 /// <summary>Best-effort cache of already validated station artwork bytes.</summary>
-public sealed class StationArtworkDiskCache(string? directory = null, TimeProvider? clock = null)
+public sealed class StationArtworkDiskCache(string directory, TimeProvider? clock = null)
 {
     private const int MaxArtworkBytes = 1_000_000;
     private const int MaxFiles = 48;
-    private readonly string _directory = directory ?? Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "CascadiaCollections", "ShoutkitWindows", "station-artwork");
+    private readonly string _directory = ResolveDirectory(directory);
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
+
+    private static string ResolveDirectory(string directory)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+        return Path.GetFullPath(directory);
+    }
 
     public async Task<byte[]?> TryReadAsync(Uri uri, CancellationToken cancellationToken = default)
     {

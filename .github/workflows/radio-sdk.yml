@@ -1,0 +1,48 @@
+name: Portable radio SDK
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  portable:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore portable libraries and tests
+        working-directory: Cascadia.Radio.Tests
+        run: dotnet restore --locked-mode
+      - name: Test stable runtime without Windows SDK
+        working-directory: Cascadia.Radio.Tests
+        run: dotnet test -c Release --no-restore -warnaserror --logger trx --results-directory ../out/radio-sdk-tests
+      - name: Check portable formatting
+        working-directory: Cascadia.Radio.Tests
+        run: dotnet format --no-restore --verify-no-changes --verbosity quiet
+      - name: Validate packages and offline package consumer
+        shell: pwsh
+        run: |
+          ./scripts/Test-RadioPackages.ps1
+          ./scripts/Test-RadioApiCompatibility.ps1
+      - name: Publish and execute trimmed SDK consumer
+        if: runner.os == 'Linux'
+        working-directory: samples/RadioBrowser.TrimConsumer
+        run: |
+          dotnet restore -r linux-x64 --source ../../out/radio-packages --source https://www.nuget.org/api/v2/
+          dotnet publish -c Release -r linux-x64 --self-contained --no-restore -o ../../out/trim-consumer -warnaserror
+          ../../out/trim-consumer/RadioBrowser.TrimConsumer
+      - name: Retain local package and test evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: radio-sdk-${{ runner.os }}
+          path: |
+            out/radio-packages
+            out/radio-sdk-tests

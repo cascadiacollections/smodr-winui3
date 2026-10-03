@@ -1,5 +1,6 @@
 using System.Net;
 using Cascadia.RadioBrowser;
+using smodr.Services;
 
 namespace smodr.Tests;
 
@@ -141,6 +142,43 @@ public sealed class SdkClientTests
     }
 
     private static RadioBrowserClient Client(HttpClient http) => new(http, new Mirrors(_servers), new ClientOptions { UserAgent = "Consumer/1.0" });
+    [TestMethod]
+    [DataRow(null)]
+    [DataRow("")]
+    [DataRow(" ")]
+    public void PersistenceRequiresHostChosenStorage(string? path)
+    {
+        Assert.Throws<ArgumentException>(() => new RadioLibraryService(path!));
+        Assert.Throws<ArgumentException>(() => new TrackHistoryService(path!));
+        Assert.Throws<ArgumentException>(() => new RadioDirectorySnapshotCache(path!));
+        Assert.Throws<ArgumentException>(() => new StationArtworkDiskCache(path!));
+    }
+
+    [TestMethod]
+    public async Task PreCanceledReadsAndWritesNeverInvokeProviderOrTransport()
+    {
+        using var stop = new CancellationTokenSource();
+        await stop.CancelAsync();
+        using var handler = new Handler(_ => Reply(Valid));
+        using var http = new HttpClient(handler);
+        var mirrors = new CountingMirrors();
+        var client = new RadioBrowserClient(http, mirrors, new ClientOptions { UserAgent = "Consumer/1.0" });
+        await Assert.ThrowsAsync<OperationCanceledException>(() => client.GetRankedAsync(cancellationToken: stop.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() => client.RegisterClickAsync(_uuid, stop.Token));
+        Assert.AreEqual(0, mirrors.Calls);
+        Assert.HasCount(0, handler.Requests);
+    }
+
+    private sealed class CountingMirrors : IMirrorProvider
+    {
+        public int Calls { get; private set; }
+        public Task<IReadOnlyList<Uri>> GetServersAsync(CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return Task.FromResult<IReadOnlyList<Uri>>(_servers);
+        }
+    }
+
     private static HttpResponseMessage Reply(string json) => new(HttpStatusCode.OK) { Content = new StringContent(json) };
     private sealed class Mirrors(IReadOnlyList<Uri> servers) : IMirrorProvider
     {

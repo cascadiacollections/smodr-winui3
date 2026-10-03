@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14.0</LangVersion>
+    <RadioPackageVersion Condition="'$(RadioPackageVersion)' == ''">0.1.0</RadioPackageVersion>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Packages are rebuilt locally with the same draft version on each platform. -->
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Cascadia.RadioBrowser" VersionOverride="$(RadioPackageVersion)" />
+    <PackageReference Include="Cascadia.Radio.Services" VersionOverride="$(RadioPackageVersion)" />
+  </ItemGroup>
+</Project>

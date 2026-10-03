@@ -10,4 +10,10 @@ dotnet restore smodr.RadioCore/smodr.RadioCore.csproj --locked-mode \
 dotnet build smodr.RadioCore/smodr.RadioCore.csproj -c Release \
   --no-restore -warnaserror
 
-echo "RadioCore is ready. Build, test, and run the WinUI app on Windows."
+(
+  cd Cascadia.Radio.Tests
+  echo "Stable portable SDK: $(dotnet --version)"
+  dotnet restore --locked-mode -p:NuGetAudit=false --ignore-failed-sources
+  dotnet test -c Release --no-restore -warnaserror
+)
+echo "RadioCore and portable libraries are ready. Build and run WinUI on Windows."

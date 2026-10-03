@@ -120,7 +120,9 @@ public sealed class RadioBrowserClient
     private async Task MutateAsync(string action, Guid uuid, CancellationToken token)
     {
         ValidateUuid(uuid);
+        token.ThrowIfCancellationRequested();
         var servers = await _mirrors.GetServersAsync(token).ConfigureAwait(false);
+        token.ThrowIfCancellationRequested();
         if (servers.Count == 0) throw new DirectoryUnavailableException();
         var bytes = await SendAsync(_writes, servers[0], $"json/{action}/{uuid:D}", 16 * 1024, token).ConfigureAwait(false);
         using var document = JsonDocument.Parse(bytes);
@@ -156,6 +158,7 @@ public sealed class RadioBrowserClient
 
     private async Task<T> ReadAsync<T>(string path, Func<ReadOnlyMemory<byte>, T> parse, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
         foreach (var server in await _mirrors.GetServersAsync(token).ConfigureAwait(false))
         {
             token.ThrowIfCancellationRequested();
@@ -170,6 +173,7 @@ public sealed class RadioBrowserClient
     private async Task<ReadOnlyMemory<byte>> SendAsync(HttpClient client, Uri server, string path, int maxBytes, CancellationToken token)
     {
         ValidateServer(server);
+        token.ThrowIfCancellationRequested();
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         timeout.CancelAfter(_options.RequestTimeout);
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(server, path));

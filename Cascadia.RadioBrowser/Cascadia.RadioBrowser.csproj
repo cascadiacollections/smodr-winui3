@@ -8,6 +8,9 @@
     <IsAotCompatible>true</IsAotCompatible>
     <EnablePackageValidation>true</EnablePackageValidation>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/cascadiacollections/smodr-winui3</RepositoryUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <Authors>Cascadia Collections</Authors>
     <Description>Independent typed Radio Browser client with bounded transport and explicit reporting.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>

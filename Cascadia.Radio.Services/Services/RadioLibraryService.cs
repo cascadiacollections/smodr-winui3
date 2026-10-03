@@ -14,13 +14,10 @@ public sealed class RadioLibraryService : IRadioLibraryService
     private RadioLibraryData _data;
     private bool _readOnly;
 
-    public RadioLibraryService(string? filePath = null)
+    public RadioLibraryService(string filePath)
     {
-        _filePath = filePath ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "CascadiaCollections",
-            "ShoutkitWindows",
-            "library.json");
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        _filePath = Path.GetFullPath(filePath);
         _data = Load();
     }
 

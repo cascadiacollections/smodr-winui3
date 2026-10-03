@@ -19,11 +19,10 @@ public sealed class RadioDirectorySnapshotCache : IRadioDirectorySnapshotCache
     private Dictionary<string, CacheEntry> _entries = [];
     private Task _writeTail = Task.CompletedTask;
 
-    public RadioDirectorySnapshotCache(string? filePath = null, TimeProvider? clock = null)
+    public RadioDirectorySnapshotCache(string filePath, TimeProvider? clock = null)
     {
-        _filePath = filePath ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "CascadiaCollections", "ShoutkitWindows", "directory-cache.json");
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        _filePath = Path.GetFullPath(filePath);
         _clock = clock ?? TimeProvider.System;
         _loadTask = Task.Run(Load);
     }

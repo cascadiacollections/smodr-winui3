@@ -57,6 +57,6 @@ A packaged build uses its Windows package-local `LocalFolder`. On first launch i
 Packaged builds also register `holmdel://station` and `holmdel://play` links. An HTTPS `streamURL` is required; a link can include `id`, `name`, and HTTPS `artworkURL`. The parser rejects unknown or duplicate parameters and unsafe URLs. Reopening an already-playing station does not toggle it off. `autoPlay=0` opens Search for that station instead of starting audio. Links do not submit Radio Browser play telemetry because their station IDs are supplied by an untrusted caller. The unpackaged preview has no protocol registration. Windows also pauses requested radio playback when its default output changes, avoiding automatic playback on a different device; resume is manual. Both paths need interactive MSIX/device QA.
 
 Optional stream preparation, finite-broadcast looping, experimental AudioGraph equalizer presets, packaged jump lists, and key-gated SHOUTcast fallback are documented in [PLAYBACK_FEATURES.md](PLAYBACK_FEATURES.md), including defaults, privacy/network behavior, limitations, and the remaining live validation checklist. The standard MediaPlayer path and Radio Browser remain the defaults.
-# Reusable radio libraries
+## Reusable radio libraries
 
 See [RADIO_SDK.md](RADIO_SDK.md) for the platform-independent .NET 10 SDK, metadata and optional services, portable tests and local package validation. The Windows app remains on .NET 11 RC.
