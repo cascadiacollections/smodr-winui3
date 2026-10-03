@@ -129,3 +129,21 @@ require a .NET 10-or-newer host; see Microsoft's
 Visual Studio must also support the preview SDK/MSBuild version and have preview
 SDK use enabled. CLI resolution does not establish support in an older IDE.
 Reload the solution after changing SDK resolution.
+
+### Local container verification (2026-10-02)
+
+Verified through Docker Desktop's Linux ARM64 engine on the Windows host:
+
+- `-Target full`: 156 portable tests passed, four packages produced, offline
+  package consumer passed, and the self-contained fully trimmed Linux ARM64
+  consumer passed. Running the resulting image with `--network none` also passed.
+- `-Target compat`: RadioCore and RadioSmoke built with the pinned .NET 11 RC SDK
+  with zero warnings/errors, and all 156 stable-runtime portable tests passed.
+- An unchanged repeat of the full image build reused validation layers and
+  completed in approximately 6.5 seconds on this host. That is cache reuse,
+  not a fresh execution of the tests or a cross-machine performance promise.
+- Ten Docker harness fixtures cover availability, safe arguments, and Windows
+  executable discovery when both `docker.exe` and an extensionless shim exist.
+
+These checks do not validate WinUI rendering, Windows playback, signing, or
+interactive VS/Codespaces setup. No app was launched or package/image published.

@@ -21,4 +21,12 @@ foreach ($target in @('tests', 'full', 'compat')) {
     $stage = if ($target -eq 'compat') { 'validation' } else { $target }
     if ($arguments[3] -ne '--target' -or $arguments[4] -ne $stage) { throw "Incorrect Docker stage: $target" }
 }
-Write-Host 'Passed 9 Docker availability/command fixtures. No Docker process was required.'
+& {
+    function Get-Command {
+        param($Name, $CommandType, $ErrorAction)
+        @([pscustomobject]@{ Source = 'C:/Docker/docker.exe' }, [pscustomobject]@{ Source = 'C:/Docker/docker' })
+    }
+    $resolved = Resolve-LocalDockerCommand
+    if ($resolved.Source -ne 'C:/Docker/docker.exe') { throw 'Multiple executable matches must resolve to the first application.' }
+}
+Write-Host 'Passed 10 Docker availability/command fixtures. No Docker process was required.'

@@ -1,9 +1,15 @@
 # Dot-sourceable availability helpers. Probes never start/unpause Docker or modify containers.
+function Resolve-LocalDockerCommand {
+    param([string] $DockerPath = 'docker')
+    # Windows can expose both docker.exe and an extensionless docker shim.
+    Get-Command $DockerPath -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+}
+
 function Get-LocalDockerStatus {
     [CmdletBinding()]
     param([string] $DockerPath = 'docker', [scriptblock] $Probe)
     if (-not $Probe) {
-        $command = Get-Command $DockerPath -CommandType Application -ErrorAction SilentlyContinue
+        $command = Resolve-LocalDockerCommand -DockerPath $DockerPath
         if (-not $command) { return [pscustomobject]@{ Available = $false; Reason = 'not-installed'; OS = ''; Architecture = '' } }
         $process = [Diagnostics.Process]::new()
         $process.StartInfo.FileName = $command.Source
