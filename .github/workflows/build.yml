@@ -68,7 +68,8 @@ jobs:
         ./scripts/Test-LicenseInventory.ps1
 
     - name: Build solution
-      run: dotnet build ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-restore -p:Platform=${{ matrix.platform }} -warnaserror
+      shell: pwsh
+      run: ./scripts/Test-StaticAnalysis.ps1 -Scope Windows -Platform ${{ matrix.platform }}
 
     - name: Run tests
       run: dotnet test ${{ env.SOLUTION_PATH }} --configuration ${{ env.CONFIGURATION }} --no-build --no-restore -p:Platform=${{ matrix.platform }} --logger "trx;LogFileName=test-results.trx"
@@ -97,6 +98,7 @@ jobs:
         path: |
           out/headless-soak/
           out/headless-performance/
+          out/static-analysis/
         if-no-files-found: warn
         retention-days: 14
 

@@ -2,6 +2,13 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "quality: portable static analysis (restored dependencies)",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoProfile", "-File", "${workspaceFolder}/scripts/Test-StaticAnalysis.ps1"],
+      "problemMatcher": "$msCompile"
+    },
+    {
       "label": "test: fresh packages (Docker required)",
       "type": "process",
       "command": "pwsh",

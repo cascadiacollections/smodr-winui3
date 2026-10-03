@@ -18,6 +18,9 @@
 
     <!-- Enforce .editorconfig IDE* code-style rules during build, not just in IDE -->
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
+    <!-- Opt-in CI/local analysis reports, one per project (never a shared ErrorLog). -->
+    <ErrorLog Condition="'$(RadioAnalysisOutputDirectory)' != ''">$(RadioAnalysisOutputDirectory)/$(MSBuildProjectName).sarif,version=2.1</ErrorLog>
 
     <!-- Required for IDE0005 (remove unnecessary usings) to work during build -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>

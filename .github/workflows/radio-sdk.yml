@@ -29,6 +29,11 @@ jobs:
       - name: Test stable runtime without Windows SDK
         working-directory: Cascadia.Radio.Tests
         run: dotnet test -c Release --no-restore -warnaserror --logger trx --results-directory ../out/radio-sdk-tests
+      - name: Gate Roslyn analysis and test SARIF verdicts
+        shell: pwsh
+        run: |
+          ./scripts/Test-StaticAnalysisHarness.ps1
+          ./scripts/Test-StaticAnalysis.ps1
       - name: Check portable formatting
         working-directory: Cascadia.Radio.Tests
         run: dotnet format --no-restore --verify-no-changes --verbosity quiet
@@ -52,3 +57,4 @@ jobs:
           path: |
             out/radio-packages
             out/radio-sdk-tests
+            out/static-analysis

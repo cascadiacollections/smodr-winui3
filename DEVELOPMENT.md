@@ -1,5 +1,8 @@
 # Shoutkit Windows development
 
+See [STATIC_ANALYSIS.md](STATIC_ANALYSIS.md) for required Roslyn/SARIF quality gates,
+CI evidence and opt-in standalone ReSharper inspections without editor installation.
+
 Both solution formats expose Debug/Release on ARM64 and x64 only. Native app/tests/performance projects map to that architecture; portable libraries map explicitly to Any CPU. Run `./scripts/Test-SolutionConfigurations.ps1 -SelfTest` with the pinned SDK to validate both formats against evaluated project configurations without restoring packages or launching UI. CI runs this check before restore. Reload the solution in Visual Studio after configuration mapping changes.
 
 Portable radio libraries target stable .NET 10 alongside the Windows app's pinned .NET 11 RC. See [RADIO_SDK.md](RADIO_SDK.md) for extraction boundaries, headless tests, local package consumers and compatibility/trim checks. VS Code and Zed have a portable test task; the dev container installs both SDKs and runs portable tests after its RadioCore build.
