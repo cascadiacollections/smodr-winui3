@@ -28,6 +28,7 @@ COPY --chown=vscode:vscode Cascadia.Radio.Metadata/ ./Cascadia.Radio.Metadata/
 COPY --chown=vscode:vscode Cascadia.Radio.Services/ ./Cascadia.Radio.Services/
 COPY --chown=vscode:vscode Cascadia.Radio.Tests/ ./Cascadia.Radio.Tests/
 COPY --chown=vscode:vscode smodr.Tests/ ./smodr.Tests/
+COPY --chown=vscode:vscode smodr/Services/LiveRadioRecovery.cs ./smodr/Services/
 COPY --chown=vscode:vscode smodr.RadioCore/ ./smodr.RadioCore/
 COPY --chown=vscode:vscode smodr.RadioSmoke/ ./smodr.RadioSmoke/
 COPY --chown=vscode:vscode samples/ ./samples/

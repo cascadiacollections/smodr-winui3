@@ -14,6 +14,9 @@ internal sealed class LiveRadioRecovery : IDisposable
     private readonly TimeSpan _stallTimeout;
     private readonly TimeSpan _resumeTimeout;
     private readonly TimeSpan _retryBaseDelay;
+    private readonly TimeSpan _stablePlaybackWindow;
+    private long _playingAt;
+    private bool _playing;
     private readonly int _maxRetries;
     private readonly RuntimeDiagnosticCounters _diagnostics;
     private CancellationTokenSource? _timer;
@@ -35,7 +38,8 @@ internal sealed class LiveRadioRecovery : IDisposable
         TimeSpan? resumeTimeout = null,
         TimeSpan? retryBaseDelay = null,
         int maxRetries = 3,
-        Action<long>? beforeRetry = null, RuntimeDiagnosticCounters? diagnostics = null)
+        Action<long>? beforeRetry = null, RuntimeDiagnosticCounters? diagnostics = null,
+        TimeSpan? stablePlaybackWindow = null)
     {
         ArgumentNullException.ThrowIfNull(restart);
         ArgumentNullException.ThrowIfNull(exhausted);
@@ -49,6 +53,11 @@ internal sealed class LiveRadioRecovery : IDisposable
         _stallTimeout = stallTimeout ?? TimeSpan.FromSeconds(30);
         _resumeTimeout = resumeTimeout ?? TimeSpan.FromSeconds(2);
         _retryBaseDelay = retryBaseDelay ?? TimeSpan.FromSeconds(2);
+        _stablePlaybackWindow = stablePlaybackWindow ?? TimeSpan.FromSeconds(30);
+        ValidateDelay(_stallTimeout, nameof(stallTimeout));
+        ValidateDelay(_resumeTimeout, nameof(resumeTimeout));
+        ValidateDelay(_stablePlaybackWindow, nameof(stablePlaybackWindow));
+        ValidateDelay(_retryBaseDelay, nameof(retryBaseDelay), 1L << Math.Max(0, maxRetries - 1));
         _maxRetries = maxRetries;
     }
 
@@ -75,6 +84,7 @@ internal sealed class LiveRadioRecovery : IDisposable
             _epoch++;
             _requested = true;
             _attempts = 0;
+            _playing = false;
             _waitingForRetry = false;
             ArmLocked(TimerKind.Stall, _stallTimeout);
         }
@@ -85,6 +95,8 @@ internal sealed class LiveRadioRecovery : IDisposable
         lock (_gate)
         {
             if (_disposed || !_requested || _waitingForRetry || _timerKind == TimerKind.Stall) return;
+            CreditStablePlaybackLocked();
+            _playing = false;
             ArmLocked(TimerKind.Stall, _stallTimeout);
         }
     }
@@ -98,7 +110,9 @@ internal sealed class LiveRadioRecovery : IDisposable
             // A recovering native stream can report Playing just as its retry
             // timer fires; that callback must not replace audible playback.
             _epoch++;
-            _attempts = 0;
+            // Brief Playing/Buffering flaps must not replenish the retry budget.
+            if (!_playing) _playingAt = _clock.GetTimestamp();
+            _playing = true;
             CancelTimerLocked();
         }
     }
@@ -111,6 +125,7 @@ internal sealed class LiveRadioRecovery : IDisposable
             _epoch++;
             _requested = true;
             _attempts = 0;
+            _playing = false;
             _waitingForRetry = false;
             ArmLocked(TimerKind.Resume, _resumeTimeout);
         }
@@ -130,6 +145,8 @@ internal sealed class LiveRadioRecovery : IDisposable
 
     private FailureDecision FailLocked()
     {
+        CreditStablePlaybackLocked();
+        _playing = false;
         CancelTimerLocked();
         if (_attempts >= _maxRetries)
         {
@@ -143,6 +160,19 @@ internal sealed class LiveRadioRecovery : IDisposable
         _waitingForRetry = true;
         var delay = TimeSpan.FromTicks(_retryBaseDelay.Ticks * (1L << (_attempts - 1)));
         return new(null, _epoch, delay);
+    }
+
+    private void CreditStablePlaybackLocked()
+    {
+        if (_playing && _clock.GetElapsedTime(_playingAt) >= _stablePlaybackWindow) _attempts = 0;
+    }
+
+    private static void ValidateDelay(TimeSpan delay, string parameter, long multiplier = 1)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(delay.Ticks, parameter);
+        // Task.Delay's supported ceiling, including the largest exponential retry.
+        if (delay > TimeSpan.FromMilliseconds(uint.MaxValue - 1) / multiplier)
+            throw new ArgumentOutOfRangeException(parameter);
     }
 
     private void ApplyFailureDecision(FailureDecision decision)

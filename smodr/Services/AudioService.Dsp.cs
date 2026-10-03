@@ -106,6 +106,7 @@ public partial class AudioService
         {
             _dspWatchdog?.Stop();
             _trackMonitor.Stop();
+            if (state is MediaPlaybackState.Opening or MediaPlaybackState.Buffering) _recovery.Buffering();
         }
         PlaybackStateChanged?.Invoke(this, state);
     }

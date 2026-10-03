@@ -14,6 +14,7 @@ on:
       - 'Cascadia.Radio*/**'
       - 'smodr.Radio*/**'
       - 'smodr.Tests/**'
+      - 'smodr/Services/LiveRadioRecovery.cs'
       - 'samples/**'
       - 'scripts/validate-portable-radio.sh'
   pull_request:
@@ -29,6 +30,7 @@ on:
       - 'Cascadia.Radio*/**'
       - 'smodr.Radio*/**'
       - 'smodr.Tests/**'
+      - 'smodr/Services/LiveRadioRecovery.cs'
       - 'samples/**'
       - 'scripts/validate-portable-radio.sh'
   workflow_dispatch:

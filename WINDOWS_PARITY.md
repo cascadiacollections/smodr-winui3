@@ -6,6 +6,65 @@ See [Radio Browser API usage audit](RADIO_BROWSER_API_AUDIT.md) for upstream iOS
 
 ## Already represented
 
+### Focused runtime/settings audit (2026-10-02)
+
+Compared the local iOS checkout at `a57dd0b`; no upstream files were changed or
+remote updates assumed. Source anchors: iOS `SettingsStore.swift`,
+`FeatureFlags/Feature.swift`, `AppDependencies+Callbacks.swift`,
+`LibraryStore+RecentlyHeard.swift`, and `PlaybackController+Interruptions.swift`.
+Windows anchors: `RadioPrivacySettings`, `RadioPlaybackPreferences`,
+`RadioSettingsViewModel`, `RadioMainViewModel`, `TrackHistoryService`,
+`AudioService`, and `LiveRadioRecovery`.
+
+| Area | Confirmed behavior and remaining difference |
+| --- | --- |
+| Play reporting | Both fresh profiles default on and expose an off switch. Windows reports explicit trusted selection/resume, not background recovery or untrusted link UUIDs. UUID validation and mutation retry policy are covered by existing tests. The UUID-only payload does not hide the requesting IP; changing the switch cannot undo an already-sent request. |
+| Artwork consent | Both default on; Windows opt-out cancels current lookup, restores station artwork, and rejects late catalog results. Lookup-disabled history stays local and has no newly attached catalog artwork. Previously saved covers are not retroactively erased by this switch. |
+| Listening history | Both retain up to 1,000 local entries and deduplicate consecutive station/title/artist repeats, preserving monotonic timestamps. Neither inspected settings store exposes a history-off toggle. Windows timestamps persistence processing rather than iOS metadata's `receivedAt`; explicit event timestamps and a clear/export history surface are future work. |
+| Playback settings | Looping and speculative stream prewarming default off in both. Windows has Off/Speech/Bass/Treble DSP presets; this is not identical to the iOS equalizer catalog. Windows jump lists and Acrylic are platform-specific additions. |
+| Feature flags | iOS has persisted default/enabled/disabled overrides for diagnostics, geo stations, prewarming, and Live Activity. Windows exposes concrete playback toggles, not that general override catalog. Do not describe settings as complete feature-flag parity. |
+| Optional OS features | iOS diagnostics collection and precise geo permission are independently off by default; spatial rendering is opt-in. Windows has a bounded local exception log but no diagnostics-collection consent/export equivalent, precise-geolocation workflow, spatial renderer, or Live Activity equivalent. These require deliberate Windows UX/API design, not inert switches. |
+
+Runtime fixes in this pass:
+
+- A momentary `Playing` signal no longer resets retry attempts. Thirty seconds of
+  continuous healthy playback earns a fresh budget; repeated Playing events do
+  not restart that healthy-window clock. Retry delays remain exponential and
+  bounded, and invalid/overflowing timer configuration fails synchronously.
+- Opening as well as Buffering arms recovery on both media-engine paths. Repeated
+  buffering notifications cannot move the existing deadline forward.
+- Metadata delivery is rechecked against source/playback intent; queued obsolete
+  titles, clears and station notifications cannot overwrite current player state.
+  Accepted latest titles keep artwork and durable history aligned. UI delivery
+  intentionally discards superseded notifications; this is not an exhaustive
+  log of every raw ICY callback received while the UI was busy.
+- Artwork cancellation ownership now uses atomic exchange/compare-exchange so
+  an older lookup's background completion cannot clear a newer cancellation
+  owner. Existing late-result and opt-out regressions continue to exercise it.
+- Virtual-time recovery tests cover brief flapping, stable recovery, resume/pause
+  epoch invalidation, and fixed buffering deadlines. Queue-controlled metadata
+  tests include reverse delivery of obsolete title/clear callbacks.
+
+Existing engine-generation, shutdown, route-change and artwork cancellation tests
+remain in place. Sleep/resume and connectivity are **not** fully adapted yet:
+Windows has no explicit suspend/resume or connectivity-loss playback coordinator.
+Native buffering/failure and the DSP progress watchdog trigger recovery, but a
+MediaPlayer that remains falsely Playing without progress is not proven covered.
+Add intent-preserving OS lifecycle policy and real hardware/network tests next;
+an explicit user pause must never be turned into automatic playback on resume.
+The iOS interruption and media-services-reset policies should guide that work.
+
+Headless validation does not prove audible recovery after real sleep, Bluetooth
+handoff, VPN changes, or prolonged network loss. The native QA gates below remain
+open. Existing modified Windows test lockfile was left untouched during this audit;
+isolated restore metadata was used for local Windows test execution.
+Final headless results for this pass: 356 tests on Windows ARM64, 356 on Windows
+x64, and 161 in the fresh Linux ARM64 Docker full build. Four package builds,
+the offline package consumer, fully trimmed consumer, and portable formatting
+verification also passed. Windows build/test outputs are isolated under
+`out/runtime-audit` and `out/runtime-audit-x64`; Docker reports remain under
+`out/docker-validation`. No app UI, physical playback, or live station was launched.
+
 | iOS behavior | Windows implementation |
 | --- | --- |
 | Listen Now, search, favorites, recents, shared player | WinUI `NavigationView`, `RadioMainViewModel`, local library |

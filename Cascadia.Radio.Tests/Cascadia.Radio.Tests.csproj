@@ -8,6 +8,10 @@
     <NoWarn>$(NoWarn);CA1707;MSTEST0037</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <!-- This Windows-owned recovery policy has no platform dependencies; exercise
+         its production source in stable .NET/Linux CI without moving app policy into the public SDK. -->
+    <Compile Include="../smodr/Services/LiveRadioRecovery.cs" Link="Runtime/LiveRadioRecovery.cs" />
+    <Compile Include="../smodr.Tests/Services/LiveRadioRecoveryDeterministicTests.cs" Link="Runtime/LiveRadioRecoveryDeterministicTests.cs" />
     <PackageReference Include="MSTest" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />

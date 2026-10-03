@@ -21,6 +21,7 @@ COPY Cascadia.Radio.Metadata/ ./Cascadia.Radio.Metadata/
 COPY Cascadia.Radio.Services/ ./Cascadia.Radio.Services/
 COPY Cascadia.Radio.Tests/ ./Cascadia.Radio.Tests/
 COPY smodr.Tests/ ./smodr.Tests/
+COPY smodr/Services/LiveRadioRecovery.cs ./smodr/Services/
 COPY samples/ ./samples/
 COPY scripts/validate-portable-radio.sh ./scripts/
 FROM dependencies AS tests

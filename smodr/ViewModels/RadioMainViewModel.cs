@@ -555,7 +555,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     private void Audio_StationChanged(object? sender, RadioStation? station) =>
         _dispatch(() =>
         {
-            if (Volatile.Read(ref _disposed) != 0) return;
+            if (Volatile.Read(ref _disposed) != 0 || !ReferenceEquals(_audio.CurrentStation, station)) return;
             CurrentPlaybackState = MediaPlaybackState.None;
             CancelArtworkLookup();
             _currentHistoryRecord = null;
@@ -571,6 +571,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             if (Volatile.Read(ref _disposed) != 0) return;
             if (update is null)
             {
+                if (_audio.CurrentTrack is not null) return;
                 CancelArtworkLookup();
                 _currentHistoryRecord = null;
                 CurrentTrack = null;
@@ -580,7 +581,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
                     _audio.SetNowPlayingArtwork(station, ParseArtworkUrl(station.ArtworkUrl));
                 return;
             }
-            if (!ReferenceEquals(_audio.CurrentStation, update.Station)) return;
+            if (!ReferenceEquals(_audio.CurrentStation, update.Station) || _audio.CurrentTrack != update.Track) return;
             CurrentTrack = update.Track;
             _currentHistoryRecord = _trackHistory is null ? null : _background.RunAsync(_ => RecordTrackBestEffortAsync(update));
             StartArtworkLookup(update.Station, update.Track);
@@ -626,7 +627,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         catch (Exception exception) { AppDiagnostics.Record("artwork.lookup", exception); }
         finally
         {
-            if (ReferenceEquals(_artworkCancellation, cancellation)) _artworkCancellation = null;
+            Interlocked.CompareExchange(ref _artworkCancellation, null, cancellation);
             cancellation.Dispose();
         }
     }
@@ -634,8 +635,7 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     private void CancelArtworkLookup()
     {
         _artworkVersion++;
-        var previous = _artworkCancellation;
-        _artworkCancellation = null;
+        var previous = Interlocked.Exchange(ref _artworkCancellation, null);
         try { previous?.Cancel(); }
         catch (ObjectDisposedException) { }
     }

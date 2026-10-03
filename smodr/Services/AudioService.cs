@@ -367,6 +367,7 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
             switch (state)
             {
                 case MediaPlaybackState.Buffering:
+                case MediaPlaybackState.Opening:
                     _trackMonitor.Stop();
                     _recovery.Buffering();
                     break;
@@ -519,10 +520,20 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
     }
 
     private void TrackMonitor_TrackChanged(object? sender, RadioTrackUpdate update) =>
-        RunOnPlayerThread(() => ApplyTrack(update));
+        DispatchTrackCallback(() => ApplyTrack(update));
 
     private void TrackMonitor_TrackInvalidated(object? sender, RadioStation station) =>
-        RunOnPlayerThread(() => ClearSongForStation(station));
+        DispatchTrackCallback(() => ClearSongForStation(station));
+
+    private void DispatchTrackCallback(Action action)
+    {
+        var source = Interlocked.Read(ref _sourceVersion);
+        var intent = Interlocked.Read(ref _intentVersion);
+        RunOnPlayerThread(() =>
+        {
+            if (Volatile.Read(ref _disposed) == 0 && source == _sourceVersion && intent == _intentVersion) action();
+        });
+    }
 
     private void ClearSongForStation(RadioStation station)
     {

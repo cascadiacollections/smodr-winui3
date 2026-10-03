@@ -12,6 +12,48 @@ namespace smodr.Tests.Services;
 public sealed class MetadataOrchestrationTests
 {
     [TestMethod]
+    public async Task RetiredStationNotificationCannotReplaceLatestSelection()
+    {
+        await using var scenario = new Scenario();
+        await scenario.SelectAsync("initial");
+        var retired = new RadioStation { Id = "retired", StreamUrl = "https://stream.example/retired" };
+        var latest = new RadioStation { Id = "latest", StreamUrl = "https://stream.example/latest" };
+        await scenario.Player.PlayStationAsync(retired);
+        await scenario.Player.PlayStationAsync(latest);
+        var oldCallback = await scenario.TakePostedAsync();
+        oldCallback();
+        Assert.AreEqual("initial", scenario.ViewModel.CurrentStation?.Id);
+        scenario.Drain();
+        Assert.AreSame(latest, scenario.ViewModel.CurrentStation);
+    }
+
+    [TestMethod]
+    public async Task QueuedOlderTitleAndClearCannotOverwriteCurrentSong()
+    {
+        await using var scenario = new Scenario();
+        await scenario.SelectAsync("first");
+        var old = new RadioTrackInfo("Old", "Artist");
+        var latest = new RadioTrackInfo("Latest", "Artist");
+        scenario.Player.EmitTrack(old);
+        scenario.Player.EmitTrack(null);
+        scenario.Player.EmitTrack(latest);
+        // Deliver the obsolete clear after the latest title, not just FIFO.
+        var oldCallback = await scenario.TakePostedAsync();
+        var clearCallback = await scenario.TakePostedAsync();
+        var latestCallback = await scenario.TakePostedAsync();
+        latestCallback();
+        clearCallback();
+        oldCallback();
+        Assert.AreEqual(latest, scenario.ViewModel.CurrentTrack);
+        var pending = await scenario.TakeArtworkAsync();
+        pending.Result.SetResult(Match("latest"));
+        await scenario.UntilAsync(() => scenario.ViewModel.CurrentArtworkUrl == Match("latest").ArtworkUrl.AbsoluteUri);
+        await scenario.ViewModel.ShutdownAsync();
+        scenario.Drain();
+        Assert.AreEqual("Latest", scenario.ReloadHistory().Single().Title);
+    }
+
+    [TestMethod]
     public async Task RapidTitlesKeepUiPlayerAndDurableHistoryAligned()
     {
         await using var scenario = new Scenario();
@@ -188,6 +230,7 @@ public sealed class MetadataOrchestrationTests
         }
 
         public void Drain() { while (_dispatch.TryDequeue(out var action)) action(); }
+        public Task<Request> TakeArtworkAsync() => _catalog.Requests.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(3));
 
         public async Task<Action> TakePostedAsync()
         {
@@ -321,6 +364,11 @@ public sealed class MetadataOrchestrationTests
             PlaybackStateChanged?.Invoke(this, MediaPlaybackState.Playing);
         }
         public void Pause() { _monitor.Stop(); IsPlaybackRequested = false; }
+        public void EmitTrack(RadioTrackInfo? track)
+        {
+            CurrentTrack = track;
+            TrackChanged?.Invoke(this, track is null ? null : new RadioTrackUpdate(CurrentStation!, track));
+        }
         public void StopStation() { Pause(); CurrentStation = null; }
         public void SetNowPlayingArtwork(RadioStation station, Uri? artworkUrl)
         {

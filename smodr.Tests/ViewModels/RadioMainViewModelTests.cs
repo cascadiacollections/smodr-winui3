@@ -761,7 +761,7 @@ public sealed class RadioMainViewModelTests
         Action? pause = null) : IRadioPlayer
     {
         public RadioStation? CurrentStation { get; private set; }
-        public RadioTrackInfo? CurrentTrack => null;
+        public RadioTrackInfo? CurrentTrack { get; private set; }
         public Uri? LastArtworkUrl { get; private set; }
         public bool IsPlaying => false;
         public bool IsPlaybackRequested => playbackRequested;
@@ -769,7 +769,11 @@ public sealed class RadioMainViewModelTests
         public event EventHandler<RadioTrackUpdate?>? TrackChanged;
         public event EventHandler? UserPlaybackStarted;
         public void EmitUserPlaybackStarted() => UserPlaybackStarted?.Invoke(this, EventArgs.Empty);
-        public void EmitTrack(RadioTrackUpdate update) => TrackChanged?.Invoke(this, update);
+        public void EmitTrack(RadioTrackUpdate update)
+        {
+            if (ReferenceEquals(CurrentStation, update.Station)) CurrentTrack = update.Track;
+            TrackChanged?.Invoke(this, update);
+        }
         public void SetNowPlayingArtwork(RadioStation station, Uri? artworkUrl) => LastArtworkUrl = artworkUrl;
         public event EventHandler<MediaPlaybackState>? PlaybackStateChanged;
         public void EmitPlaybackState(MediaPlaybackState state) => PlaybackStateChanged?.Invoke(this, state);
@@ -782,6 +786,7 @@ public sealed class RadioMainViewModelTests
         {
             var operation = playStation?.Invoke(station) ?? Task.CompletedTask;
             CurrentStation = station;
+            CurrentTrack = null;
             playbackRequested = true;
             StationChanged?.Invoke(this, station);
             return operation;
