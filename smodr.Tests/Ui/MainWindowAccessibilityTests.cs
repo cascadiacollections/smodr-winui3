@@ -20,15 +20,18 @@ public sealed class MainWindowAccessibilityTests
                 var automationName = (string?)element.Attribute("AutomationProperties.Name");
                 var content = (string?)element.Attribute("Content");
                 var text = (string?)element.Attribute("Text");
-                var descendantText = element.Descendants().Any(child => child.Name.LocalName == "TextBlock"
-                    && !string.IsNullOrWhiteSpace((string?)child.Attribute("Text")));
-                Assert.IsTrue(!string.IsNullOrWhiteSpace(automationName)
+                var descendantText = element.Descendants().Select(child => child.Name.LocalName == "TextBlock"
+                    ? (string?)child.Attribute("Text") : null).Any(IsLiteralLabel);
+                Assert.IsTrue(IsLiteralLabel(automationName)
                     || (!string.IsNullOrWhiteSpace(content) && content[0] != '{')
-                    || !string.IsNullOrWhiteSpace(text) || descendantText,
+                    || IsLiteralLabel(text) || descendantText,
                     $"{file}: {element.Name.LocalName} needs a readable content label or AutomationProperties.Name.");
             }
         }
     }
+
+    private static bool IsLiteralLabel(string? value) =>
+        !string.IsNullOrWhiteSpace(value) && value[0] != '{';
 
     [TestMethod]
     public void AppearanceUsesNativeBackdropAccessibleChoiceAndThemedSolidSurface()

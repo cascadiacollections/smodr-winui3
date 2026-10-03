@@ -1,7 +1,9 @@
 [CmdletBinding()]
 param(
     [string] $ManifestPath = 'smodr/Package.appxmanifest',
-    [switch] $Production
+    [switch] $Production,
+    [string] $ExpectedName,
+    [string] $ExpectedPublisher
 )
 $ErrorActionPreference = 'Stop'
 $repository = Split-Path $PSScriptRoot -Parent
@@ -26,7 +28,12 @@ $protocols = @($package.SelectNodes(".//*[local-name()='Protocol']") | ForEach-O
 if ($protocols.Count -ne 1 -or $protocols[0] -cne 'holmdel') { throw 'Expected exactly the holmdel protocol registration.' }
 $families = @($package.SelectNodes("*[local-name()='Dependencies']/*[local-name()='TargetDeviceFamily']"))
 if (@($families | Where-Object Name -eq 'Windows.Desktop').Count -ne 1) { throw 'Windows.Desktop target family is required.' }
-if ($Production -and ($identity.Name -match '^[0-9a-f]{8}-[0-9a-f-]{27,}$' -or $identity.Publisher -eq 'CN=excel')) {
-    throw 'Development package identity cannot be used for production.'
+if ($Production) {
+    if ([string]::IsNullOrWhiteSpace($ExpectedName) -or [string]::IsNullOrWhiteSpace($ExpectedPublisher)) {
+        throw 'Production validation requires the expected package name and publisher.'
+    }
+    if ($identity.Name -cne $ExpectedName -or $identity.Publisher -cne $ExpectedPublisher) {
+        throw 'Package identity does not exactly match the expected production identity.'
+    }
 }
 Write-Host "Package manifest valid: $($identity.Name), $($identity.Publisher), $($identity.Version)"

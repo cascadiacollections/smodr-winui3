@@ -134,9 +134,41 @@ public sealed class RadioWarmupTests
     }
 
     [TestMethod]
+    public void PlaybackProgressTreatsLargeLiveTimelineDiscontinuityAsProgress()
+    {
+        var clock = new FakeTimeProvider();
+        var watchdog = new RadioPlaybackProgressWatchdog(clock, TimeSpan.FromSeconds(10));
+        watchdog.Reset(TimeSpan.FromSeconds(30));
+        clock.Advance(TimeSpan.FromSeconds(9));
+        Assert.IsFalse(watchdog.IsStalled(TimeSpan.FromSeconds(2)));
+        clock.Advance(TimeSpan.FromSeconds(9));
+        Assert.IsFalse(watchdog.IsStalled(TimeSpan.FromSeconds(3)));
+        clock.Advance(TimeSpan.FromSeconds(10));
+        Assert.IsTrue(watchdog.IsStalled(TimeSpan.FromSeconds(3)));
+    }
+
+    [TestMethod]
+    public void PlaybackProgressDoesNotLetOldAndRebasedSamplesOscillateForever()
+    {
+        var clock = new FakeTimeProvider();
+        var watchdog = new RadioPlaybackProgressWatchdog(clock, TimeSpan.FromSeconds(10));
+        watchdog.Reset(TimeSpan.FromSeconds(30));
+        clock.Advance(TimeSpan.FromSeconds(5));
+        Assert.IsFalse(watchdog.IsStalled(TimeSpan.FromSeconds(2)));
+        clock.Advance(TimeSpan.FromSeconds(5));
+        Assert.IsTrue(watchdog.IsStalled(TimeSpan.FromSeconds(30)));
+        Assert.IsTrue(watchdog.IsStalled(TimeSpan.FromSeconds(2)));
+    }
+
+    [TestMethod]
     public void PlaybackProgressRejectsInvalidDeadline() =>
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
             new RadioPlaybackProgressWatchdog(stallTimeout: TimeSpan.Zero));
+
+    [TestMethod]
+    public void PlaybackProgressRejectsInvalidTimelineResetThreshold() =>
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            new RadioPlaybackProgressWatchdog(timelineResetThreshold: TimeSpan.Zero));
 
     private sealed class Resource : IDisposable
     {

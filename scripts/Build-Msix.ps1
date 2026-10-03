@@ -1,6 +1,7 @@
 param(
     [ValidateSet('ARM64', 'x64')][string] $Platform = 'ARM64',
-    [string] $CertificateThumbprint
+    [string] $CertificateThumbprint,
+    [string] $PackageIdentityName
 )
 
 $ErrorActionPreference = 'Stop'
@@ -9,7 +10,7 @@ $manifestPath = Join-Path $repository 'smodr/Package.appxmanifest'
 $runner = Join-Path $PSScriptRoot 'dotnet-dev.ps1'
 $project = Join-Path $repository 'smodr/smodr.csproj'
 $signed = -not [string]::IsNullOrWhiteSpace($CertificateThumbprint)
-& (Join-Path $PSScriptRoot 'Test-PackageManifest.ps1') -ManifestPath $manifestPath -Production:$signed
+& (Join-Path $PSScriptRoot 'Test-PackageManifest.ps1') -ManifestPath $manifestPath
 $packageDir = Join-Path $repository ("out/msix-$Platform" + $(if ($signed) { '-signed' } else { '' }))
 $arguments = @(
     $Platform, 'msbuild', $project, '-restore',
@@ -30,14 +31,14 @@ if ($signed) {
     if (-not $certificate -or -not $certificate.HasPrivateKey) {
         throw 'Signing certificate with private key was not found in CurrentUser or LocalMachine Personal store.'
     }
+    if ([string]::IsNullOrWhiteSpace($PackageIdentityName)) { throw 'PackageIdentityName is required for a signed release.' }
     [xml] $manifest = Get-Content -LiteralPath $manifestPath -Raw
     $identity = $manifest.SelectSingleNode("/*[local-name()='Package']/*[local-name()='Identity']")
     if (-not $identity -or $identity.Publisher -cne $certificate.Subject) {
         throw 'Manifest Publisher must exactly match the signing certificate Subject.'
     }
-    if ($identity.Name -match '^[0-9a-f]{8}-[0-9a-f-]{27,}$' -or $identity.Publisher -eq 'CN=excel') {
-        throw 'Replace the development package identity before producing a signed release.'
-    }
+    & (Join-Path $PSScriptRoot 'Test-PackageManifest.ps1') -ManifestPath $manifestPath -Production `
+        -ExpectedName $PackageIdentityName -ExpectedPublisher $certificate.Subject
     $arguments += '-p:AppxPackageSigningEnabled=true', "-p:PackageCertificateThumbprint=$thumbprint"
 } else {
     $arguments += '-p:AppxPackageSigningEnabled=false'

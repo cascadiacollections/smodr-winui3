@@ -23,6 +23,6 @@ if (Test-Path -LiteralPath $output) {
     -mi SPDX:2.2 -pm true -li false -F false -V Information
 if ($LASTEXITCODE -ne 0) { throw "SBOM tool failed with exit code $LASTEXITCODE." }
 $manifest = Join-Path $output '_manifest/spdx_2.2/manifest.spdx.json'
-& "$PSScriptRoot/Test-Sbom.ps1" -ManifestPath $manifest -ExpectedName $PackageName -ExpectedNamespaceBase $NamespaceBase
+& "$PSScriptRoot/Test-Sbom.ps1" -ManifestPath $manifest -ExpectedName $PackageName -ExpectedNamespaceBase $NamespaceBase -DropPath $drop
 if ($LASTEXITCODE -ne 0) { throw 'Generated SBOM validation failed.' }
 Write-Host "SBOM evidence: $manifest"

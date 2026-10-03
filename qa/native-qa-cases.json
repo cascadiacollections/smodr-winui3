@@ -9,7 +9,7 @@
   { "id": "playback.network", "area": "Playback", "title": "Network loss and restoration obey resume setting and user intent" },
   { "id": "playback.sleep", "area": "Playback", "title": "Sleep and wake obey resume setting and never override Pause or Stop" },
   { "id": "playback.output-route", "area": "Playback", "title": "Headset, Bluetooth, and dock route changes pause safely" },
-  { "id": "playback.long-run", "area": "Playback", "title": "Long-running stream survives title changes without false stall recovery" },
+  { "id": "playback.long-run", "area": "Playback", "title": "Long-running stream survives title changes and HLS timeline discontinuities without false stall recovery" },
   { "id": "metadata.live", "area": "Metadata", "title": "KEXP and Brookdale titles, artwork, media controls, and history agree" },
   { "id": "privacy.reporting", "area": "Privacy", "title": "Radio Browser reporting sends only explicit enabled play events" },
   { "id": "accessibility.keyboard", "area": "Accessibility", "title": "Keyboard navigation, focus restoration, Escape, and dialogs work" },
