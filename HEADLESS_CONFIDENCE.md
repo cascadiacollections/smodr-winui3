@@ -5,11 +5,12 @@
 Normal close writes `runtime-counters.json` in the app's storage directory
 (unpackaged: `%LOCALAPPDATA%\CascadiaCollections\ShoutkitWindows`; packaged:
 the package's `LocalFolder`). It atomically replaces the last session report:
-schema version, UTC capture time, and 24 fixed-name integer counters only.
+schema version, UTC capture time, and 26 fixed-name integer counters only.
 Counts start at zero for each process; they are not a durable lifetime total.
 Forced termination may leave the preceding session's report.
 
-Counters cover scheduled retries/restart requests/exhaustion, accepted/duplicate
+Counters cover scheduled retries/restart requests/exhaustion, native playback
+failures and detected Playing-without-progress stalls, accepted/duplicate
 metadata, empty/oversize/damaged/non-song rejections, retired callbacks, artwork
 memory hits/misses/expiry, catalog hits/shared requests/matches/misses, rejected
 responses, transport cancellations, and transport failures. Rejection categories
@@ -18,6 +19,8 @@ memory counts aggregate encoded and dispatcher-local decoded caches; expiry also
 counts as a miss, and a download may check memory again after acquiring a slot.
 Cancellations include deadlines, caller cancellation, and normal shutdown, not
 just failures. Recovery restart counts are requests, not proof of audible success.
+Progress stalls use a monotonic 30-second deadline shared by MediaPlayer and DSP
+engines; only forward position resets it. Native device QA is still required.
 
 Hot-path recording uses atomic memory increments with no disk IO. JSON serialization
 and atomic replacement run in background work during the final close flush.

@@ -68,8 +68,17 @@ manual pause/stop, already-paused streams and offline selection. Durable-setting
 tests prove old schema-1 files inherit the new defaults without losing choices.
 Headless XAML tests verify the added controls' names, busy gating and bindings.
 This closes the explicit coordination code gap, not real-device validation.
-A MediaPlayer that remains falsely Playing without progress is still not proven
-covered. iOS media-services-reset behavior remains a separate adaptation gap.
+
+Both playback engines now use a monotonic 30-second progress deadline while
+reporting Playing. Forward position extends the deadline; identical or backward
+native samples do not. Buffering, pause, source retirement and a new source stop
+or reset the appropriate timer. A frozen MediaPlayer therefore enters the same
+bounded recovery budget as explicit MediaFailed and buffering failures. Aggregate
+local counters distinguish native failures from detected progress stalls without
+recording station or track data. Windows exposes no direct AVAudioSession-style
+`mediaServicesWereReset` callback for this MediaPlayer path: `MediaFailed`, output
+device changes, power/connectivity coordination and progress detection are the
+recovery boundaries. Real-device reset behavior remains native QA.
 
 Headless validation does not prove audible recovery after real sleep, Bluetooth
 handoff, VPN changes, or prolonged network loss. The native QA gates below remain

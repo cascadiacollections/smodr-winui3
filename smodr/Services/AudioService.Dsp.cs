@@ -137,20 +137,23 @@ public partial class AudioService
     }
 
     private void ManualControls_ButtonPressed(SystemMediaTransportControls sender,
-        SystemMediaTransportControlsButtonPressedEventArgs args) => RunOnPlayerThread(() =>
+        SystemMediaTransportControlsButtonPressedEventArgs args)
     {
-        if (!ReferenceEquals(sender, _manualControls) || CurrentStation is null) return;
-        try
+        RunOnPlayerThread(() =>
         {
-            if (args.Button == SystemMediaTransportControlsButton.Play && !_recovery.IsRequested)
+            if (!ReferenceEquals(sender, _manualControls) || CurrentStation is null) return;
+            try
             {
-                Play();
-                UserPlaybackStarted?.Invoke(this, EventArgs.Empty);
+                if (args.Button == SystemMediaTransportControlsButton.Play && !_recovery.IsRequested)
+                {
+                    Play();
+                    UserPlaybackStarted?.Invoke(this, EventArgs.Empty);
+                }
+                else if (args.Button == SystemMediaTransportControlsButton.Pause) Pause();
             }
-            else if (args.Button == SystemMediaTransportControlsButton.Pause) Pause();
-        }
-        catch (Exception exception) { AppDiagnostics.Record("station.dsp-system-control", exception); }
-    });
+            catch (Exception exception) { AppDiagnostics.Record("station.dsp-system-control", exception); }
+        });
+    }
 
     private void UpdateManualMetadata()
     {

@@ -35,6 +35,8 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
     private WindowsPlaybackEnvironment? _environment;
     private bool _systemSuspended;
     private bool _networkConnected = true;
+    private DispatcherQueueTimer? _mediaProgressTimer;
+    private readonly RadioPlaybackProgressWatchdog _mediaProgress = new();
 
     public AudioService(IcyTrackMonitor trackMonitor, RadioPlaybackPreferences? preferences = null,
         RadioStreamPrewarmer? prewarmer = null)
@@ -146,11 +148,13 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
         }
         SystemPlayer!.CommandManager.PlayReceived += CommandManager_PlayReceived;
         SystemPlayer.CommandManager.PauseReceived += CommandManager_PauseReceived;
+        CreateMediaProgressTimer();
     }
 
     private void ReleasePlayer()
     {
         _sourceVersion++;
+        StopMediaProgressTimer();
         ReleaseDsp();
         _trackMonitor.Stop();
         DetachTimedTracks();
@@ -421,14 +425,21 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
             {
                 case MediaPlaybackState.Buffering:
                 case MediaPlaybackState.Opening:
+                    _mediaProgressTimer?.Stop();
                     _trackMonitor.Stop();
                     _recovery.Buffering();
                     break;
                 case MediaPlaybackState.Playing:
+                    if (_engines.Current is { Kind: RadioAudioEngineKind.MediaPlayer } mediaEngine)
+                    {
+                        _mediaProgress.Reset(mediaEngine.Position);
+                        _mediaProgressTimer?.Start();
+                    }
                     _recovery.Playing();
                     if (CurrentStation is { } station) _trackMonitor.Start(station);
                     break;
                 default:
+                    _mediaProgressTimer?.Stop();
                     _trackMonitor.Stop();
                     break;
             }
@@ -439,6 +450,8 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
 
     private void Engine_Failed(object? sender, EventArgs args)
     {
+        _mediaProgressTimer?.Stop();
+        RuntimeDiagnostics.Counters.Increment(RuntimeCounter.NativeMediaFailed);
         AppDiagnostics.Record("station.engine-failed", new InvalidOperationException(_engines.Current?.Kind.ToString()));
         if (CurrentStation is not null && _recovery.IsRequested)
         {
@@ -454,6 +467,47 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
         if (CurrentStation is null)
         {
             PlaybackFailed?.Invoke(this, "This stream could not be played. Try another station.");
+        }
+    }
+
+    private void CreateMediaProgressTimer()
+    {
+        if (_dispatcher is null || _mediaProgressTimer is not null) return;
+        var timer = _dispatcher.CreateTimer();
+        timer.Interval = TimeSpan.FromSeconds(2);
+        timer.IsRepeating = true;
+        timer.Tick += MediaProgressTimer_Tick;
+        _mediaProgressTimer = timer;
+    }
+
+    private void StopMediaProgressTimer()
+    {
+        if (_mediaProgressTimer is not { } timer) return;
+        timer.Stop();
+        timer.Tick -= MediaProgressTimer_Tick;
+        _mediaProgressTimer = null;
+    }
+
+    private void MediaProgressTimer_Tick(DispatcherQueueTimer sender, object args)
+    {
+        if (!ReferenceEquals(sender, _mediaProgressTimer)
+            || _engines.Current is not { Kind: RadioAudioEngineKind.MediaPlayer } engine
+            || !_recovery.IsRequested || engine.State != MediaPlaybackState.Playing) return;
+        try
+        {
+            if (!_mediaProgress.IsStalled(engine.Position)) return;
+            sender.Stop();
+            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.MediaPlaybackStalled);
+            _trackMonitor.Stop();
+            _recovery.Fail();
+            if (_recovery.IsRequested) PlaybackStateChanged?.Invoke(this, MediaPlaybackState.Buffering);
+        }
+        catch (Exception exception)
+        {
+            sender.Stop();
+            AppDiagnostics.Record("station.media-progress", exception);
+            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.MediaPlaybackStalled);
+            _recovery.Fail();
         }
     }
 

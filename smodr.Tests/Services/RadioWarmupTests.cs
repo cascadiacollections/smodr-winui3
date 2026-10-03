@@ -120,6 +120,24 @@ public sealed class RadioWarmupTests
         Assert.IsFalse(watchdog.IsStalled(TimeSpan.FromSeconds(1)));
     }
 
+    [TestMethod]
+    public void PlaybackProgressDoesNotLetBackwardNativeSamplesHideAStall()
+    {
+        var clock = new FakeTimeProvider();
+        var watchdog = new RadioPlaybackProgressWatchdog(clock, TimeSpan.FromSeconds(10));
+        watchdog.Reset(TimeSpan.FromSeconds(20));
+        clock.Advance(TimeSpan.FromSeconds(6));
+        Assert.IsFalse(watchdog.IsStalled(TimeSpan.FromSeconds(19)));
+        clock.Advance(TimeSpan.FromSeconds(4));
+        Assert.IsTrue(watchdog.IsStalled(TimeSpan.FromSeconds(19)));
+        Assert.IsFalse(watchdog.IsStalled(TimeSpan.FromSeconds(21)));
+    }
+
+    [TestMethod]
+    public void PlaybackProgressRejectsInvalidDeadline() =>
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            new RadioPlaybackProgressWatchdog(stallTimeout: TimeSpan.Zero));
+
     private sealed class Resource : IDisposable
     {
         public int Disposals { get; private set; }

@@ -8,6 +8,8 @@ public enum RuntimeCounter
     RecoveryRetryScheduled,
     RecoveryRestartRequested,
     RecoveryExhausted,
+    MediaPlaybackStalled,
+    NativeMediaFailed,
     MetadataAccepted,
     MetadataDuplicate,
     MetadataRejectedEmpty,
