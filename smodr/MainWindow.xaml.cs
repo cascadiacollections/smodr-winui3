@@ -40,6 +40,8 @@ public sealed partial class MainWindow : Window
         _prewarmer = prewarmer;
         _jumpList = jumpList;
         InitializeComponent();
+        ApplyAppearance();
+        Settings.PropertyChanged += Settings_PropertyChanged;
         HeroArtwork.AccentColorChanged += HeroArtwork_AccentColorChanged;
         _settingsReady = true;
         _sleepCountdownTimer.Tick += SleepCountdownTimer_Tick;
@@ -126,6 +128,7 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
+        Settings.PropertyChanged -= Settings_PropertyChanged;
         _closed = true;
         _warmupCancellation.Cancel();
         _prewarmer?.Clear();
@@ -500,6 +503,28 @@ public sealed partial class MainWindow : Window
     private async void EqualizerBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_settingsReady) await Settings.SetEqualizerPresetAsync(EqualizerBox.SelectedIndex);
+    }
+
+    private async void BackdropBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_settingsReady) await Settings.SetBackdropAsync(BackdropBox.SelectedIndex);
+    }
+
+    private void Settings_PropertyChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (!_closed && args.PropertyName == nameof(Settings.SelectedBackdrop)) ApplyAppearance();
+    }
+
+    private void ApplyAppearance()
+    {
+        var choice = (RadioWindowBackdrop)Settings.SelectedBackdrop;
+        SystemBackdrop = choice switch
+        {
+            RadioWindowBackdrop.Acrylic => new DesktopAcrylicBackdrop(),
+            RadioWindowBackdrop.Mica => new MicaBackdrop { Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.BaseAlt },
+            _ => null
+        };
+        SolidWindowBackground.Visibility = choice == RadioWindowBackdrop.Solid ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async void JumpListSwitch_Toggled(object sender, RoutedEventArgs e)

@@ -87,6 +87,7 @@ public partial class App : Application
         };
         var services = new ServiceCollection();
         services.AddSingleton(new RadioPlaybackPreferences(Path.Combine(StorageDirectory, "playback-settings.json")));
+        services.AddSingleton(new RadioAppearancePreferences(Path.Combine(StorageDirectory, "appearance-settings.json")));
         services.AddSingleton<RadioStreamPrewarmer>();
         services.AddSingleton<RadioJumpList>();
         services.AddSingleton<IRadioPlayer, AudioService>();
@@ -133,7 +134,7 @@ public partial class App : Application
                 var viewModel = provider.GetRequiredService<RadioMainViewModel>();
                 _ = provider.GetRequiredService<RadioJumpList>().UpdateAsync(
                     (RadioStation[])[.. viewModel.Favorites], (RadioStation[])[.. viewModel.Recents]);
-            }));
+            }, appearance: provider.GetRequiredService<RadioAppearancePreferences>()));
         _services = services.BuildServiceProvider(validateScopes: true);
     }
 

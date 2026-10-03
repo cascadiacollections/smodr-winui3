@@ -7,7 +7,8 @@ namespace smodr.ViewModels;
 public partial class RadioSettingsViewModel(IRadioPrivacySettings privacy,
     Func<bool, Task>? setArtwork = null, Func<Task<string>>? readLicenses = null,
     RadioPlaybackPreferences? playback = null, Action? clearWarmup = null,
-    bool jumpListSupported = false, Action? refreshJumpList = null) : ObservableObject
+    bool jumpListSupported = false, Action? refreshJumpList = null,
+    RadioAppearancePreferences? appearance = null) : ObservableObject
 {
     private Task _pendingEdit = Task.CompletedTask;
     private readonly Lock _licenseGate = new();
@@ -22,6 +23,8 @@ public partial class RadioSettingsViewModel(IRadioPrivacySettings privacy,
     public bool CanEdit => !IsSaving;
     public bool CanEditPlayback => CanEdit && playback is { IsReadOnly: false };
     public bool CanEditJumpLists => CanEditPlayback && jumpListSupported;
+    public bool CanEditAppearance => CanEdit && appearance is { IsReadOnly: false };
+    public int SelectedBackdrop => (int)(appearance?.Current ?? RadioWindowBackdrop.Acrylic);
     public bool IsJumpListEnabled => playback?.Current.JumpLists == true;
     public bool IsStreamPrewarmingEnabled => playback?.Current.PrewarmStreams == true;
     public bool IsLoopFinishedBroadcastsEnabled => playback?.Current.LoopFinishedBroadcasts == true;
@@ -32,6 +35,7 @@ public partial class RadioSettingsViewModel(IRadioPrivacySettings privacy,
     [NotifyPropertyChangedFor(nameof(CanEdit))]
     [NotifyPropertyChangedFor(nameof(CanEditPlayback))]
     [NotifyPropertyChangedFor(nameof(CanEditJumpLists))]
+    [NotifyPropertyChangedFor(nameof(CanEditAppearance))]
     public partial bool IsSaving { get; set; }
 
     [ObservableProperty]
@@ -69,7 +73,15 @@ public partial class RadioSettingsViewModel(IRadioPrivacySettings privacy,
         }, "playback.equalizer-write", "equalizer");
     }
 
-    public Task FlushAsync() => Task.WhenAll(_pendingEdit, playback?.FlushAsync() ?? Task.CompletedTask);
+    public Task SetBackdropAsync(int index)
+    {
+        if (!Enum.IsDefined((RadioWindowBackdrop)index) || appearance is null) return Task.CompletedTask;
+        return SaveAsync(index, SelectedBackdrop, value => appearance.SetAsync((RadioWindowBackdrop)value),
+            "appearance.write", "window-background");
+    }
+
+    public Task FlushAsync() => Task.WhenAll(_pendingEdit, playback?.FlushAsync() ?? Task.CompletedTask,
+        appearance?.FlushAsync() ?? Task.CompletedTask);
 
     public Task SetJumpListEnabledAsync(bool enabled) =>
         SaveAsync(enabled, IsJumpListEnabled, async value =>
@@ -108,6 +120,7 @@ public partial class RadioSettingsViewModel(IRadioPrivacySettings privacy,
             OnPropertyChanged(nameof(IsLoopFinishedBroadcastsEnabled));
             OnPropertyChanged(nameof(SelectedEqualizerPreset));
             OnPropertyChanged(nameof(IsJumpListEnabled));
+            OnPropertyChanged(nameof(SelectedBackdrop));
             IsSaving = false;
         }
     }

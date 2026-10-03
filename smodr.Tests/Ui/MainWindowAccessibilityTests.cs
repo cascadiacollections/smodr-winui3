@@ -6,6 +6,20 @@ namespace smodr.Tests.Ui;
 public sealed class MainWindowAccessibilityTests
 {
     private static readonly XNamespace _xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
+    private static readonly string[] _backdropLabels = ["Acrylic", "Mica", "Solid"];
+
+    [TestMethod]
+    public void AppearanceUsesNativeBackdropAccessibleChoiceAndThemedSolidSurface()
+    {
+        var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml"));
+        Assert.IsTrue(document.Descendants().Any(element => element.Name.LocalName == "DesktopAcrylicBackdrop"));
+        var choice = document.Descendants().Single(element => (string?)element.Attribute(_xaml + "Name") == "BackdropBox");
+        Assert.AreEqual("Window background", (string?)choice.Attribute("AutomationProperties.Name"));
+        CollectionAssert.AreEqual(_backdropLabels, choice.Elements().Select(element => (string?)element.Attribute("Content")).ToArray());
+        var fallback = document.Descendants().Single(element => (string?)element.Attribute(_xaml + "Name") == "SolidWindowBackground");
+        Assert.AreEqual("{ThemeResource ApplicationPageBackgroundThemeBrush}", (string?)fallback.Attribute("Background"));
+        Assert.AreEqual("3", (string?)fallback.Attribute("Grid.RowSpan"));
+    }
 
     [TestMethod]
     public void StationBrowsersUseRowsWithoutOuterScrollHosts()
@@ -100,7 +114,7 @@ public sealed class MainWindowAccessibilityTests
         var settings = document.Descendants().Single(element =>
             (string?)element.Attribute(_xaml + "Name") == "SettingsView");
         Assert.IsTrue(settings.Descendants().Any(element => element.Name.LocalName == "ScrollViewer"));
-        Assert.HasCount(7, settings.Descendants().Where(element => element.Name.LocalName == "SettingsCard"));
+        Assert.HasCount(8, settings.Descendants().Where(element => element.Name.LocalName == "SettingsCard"));
         foreach (var action in settings.Descendants().Where(element => element.Name.LocalName is "ToggleSwitch" or "ComboBox"
             || (element.Name.LocalName == "SettingsCard" && (string?)element.Attribute("IsClickEnabled") == "True")))
         {

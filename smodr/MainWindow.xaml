@@ -6,7 +6,7 @@
         xmlns:models="using:smodr.Models"
         xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
         Title="Shoutkit">
-    <Window.SystemBackdrop><MicaBackdrop Kind="BaseAlt"/></Window.SystemBackdrop>
+    <Window.SystemBackdrop><DesktopAcrylicBackdrop/></Window.SystemBackdrop>
     <Grid>
         <Grid.Resources>
             <Style x:Key="StationListStyle" TargetType="ListView">
@@ -16,6 +16,8 @@
             </Style>
         </Grid.Resources>
         <Grid.RowDefinitions><RowDefinition Height="32"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <Border x:Name="SolidWindowBackground" Grid.RowSpan="3" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+                Visibility="Collapsed" IsHitTestVisible="False"/>
         <Grid x:Name="AppTitleBar" Grid.Row="0" Background="Transparent">
             <Grid.ColumnDefinitions><ColumnDefinition Width="48"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
             <FontIcon Grid.Column="0" Glyph="&#xE720;" FontSize="16" HorizontalAlignment="Center"/>
@@ -24,7 +26,8 @@
         <NavigationView x:Name="AppNavigation" Grid.Row="1" PaneDisplayMode="Auto"
                         IsBackButtonVisible="Collapsed" IsSettingsVisible="True"
                         OpenPaneLength="220" CompactPaneLength="48"
-                        SelectionChanged="AppNavigation_SelectionChanged">
+                        Background="Transparent" SelectionChanged="AppNavigation_SelectionChanged">
+            <NavigationView.Resources><SolidColorBrush x:Key="NavigationViewContentBackground" Color="Transparent"/></NavigationView.Resources>
             <NavigationView.MenuItems>
                 <NavigationViewItem x:Name="ListenNowItem" Content="Listen Now" Tag="listen">
                     <NavigationViewItem.Icon><FontIcon Glyph="&#xE768;"/></NavigationViewItem.Icon>
@@ -182,6 +185,16 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="18" MaxWidth="680" HorizontalAlignment="Left">
                         <TextBlock Text="Settings" Style="{ThemeResource TitleLargeTextBlockStyle}"/>
+                        <TextBlock Text="Appearance" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                        <toolkit:SettingsCard Header="Window background"
+                                              Description="Native Acrylic, wallpaper-based Mica, or solid color. Windows may use a solid fallback when transparency is unavailable.">
+                            <ComboBox x:Name="BackdropBox" AutomationProperties.Name="Window background"
+                                      SelectedIndex="{x:Bind Settings.SelectedBackdrop, Mode=OneWay}"
+                                      IsEnabled="{x:Bind Settings.CanEditAppearance, Mode=OneWay}"
+                                      SelectionChanged="BackdropBox_SelectionChanged">
+                                <ComboBoxItem Content="Acrylic"/><ComboBoxItem Content="Mica"/><ComboBoxItem Content="Solid"/>
+                            </ComboBox>
+                        </toolkit:SettingsCard>
                         <TextBlock Text="Privacy" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                         <InfoBar Title="Setting not saved" Severity="Error" IsClosable="False"
                                  IsOpen="{x:Bind Settings.HasError, Mode=OneWay}"
