@@ -4,4 +4,8 @@
     <RootNamespace>smodr</RootNamespace>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Cascadia.RadioBrowser/Cascadia.RadioBrowser.csproj" />
+    <ProjectReference Include="../Cascadia.Radio.Services/Cascadia.Radio.Services.csproj" />
+  </ItemGroup>
 </Project>

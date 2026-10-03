@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>smodr.Tests</RootNamespace>
+    <LangVersion>14.0</LangVersion>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1707;MSTEST0037</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="MSTest" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+    <ProjectReference Include="../Cascadia.RadioBrowser/Cascadia.RadioBrowser.csproj" />
+    <ProjectReference Include="../Cascadia.Radio.Services/Cascadia.Radio.Services.csproj" />
+    <Compile Include="../smodr.Tests/Services/IcyTrackParserTests.cs" Link="Services/IcyTrackParserTests.cs" />
+    <Compile Include="../smodr.Tests/Services/IcyTrackParserFuzzTests.cs" Link="Services/IcyTrackParserFuzzTests.cs" />
+    <Compile Include="../smodr.Tests/Services/IcyTrackMonitorTests.cs" Link="Services/IcyTrackMonitorTests.cs" />
+    <Compile Include="../smodr.Tests/Services/IcyMetadataProbeTests.cs" Link="Services/IcyMetadataProbeTests.cs" />
+    <Compile Include="../smodr.Tests/Services/IcyMetadataStreamReaderTests.cs" Link="Services/IcyMetadataStreamReaderTests.cs" />
+    <Compile Include="../smodr.Tests/Services/HlsId3TrackParserTests.cs" Link="Services/HlsId3TrackParserTests.cs" />
+    <Compile Include="../smodr.Tests/Services/BackgroundWorkScopeTests.cs" Link="Services/BackgroundWorkScopeTests.cs" />
+    <Compile Include="../smodr.Tests/Services/ArtworkPipelineTests.cs" Link="Services/ArtworkPipelineTests.cs" />
+    <Compile Include="../smodr.Tests/Services/AlbumArtworkLookupTests.cs" Link="Services/AlbumArtworkLookupTests.cs" />
+    <Compile Include="../smodr.Tests/Services/StationArtworkDiskCacheTests.cs" Link="Services/StationArtworkDiskCacheTests.cs" />
+    <Compile Include="../smodr.Tests/Services/RadioLibraryServiceTests.cs" Link="Services/RadioLibraryServiceTests.cs" />
+    <Compile Include="../smodr.Tests/Services/TrackHistoryServiceTests.cs" Link="Services/TrackHistoryServiceTests.cs" />
+    <Compile Include="../smodr.Tests/Services/TopTracksAggregatorTests.cs" Link="Services/TopTracksAggregatorTests.cs" />
+    <Compile Include="../smodr.Tests/Services/RadioDirectorySnapshotCacheTests.cs" Link="Services/RadioDirectorySnapshotCacheTests.cs" />
+    <Compile Include="../smodr.Tests/Services/RuntimeDiagnosticsTests.cs" Link="Services/RuntimeDiagnosticsTests.cs" />
+    <Compile Include="../smodr.Tests/Services/TransportStressTests.cs" Link="Services/TransportStressTests.cs" />
+    <Compile Include="../smodr.Tests/Fixtures/ControlledHttpBody.cs" Link="Fixtures/ControlledHttpBody.cs" />
+  </ItemGroup>
+</Project>

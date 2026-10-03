@@ -1,6 +1,6 @@
 namespace smodr.Services;
 
-public static class AppDiagnostics
+public static class LocalDiagnosticLog
 {
     private const long MaxLogBytes = 1_000_000;
     private static readonly Lock _gate = new();

@@ -454,6 +454,25 @@
         "resolved": "8.0.0",
         "contentHash": "7mu9v0QDv66ar3DpGSZHg9NuNcxDaaAcnMULuZlaTpP9+hwXhrxNGsF5GmLkSHxFdb5bBc1TzeujsRgTrPWi+Q=="
       },
+      "cascadia.radio": {
+        "type": "Project"
+      },
+      "cascadia.radio.metadata": {
+        "type": "Project",
+        "dependencies": {
+          "Cascadia.Radio": "[0.1.0, )"
+        }
+      },
+      "cascadia.radio.services": {
+        "type": "Project",
+        "dependencies": {
+          "Cascadia.Radio": "[0.1.0, )",
+          "Cascadia.Radio.Metadata": "[0.1.0, )"
+        }
+      },
+      "cascadia.radiobrowser": {
+        "type": "Project"
+      },
       "smodr": {
         "type": "Project",
         "dependencies": {
@@ -468,7 +487,11 @@
         }
       },
       "smodr.radiocore": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "Cascadia.Radio.Services": "[0.1.0, )",
+          "Cascadia.RadioBrowser": "[0.1.0, )"
+        }
       },
       "CommunityToolkit.Mvvm": {
         "type": "CentralTransitive",

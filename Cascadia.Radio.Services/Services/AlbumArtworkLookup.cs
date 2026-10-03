@@ -178,8 +178,8 @@ public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = nu
     {
         // A featured-artist credit can differ between radio and catalog fields.
         // Other qualifiers (live, remix, acoustic) identify different recordings.
-        var parenthesis = value.LastIndexOf('(', StringComparison.Ordinal);
-        if (parenthesis <= 0 || !value.EndsWith(')', StringComparison.Ordinal)) return value;
+        var parenthesis = value.LastIndexOf('(');
+        if (parenthesis <= 0 || !value.EndsWith(')')) return value;
         var credit = value[(parenthesis + 1)..^1].TrimStart();
         return credit.StartsWith("feat", StringComparison.OrdinalIgnoreCase)
             || credit.StartsWith("ft.", StringComparison.OrdinalIgnoreCase)

@@ -9,6 +9,10 @@
     <Deploy />
   </Project>
   <Project Path="smodr.RadioCore/smodr.RadioCore.csproj" />
+  <Project Path="Cascadia.RadioBrowser/Cascadia.RadioBrowser.csproj" />
+  <Project Path="Cascadia.Radio/Cascadia.Radio.csproj" />
+  <Project Path="Cascadia.Radio.Metadata/Cascadia.Radio.Metadata.csproj" />
+  <Project Path="Cascadia.Radio.Services/Cascadia.Radio.Services.csproj" />
   <Project Path="smodr.RadioSmoke/smodr.RadioSmoke.csproj" />
   <Project Path="smodr.HeadlessPerf/smodr.HeadlessPerf.csproj">
     <Platform Solution="*|ARM64" Project="ARM64" />

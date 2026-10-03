@@ -70,6 +70,7 @@ public partial class App : Application
 
     public App()
     {
+        AppDiagnostics.Configure(LocalDiagnosticLog.Record);
         InitializeComponent();
         StorageDirectory = AppStorageResolver.ResolveDirectory();
         UnhandledException += (_, args) => AppDiagnostics.Record("winui.unhandled", args.Exception);

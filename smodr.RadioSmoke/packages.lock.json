@@ -2,8 +2,31 @@
   "version": 2,
   "dependencies": {
     "net11.0": {
-      "smodr.radiocore": {
+      "cascadia.radio": {
         "type": "Project"
+      },
+      "cascadia.radio.metadata": {
+        "type": "Project",
+        "dependencies": {
+          "Cascadia.Radio": "[0.1.0, )"
+        }
+      },
+      "cascadia.radio.services": {
+        "type": "Project",
+        "dependencies": {
+          "Cascadia.Radio": "[0.1.0, )",
+          "Cascadia.Radio.Metadata": "[0.1.0, )"
+        }
+      },
+      "cascadia.radiobrowser": {
+        "type": "Project"
+      },
+      "smodr.radiocore": {
+        "type": "Project",
+        "dependencies": {
+          "Cascadia.Radio.Services": "[0.1.0, )",
+          "Cascadia.RadioBrowser": "[0.1.0, )"
+        }
       }
     }
   }
