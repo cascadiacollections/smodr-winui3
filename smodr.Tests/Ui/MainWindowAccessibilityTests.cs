@@ -9,6 +9,28 @@ public sealed class MainWindowAccessibilityTests
     private static readonly string[] _backdropLabels = ["Acrylic", "Mica", "Solid"];
 
     [TestMethod]
+    public void InteractiveXamlElementsExposeReadableNames()
+    {
+        foreach (var file in new[] { "MainWindow.xaml", "StationRowControl.xaml", "SoftwareLicensesView.xaml" })
+        {
+            var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, file));
+            foreach (var element in document.Descendants().Where(element => element.Name.LocalName is
+                "Button" or "HyperlinkButton" or "ToggleSwitch" or "ComboBox" or "ListView" or "MenuFlyoutItem"))
+            {
+                var automationName = (string?)element.Attribute("AutomationProperties.Name");
+                var content = (string?)element.Attribute("Content");
+                var text = (string?)element.Attribute("Text");
+                var descendantText = element.Descendants().Any(child => child.Name.LocalName == "TextBlock"
+                    && !string.IsNullOrWhiteSpace((string?)child.Attribute("Text")));
+                Assert.IsTrue(!string.IsNullOrWhiteSpace(automationName)
+                    || (!string.IsNullOrWhiteSpace(content) && content[0] != '{')
+                    || !string.IsNullOrWhiteSpace(text) || descendantText,
+                    $"{file}: {element.Name.LocalName} needs a readable content label or AutomationProperties.Name.");
+            }
+        }
+    }
+
+    [TestMethod]
     public void AppearanceUsesNativeBackdropAccessibleChoiceAndThemedSolidSurface()
     {
         var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml"));

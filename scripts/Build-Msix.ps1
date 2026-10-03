@@ -9,6 +9,7 @@ $manifestPath = Join-Path $repository 'smodr/Package.appxmanifest'
 $runner = Join-Path $PSScriptRoot 'dotnet-dev.ps1'
 $project = Join-Path $repository 'smodr/smodr.csproj'
 $signed = -not [string]::IsNullOrWhiteSpace($CertificateThumbprint)
+& (Join-Path $PSScriptRoot 'Test-PackageManifest.ps1') -ManifestPath $manifestPath -Production:$signed
 $packageDir = Join-Path $repository ("out/msix-$Platform" + $(if ($signed) { '-signed' } else { '' }))
 $arguments = @(
     $Platform, 'msbuild', $project, '-restore',

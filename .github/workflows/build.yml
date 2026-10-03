@@ -58,6 +58,13 @@ jobs:
       shell: pwsh
       run: ./scripts/Test-SolutionConfigurations.ps1 -SelfTest
 
+    - name: Validate package manifest policy
+      shell: pwsh
+      run: |
+        ./scripts/Test-PackageManifest.ps1
+        ./scripts/Test-PackageManifestHarness.ps1
+        ./scripts/Test-NativeQaHarness.ps1
+
     - name: Restore and audit project dependencies
       shell: pwsh
       run: dotnet restore ${{ env.SOLUTION_PATH }} -p:Platform=${{ matrix.platform }} --locked-mode -p:NuGetAudit=true -p:NuGetAuditMode=all "-p:WarningsAsErrors=NU1901;NU1902;NU1903;NU1904"

@@ -1,0 +1,18 @@
+[
+  { "id": "install.clean", "area": "Packaging", "title": "Clean signed MSIX install on each architecture" },
+  { "id": "install.upgrade", "area": "Packaging", "title": "Upgrade preserves package-local settings and library" },
+  { "id": "install.uninstall", "area": "Packaging", "title": "Uninstall and reinstall behavior matches release policy" },
+  { "id": "launch.single-instance", "area": "Shell", "title": "Second launch activates the existing window and player" },
+  { "id": "launch.protocol", "area": "Shell", "title": "Packaged holmdel links validate, route, and do not report untrusted IDs" },
+  { "id": "playback.live", "area": "Playback", "title": "Two live stations play and update Windows media controls" },
+  { "id": "playback.dead-stream", "area": "Playback", "title": "Dead stream exhausts bounded retries and remains manually recoverable" },
+  { "id": "playback.network", "area": "Playback", "title": "Network loss and restoration obey resume setting and user intent" },
+  { "id": "playback.sleep", "area": "Playback", "title": "Sleep and wake obey resume setting and never override Pause or Stop" },
+  { "id": "playback.output-route", "area": "Playback", "title": "Headset, Bluetooth, and dock route changes pause safely" },
+  { "id": "playback.long-run", "area": "Playback", "title": "Long-running stream survives title changes without false stall recovery" },
+  { "id": "metadata.live", "area": "Metadata", "title": "KEXP and Brookdale titles, artwork, media controls, and history agree" },
+  { "id": "privacy.reporting", "area": "Privacy", "title": "Radio Browser reporting sends only explicit enabled play events" },
+  { "id": "accessibility.keyboard", "area": "Accessibility", "title": "Keyboard navigation, focus restoration, Escape, and dialogs work" },
+  { "id": "accessibility.screen-reader", "area": "Accessibility", "title": "Narrator names and state announcements are useful and non-spamming" },
+  { "id": "accessibility.visual", "area": "Accessibility", "title": "High contrast, light/dark, 200 percent text, Acrylic fallback, and inactive window remain legible" }
+]

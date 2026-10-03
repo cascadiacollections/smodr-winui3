@@ -44,12 +44,35 @@ The current local package build warns that `mspdbcmf.exe` is unavailable, so it 
 
 `./scripts/Test-LiveRadioMetadata.ps1 -Samples 3` runs the opt-in KEXP continuous-ICY/parser/catalog smoke, falling back to bounded probes, without opening a window. Pass `-BrookdaleStreamUrl <url>` to check Brookdale as well; the URL must be verified from the current directory rather than baked into a release test. A failed live check can mean network policy, station downtime, or a genuine metadata regression, so record which occurred. The smoke is intentionally not a CI gate because these are third-party live streams. The headless XAML accessibility test checks player labels, keyboard focus wiring, and high-scaling scrollability, but it does not replace screen-reader and visual review.
 
+Create a structured native QA run without launching the app using PowerShell 7:
+
+```powershell
+./scripts/New-NativeQaRun.ps1 -ExecutablePath ./out/shoutkit-arm64/smodr.exe
+./scripts/New-NativeQaRun.ps1 -PackagePath ./out/msix-arm64-signed/Shoutkit.msix
+```
+
+The generated `out/native-qa/<UTC-guid>/native-qa.json` records source commit,
+host/architecture, artifact SHA-256 and Authenticode identity, plus 16 required
+cases initialized to `NotRun`. It never sleeps the host, changes adapters, opens
+audio, or fabricates results. Record observed evidence one case at a time:
+
+```powershell
+./scripts/Update-NativeQaRun.ps1 -ReportPath <report> -CaseId playback.sleep -Status Pass -Notes 'ARM64 host; paused before wake remained paused.'
+./scripts/Test-NativeQaReport.ps1 -ReportPath <report> -RequireComplete
+```
+
+`RequireComplete` fails on NotRun, Fail, or Blocked. The catalog covers signed
+install/upgrade/uninstall, single instance/protocol activation, live/dead/long-run
+playback, sleep/network/output routes, live metadata/artwork, reporting privacy,
+keyboard, Narrator, high contrast, themes, text scaling, and backdrop fallback.
+CI self-tests the catalog/report/update mechanics but cannot complete device cases.
+
 ## Before external distribution
 
 Software notices are generated from the restored app lockfile and self-contained runtime packs; both architectures check drift and published assets in CI. Follow [LICENSE_INVENTORY.md](LICENSE_INVENTORY.md) after dependency/SDK updates. Review packages without bundled terms, the exact signed artifact, vendor redistribution requirements, and MIT/GPL source provenance before distribution; a passing inventory check is not licensing clearance.
 
 1. Choose the distribution channel: Microsoft Store MSIX, signed direct-download MSIX, or a signed installer for an unpackaged app. MSIX is preferred when package identity, reliable installation/update, and Windows integration are needed.
-2. Replace the development identity in `smodr/Package.appxmanifest` (`CN=excel` and a GUID package name) with the publisher identity actually owned by the publisher. Replace the inherited podcast icon/splash artwork with approved Shoutkit assets. Confirm versioning and privacy/support URLs. Do not guess a certificate subject or commit signing secrets.
+2. Replace the development identity in `smodr/Package.appxmanifest` (`CN=excel` and a GUID package name) with the publisher identity actually owned by the publisher. Replace the inherited podcast icon/splash artwork with approved Shoutkit assets. Confirm versioning and privacy/support URLs. Do not guess a certificate subject or commit signing secrets. `Test-PackageManifest.ps1` enforces one app, the allow-listed `runFullTrust` capability, the `holmdel` protocol, a four-part MSIX version and Desktop target. Pass `-Production` to reject the development identity; signed `Build-Msix.ps1` runs that production check automatically before inspecting the certificate.
 3. Build a packaged configuration and sign it with a certificate trusted by the chosen channel. Store submissions are signed by the Store; non-Store MSIX distribution requires the publisher's signing setup. Test install, upgrade, uninstall, and rollback on clean x64 and ARM64 Windows systems.
 4. Validate the implemented first-launch, non-overwriting import from unpackaged `%LOCALAPPDATA%\CascadiaCollections\ShoutkitWindows` into the package-local folder. Test favorites, recents, privacy choices, and track history across clean install and upgrade, including closing the window immediately after a change. Confirm an existing packaged file is never overwritten, the unpackaged source remains intact, and a future schema stays read-only.
 5. Run manual playback checks with at least two live stations and one dead stream; check initial buffering, a network drop/reconnect, pause or station switch during backoff, Play after the retry budget is exhausted, pause/resume/stop, sleep/wake, default output changes (headset, Bluetooth, dock), offline behavior, second-launch activation, keyboard and screen-reader navigation, high contrast, and 200% scaling. After installing the MSIX, test a `holmdel://station` link containing a percent-encoded, known working HTTPS `streamURL`, then repeat while the app is open and with `autoPlay=0`; confirm a repeated link does not pause playing audio and a link does not report an unverified UUID to Radio Browser. In expanded Now Playing, check focus moves to Back to browsing, Escape returns focus to the artwork button, the cover/controls remain reachable at 200% scaling, and track announcements do not spam the screen reader.
