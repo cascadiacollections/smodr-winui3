@@ -63,24 +63,38 @@ internal sealed class LiveRadioRecovery : IDisposable
 
     public bool IsRequested
     {
-        get { lock (_gate) return _requested; }
+        get { lock (_gate)
+            {
+                return _requested;
+            }
+        }
     }
 
     public bool IsCurrent(long epoch)
     {
-        lock (_gate) return !_disposed && _requested && _epoch == epoch;
+        lock (_gate)
+        {
+            return !_disposed && _requested && _epoch == epoch;
+        }
     }
 
     public bool IsEpoch(long epoch)
     {
-        lock (_gate) return !_disposed && _epoch == epoch;
+        lock (_gate)
+        {
+            return !_disposed && _epoch == epoch;
+        }
     }
 
     public void Begin()
     {
         lock (_gate)
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
+
             _epoch++;
             _requested = true;
             _attempts = 0;
@@ -94,7 +108,11 @@ internal sealed class LiveRadioRecovery : IDisposable
     {
         lock (_gate)
         {
-            if (_disposed || !_requested || _waitingForRetry || _timerKind == TimerKind.Stall) return;
+            if (_disposed || !_requested || _waitingForRetry || _timerKind == TimerKind.Stall)
+            {
+                return;
+            }
+
             CreditStablePlaybackLocked();
             _playing = false;
             ArmLocked(TimerKind.Stall, _stallTimeout);
@@ -105,13 +123,21 @@ internal sealed class LiveRadioRecovery : IDisposable
     {
         lock (_gate)
         {
-            if (_disposed || !_requested || _waitingForRetry) return;
+            if (_disposed || !_requested || _waitingForRetry)
+            {
+                return;
+            }
+
             // Invalidate a restart already queued onto the player's thread.
             // A recovering native stream can report Playing just as its retry
             // timer fires; that callback must not replace audible playback.
             _epoch++;
             // Brief Playing/Buffering flaps must not replenish the retry budget.
-            if (!_playing) _playingAt = _clock.GetTimestamp();
+            if (!_playing)
+            {
+                _playingAt = _clock.GetTimestamp();
+            }
+
             _playing = true;
             CancelTimerLocked();
         }
@@ -121,7 +147,11 @@ internal sealed class LiveRadioRecovery : IDisposable
     {
         lock (_gate)
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
+
             _epoch++;
             _requested = true;
             _attempts = 0;
@@ -136,7 +166,10 @@ internal sealed class LiveRadioRecovery : IDisposable
         FailureDecision decision;
         lock (_gate)
         {
-            if (_disposed || !_requested || _waitingForRetry) return;
+            if (_disposed || !_requested || _waitingForRetry)
+            {
+                return;
+            }
             decision = FailLocked();
         }
 
@@ -152,19 +185,22 @@ internal sealed class LiveRadioRecovery : IDisposable
         {
             _requested = false;
             _diagnostics.Increment(RuntimeCounter.RecoveryExhausted);
-            return new(_epoch, null, TimeSpan.Zero);
+            return new FailureDecision(_epoch, null, TimeSpan.Zero);
         }
 
         _attempts++;
         _diagnostics.Increment(RuntimeCounter.RecoveryRetryScheduled);
         _waitingForRetry = true;
         var delay = TimeSpan.FromTicks(_retryBaseDelay.Ticks * (1L << (_attempts - 1)));
-        return new(null, _epoch, delay);
+        return new FailureDecision(null, _epoch, delay);
     }
 
     private void CreditStablePlaybackLocked()
     {
-        if (_playing && _clock.GetElapsedTime(_playingAt) >= _stablePlaybackWindow) _attempts = 0;
+        if (_playing && _clock.GetElapsedTime(_playingAt) >= _stablePlaybackWindow)
+        {
+            _attempts = 0;
+        }
     }
 
     private static void ValidateDelay(TimeSpan delay, string parameter, long multiplier = 1)
@@ -172,7 +208,9 @@ internal sealed class LiveRadioRecovery : IDisposable
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(delay.Ticks, parameter);
         // Task.Delay's supported ceiling, including the largest exponential retry.
         if (delay > TimeSpan.FromMilliseconds(uint.MaxValue - 1) / multiplier)
+        {
             throw new ArgumentOutOfRangeException(parameter);
+        }
     }
 
     private void ApplyFailureDecision(FailureDecision decision)
@@ -203,7 +241,10 @@ internal sealed class LiveRadioRecovery : IDisposable
     {
         lock (_gate)
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
             _epoch++;
             _requested = false;
             _waitingForRetry = false;
@@ -215,7 +256,11 @@ internal sealed class LiveRadioRecovery : IDisposable
     {
         lock (_gate)
         {
-            if (_disposed) return;
+            if (_disposed)
+            {
+                return;
+            }
+
             _disposed = true;
             _requested = false;
             _epoch++;
@@ -248,7 +293,11 @@ internal sealed class LiveRadioRecovery : IDisposable
             FailureDecision? decision = null;
             lock (_gate)
             {
-                if (_disposed || !_requested || _epoch != epoch || !ReferenceEquals(_timer, cancellation)) return;
+                if (_disposed || !_requested || _epoch != epoch || !ReferenceEquals(_timer, cancellation))
+                {
+                    return;
+                }
+
                 _timer = null;
                 _timerKind = TimerKind.None;
                 if (kind == TimerKind.Stall)
@@ -264,7 +313,11 @@ internal sealed class LiveRadioRecovery : IDisposable
                 }
             }
 
-            if (decision is { } failure) ApplyFailureDecision(failure);
+            if (decision is { } failure)
+            {
+                ApplyFailureDecision(failure);
+            }
+
             callback?.Invoke(epoch);
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)

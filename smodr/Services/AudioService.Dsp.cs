@@ -26,11 +26,19 @@ public partial class AudioService
             PublishDspState(MediaPlaybackState.Opening);
             pending = await AudioGraphRadioEngine.CreateAsync(uri, preset, cancellation.Token);
             if (cancellation.IsCancellationRequested || version != _sourceVersion
-                || !ReferenceEquals(station, CurrentStation) || !_recovery.IsRequested) return;
+                || !ReferenceEquals(station, CurrentStation) || !_recovery.IsRequested)
+            {
+                return;
+            }
+
             _dsp = pending;
             pending = null;
             // A source-less player supplies SMTC only. It never opens or decodes this stream.
-            if (SystemPlayer!.Source is not null) throw new InvalidOperationException("DSP system-control bridge must have no source.");
+            if (SystemPlayer!.Source is not null)
+            {
+                throw new InvalidOperationException("DSP system-control bridge must have no source.");
+            }
+
             SystemPlayer.CommandManager.IsEnabled = false;
             _manualControls = SystemPlayer.SystemMediaTransportControls;
             _manualControls.IsEnabled = true;
