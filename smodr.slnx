@@ -8,12 +8,24 @@
     <Platform Solution="*|x64" Project="x64" />
     <Deploy />
   </Project>
-  <Project Path="smodr.RadioCore/smodr.RadioCore.csproj" />
-  <Project Path="Cascadia.RadioBrowser/Cascadia.RadioBrowser.csproj" />
-  <Project Path="Cascadia.Radio/Cascadia.Radio.csproj" />
-  <Project Path="Cascadia.Radio.Metadata/Cascadia.Radio.Metadata.csproj" />
-  <Project Path="Cascadia.Radio.Services/Cascadia.Radio.Services.csproj" />
-  <Project Path="smodr.RadioSmoke/smodr.RadioSmoke.csproj" />
+  <Project Path="smodr.RadioCore/smodr.RadioCore.csproj">
+    <Platform Project="Any CPU" />
+  </Project>
+  <Project Path="Cascadia.RadioBrowser/Cascadia.RadioBrowser.csproj">
+    <Platform Project="Any CPU" />
+  </Project>
+  <Project Path="Cascadia.Radio/Cascadia.Radio.csproj">
+    <Platform Project="Any CPU" />
+  </Project>
+  <Project Path="Cascadia.Radio.Metadata/Cascadia.Radio.Metadata.csproj">
+    <Platform Project="Any CPU" />
+  </Project>
+  <Project Path="Cascadia.Radio.Services/Cascadia.Radio.Services.csproj">
+    <Platform Project="Any CPU" />
+  </Project>
+  <Project Path="smodr.RadioSmoke/smodr.RadioSmoke.csproj">
+    <Platform Project="Any CPU" />
+  </Project>
   <Project Path="smodr.HeadlessPerf/smodr.HeadlessPerf.csproj">
     <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />

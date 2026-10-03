@@ -54,7 +54,11 @@ jobs:
           ${{ runner.os }}-nuget-${{ matrix.platform }}-
           ${{ runner.os }}-nuget-
 
-    - name: Restore dependencies
+    - name: Validate Visual Studio solution configurations
+      shell: pwsh
+      run: ./scripts/Test-SolutionConfigurations.ps1 -SelfTest
+
+    - name: Restore project dependencies
       run: dotnet restore ${{ env.SOLUTION_PATH }} -p:Platform=${{ matrix.platform }} --locked-mode
 
     - name: Verify generated software notices and test inventory tooling
