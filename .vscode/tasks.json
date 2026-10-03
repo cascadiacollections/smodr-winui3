@@ -2,6 +2,20 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "test: fresh packages (Docker required)",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoProfile", "-File", "${workspaceFolder}/scripts/Test-LocalDocker.ps1", "-Target", "full", "-ForceRetest"],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "test: non-root devcontainer lifecycle",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoProfile", "-File", "${workspaceFolder}/scripts/Test-DevContainerLifecycle.ps1"],
+      "problemMatcher": "$msCompile"
+    },
+    {
       "label": "test: portable (Docker when available)",
       "type": "process",
       "command": "pwsh",

@@ -24,8 +24,10 @@ COPY smodr.Tests/ ./smodr.Tests/
 COPY samples/ ./samples/
 COPY scripts/validate-portable-radio.sh ./scripts/
 FROM dependencies AS tests
+ARG RADIO_VALIDATION_RUN=cached
 RUN --mount=type=cache,id=shoutkit-radio-nuget,target=/root/.nuget/packages,sharing=locked \
-    bash scripts/validate-portable-radio.sh --quick
+    printf '%s\n' "$RADIO_VALIDATION_RUN" > /artifacts/validation-run-id \
+    && bash scripts/validate-portable-radio.sh --quick
 FROM tests AS full
 RUN --mount=type=cache,id=shoutkit-radio-nuget,target=/root/.nuget/packages,sharing=locked \
     bash scripts/validate-portable-radio.sh

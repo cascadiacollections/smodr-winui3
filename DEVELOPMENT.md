@@ -112,6 +112,39 @@ skip, not a pass. `-NativeFallback` runs native portable tests when Docker is
 unavailable and reports that Docker/packages/compatibility were not validated.
 No task opens the app, plays audio or publishes packages.
 
+Force fresh validation while retaining SDK/dependency downloads:
+
+```powershell
+pwsh -NoProfile -File scripts/Test-LocalDocker.ps1 -Target full -ForceRetest
+pwsh -NoProfile -File scripts/Test-LocalDocker.ps1 -Target compat -ForceRetest
+pwsh -NoProfile -File scripts/Test-DevContainerLifecycle.ps1
+```
+
+`-ForceRetest` assigns a unique build argument only to validation layers rather
+than disabling the entire Docker cache. Fresh-run identity is checked against
+the exported image. Default builds can reuse previously validated layers.
+Successful runs export TRX reports, image/run provenance and (for `full`) four
+NuGet packages into unique folders under `out/docker-validation/`. `-OutputRoot`
+selects another evidence root without replacing previous runs. Build failures
+remain failures; a failed build cannot export its uncommitted layer, so consult
+the build log. Export failures also fail validation rather than claiming success.
+
+The lifecycle test uses a source snapshot and two fresh, uniquely named volumes,
+then runs the real prewarm/post-create hooks twice as `vscode`, never as root.
+It verifies cold/warm restores, writable cache mounts, tests, and the absence of
+checkout-local `bin`/`obj` outputs. It exports both test reports and removes only
+its own stopped container and disposable volumes. It neither touches the host
+checkout nor clears an existing developer cache. This models container lifecycle
+hooks locally; it does not create or verify a hosted Codespace or an editor session.
+
+`.github/workflows/docker-validation.yml` runs the same full, compatibility and
+non-root lifecycle checks on native Linux x64 (`ubuntu-24.04`) and ARM64
+(`ubuntu-24.04-arm`) runners, with fresh validation and evidence upload. Runner
+labels follow the [GitHub-hosted runner reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+This workflow complements the existing audited SDK and Windows gates; it never
+publishes images or packages. Local ARM64 validation does not substitute for a
+future x64 CI run after pushing/merging.
+
 ## Resolving the pinned Windows SDK
 
 The root `global.json` keeps .NET 11 RC rather than retargeting the app to .NET 10.
@@ -142,8 +175,13 @@ Verified through Docker Desktop's Linux ARM64 engine on the Windows host:
 - An unchanged repeat of the full image build reused validation layers and
   completed in approximately 6.5 seconds on this host. That is cache reuse,
   not a fresh execution of the tests or a cross-machine performance promise.
-- Ten Docker harness fixtures cover availability, safe arguments, and Windows
-  executable discovery when both `docker.exe` and an extensionless shim exist.
+- Fourteen Docker harness fixtures cover availability, safe arguments, fresh-run
+  identity arguments, report-export failures, and Windows executable discovery
+  when both `docker.exe` and an extensionless shim exist.
+- The non-root lifecycle test passed with fresh named volumes and repeated warm
+  hooks; both exported reports contain 156 passing tests. Disposable volumes and
+  the task container were removed. Force-retest succeeded for tests/full/compat;
+  exported report counters and the four package files were checked on the host.
 
 These checks do not validate WinUI rendering, Windows playback, signing, or
 interactive VS/Codespaces setup. No app was launched or package/image published.

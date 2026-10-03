@@ -47,9 +47,23 @@ function Get-LocalDockerStatus {
 
 function Get-LocalDockerBuildArguments {
     param([ValidateSet('tests', 'full', 'compat')][string] $Target = 'tests',
-        [string] $RepositoryRoot, [string] $NuGetSource = 'https://www.nuget.org/api/v2/')
+        [string] $RepositoryRoot, [string] $NuGetSource = 'https://www.nuget.org/api/v2/',
+        [string] $ValidationRun = 'cached')
     if ($Target -eq 'compat') { $file = '.devcontainer/Dockerfile'; $stage = 'validation' }
     else { $file = 'scripts/radio-sdk.Dockerfile'; $stage = $Target }
     return @('build', '--progress', 'plain', '--target', $stage, '--build-arg', "RADIO_NUGET_SOURCE=$NuGetSource",
+        '--build-arg', "RADIO_VALIDATION_RUN=$ValidationRun",
         '-f', (Join-Path $RepositoryRoot $file), '-t', "shoutkit-radio-local-$Target", $RepositoryRoot)
+}
+
+function Copy-LocalDockerEvidence {
+    param([string] $DockerPath, [string] $ContainerId, [string] $ArtifactRoot,
+        [string] $OutputDirectory, [switch] $IncludePackages)
+    if ($ContainerId -notmatch '^[a-f0-9]{64}$') { throw 'Invalid task container identity.' }
+    & $DockerPath cp "${ContainerId}:$ArtifactRoot/results" $OutputDirectory
+    if ($LASTEXITCODE -ne 0) { throw 'Copying Docker test evidence failed.' }
+    if ($IncludePackages) {
+        & $DockerPath cp "${ContainerId}:$ArtifactRoot/packages" $OutputDirectory
+        if ($LASTEXITCODE -ne 0) { throw 'Copying Docker package evidence failed.' }
+    }
 }

@@ -29,4 +29,26 @@ foreach ($target in @('tests', 'full', 'compat')) {
     $resolved = Resolve-LocalDockerCommand
     if ($resolved.Source -ne 'C:/Docker/docker.exe') { throw 'Multiple executable matches must resolve to the first application.' }
 }
-Write-Host 'Passed 10 Docker availability/command fixtures. No Docker process was required.'
+$forced = Get-LocalDockerBuildArguments -RepositoryRoot $repository -ValidationRun 'fixture-fresh-run'
+if ($forced -notcontains 'RADIO_VALIDATION_RUN=fixture-fresh-run' -or $forced -contains '--no-cache') { throw 'Force retest must invalidate only validation layers.' }
+$cached = Get-LocalDockerBuildArguments -RepositoryRoot $repository
+if ($cached -notcontains 'RADIO_VALIDATION_RUN=cached') { throw 'Default validation cache identity changed.' }
+try {
+    Copy-LocalDockerEvidence -ContainerId 'untrusted-container' -ArtifactRoot '/artifacts' -OutputDirectory '/unused'
+    throw 'Invalid container identity was accepted.'
+}
+catch {
+    if ($_.Exception.Message -ne 'Invalid task container identity.') { throw }
+}
+& {
+    function Invoke-FailingDockerFixture { $global:LASTEXITCODE = 1 }
+    try {
+        Copy-LocalDockerEvidence -DockerPath Invoke-FailingDockerFixture -ContainerId ('a' * 64) -ArtifactRoot '/artifacts' -OutputDirectory '/unused'
+        throw 'A failed report export was accepted.'
+    }
+    catch {
+        if ($_.Exception.Message -ne 'Copying Docker test evidence failed.') { throw }
+    }
+    finally { $global:LASTEXITCODE = 0 }
+}
+Write-Host 'Passed 14 Docker availability/command/evidence fixtures. No Docker process was required.'

@@ -1,0 +1,44 @@
+name: Headless Docker validation
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  docker:
+    name: Docker ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Test orchestration fixtures
+        shell: pwsh
+        run: ./scripts/Test-LocalDockerHarness.ps1
+      - name: Test portable validation plans
+        run: bash scripts/test-portable-plan.sh
+      - name: Force portable package and trimming validation
+        shell: pwsh
+        run: ./scripts/Test-LocalDocker.ps1 -Target full -ForceRetest
+      - name: Force .NET 11 compatibility validation
+        shell: pwsh
+        run: ./scripts/Test-LocalDocker.ps1 -Target compat -ForceRetest
+      - name: Exercise cold and warm non-root devcontainer hooks
+        shell: pwsh
+        run: ./scripts/Test-DevContainerLifecycle.ps1
+      - name: Retain test reports and package evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: docker-evidence-${{ matrix.arch }}
+          path: out/docker-validation
+          if-no-files-found: warn

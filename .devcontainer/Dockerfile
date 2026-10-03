@@ -16,21 +16,31 @@ RUN sdk_version=$(sed -n 's/.*"version": "\([^"]*\)".*/\1/p' /tmp/radio-global.j
     && chown vscode:vscode /home/vscode/.nuget /home/vscode/.nuget/packages /var/tmp/shoutkit-radio-artifacts
 ENV DOTNET_ROOT=/usr/share/dotnet PATH=/usr/share/dotnet:$PATH \
     DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1 NUGET_XMLDOC_MODE=skip
-FROM tooling AS validation
+FROM tooling AS source
 ARG RADIO_NUGET_SOURCE=https://www.nuget.org/api/v2/
 ENV RADIO_NUGET_SOURCE=$RADIO_NUGET_SOURCE RADIO_NUGET_AUDIT=false RADIO_ARTIFACTS_DIR=/artifacts
 WORKDIR /radio
-COPY Directory.Build.props Directory.Packages.props nuget.config .editorconfig global.json ./
-COPY portable/ ./portable/
-COPY Cascadia.Radio/ ./Cascadia.Radio/
-COPY Cascadia.RadioBrowser/ ./Cascadia.RadioBrowser/
-COPY Cascadia.Radio.Metadata/ ./Cascadia.Radio.Metadata/
-COPY Cascadia.Radio.Services/ ./Cascadia.Radio.Services/
-COPY Cascadia.Radio.Tests/ ./Cascadia.Radio.Tests/
-COPY smodr.Tests/ ./smodr.Tests/
-COPY smodr.RadioCore/ ./smodr.RadioCore/
-COPY smodr.RadioSmoke/ ./smodr.RadioSmoke/
-COPY scripts/validate-portable-radio.sh ./scripts/
+COPY --chown=vscode:vscode Directory.Build.props Directory.Packages.props nuget.config .editorconfig global.json ./
+COPY --chown=vscode:vscode portable/ ./portable/
+COPY --chown=vscode:vscode Cascadia.Radio/ ./Cascadia.Radio/
+COPY --chown=vscode:vscode Cascadia.RadioBrowser/ ./Cascadia.RadioBrowser/
+COPY --chown=vscode:vscode Cascadia.Radio.Metadata/ ./Cascadia.Radio.Metadata/
+COPY --chown=vscode:vscode Cascadia.Radio.Services/ ./Cascadia.Radio.Services/
+COPY --chown=vscode:vscode Cascadia.Radio.Tests/ ./Cascadia.Radio.Tests/
+COPY --chown=vscode:vscode smodr.Tests/ ./smodr.Tests/
+COPY --chown=vscode:vscode smodr.RadioCore/ ./smodr.RadioCore/
+COPY --chown=vscode:vscode smodr.RadioSmoke/ ./smodr.RadioSmoke/
+COPY --chown=vscode:vscode samples/ ./samples/
+COPY --chown=vscode:vscode scripts/validate-portable-radio.sh ./scripts/
+COPY --chown=vscode:vscode .devcontainer/*.sh ./.devcontainer/
+FROM source AS validation
+ARG RADIO_VALIDATION_RUN=cached
 RUN --mount=type=cache,id=shoutkit-radio-nuget,target=/root/.nuget/packages,sharing=locked \
-    bash scripts/validate-portable-radio.sh --quick --include-compat
+    mkdir -p /artifacts \
+    && printf '%s\n' "$RADIO_VALIDATION_RUN" > /artifacts/validation-run-id \
+    && bash scripts/validate-portable-radio.sh --quick --include-compat
+FROM source AS lifecycle
+ENV RADIO_ARTIFACTS_DIR=/var/tmp/shoutkit-radio-artifacts
+USER vscode
+CMD ["bash", ".devcontainer/test-lifecycle.sh"]
 FROM tooling AS development
