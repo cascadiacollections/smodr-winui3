@@ -13,7 +13,10 @@ internal static class AppStorageResolver
         {
             var localAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
             if (string.IsNullOrWhiteSpace(localAppData))
+            {
                 localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            }
+
             return Path.Combine(localAppData, "CascadiaCollections", "ShoutkitWindows");
         }
     }

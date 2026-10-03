@@ -355,9 +355,14 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
         _engines.SetVolume(volume);
     }
 
-    public double GetVolume() => _engines.Volume;
+    public double GetVolume()
+    {
+        return _engines.Volume;
+    }
 
-    private void EnvironmentChanged(bool? suspended, bool? connected) => RunOnPlayerThread(() =>
+    private void EnvironmentChanged(bool? suspended, bool? connected)
+    {
+        RunOnPlayerThread(() =>
     {
         if (Volatile.Read(ref _disposed) != 0) return;
         if (suspended is { } sleeping) _systemSuspended = sleeping;
@@ -375,6 +380,7 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
                 break;
         }
     });
+    }
 
     private void HoldForEnvironment()
     {
@@ -405,9 +411,11 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
         catch (Exception exception) { AppDiagnostics.Record("artwork.system-media", exception); }
     }
 
-    private static Uri? ParseArtworkUri(string? value) =>
-        Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http"
+    private static Uri? ParseArtworkUri(string? value)
+    {
+        return Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http"
             ? uri : null;
+    }
 
     private void Engine_StateChanged(object? sender, MediaPlaybackState state)
     {

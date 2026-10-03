@@ -3,7 +3,7 @@ using Windows.UI.StartScreen;
 
 namespace smodr.Services;
 
-internal sealed class RadioJumpList(RadioPlaybackPreferences preferences) : IDisposable
+internal sealed partial class RadioJumpList(RadioPlaybackPreferences preferences) : IDisposable
 {
     private readonly Lock _gate = new();
 #pragma warning disable IDE0028 // Preserve case-sensitive shell arguments.

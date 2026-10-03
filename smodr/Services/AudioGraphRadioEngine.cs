@@ -6,7 +6,7 @@ using Windows.Media.Render;
 namespace smodr.Services;
 
 /// <summary>Opt-in AudioGraph pipeline. The source feeds the equalizer and output, never a second decoder.</summary>
-internal sealed class AudioGraphRadioEngine : IRadioAudioEngine
+internal sealed partial class AudioGraphRadioEngine : IRadioAudioEngine
 {
     private readonly AudioGraph _graph;
     private readonly MediaSourceAudioInputNode _input;
@@ -79,7 +79,11 @@ internal sealed class AudioGraphRadioEngine : IRadioAudioEngine
         }
     }
 
-    public void SetVolume(double volume) => _input.OutgoingGain = Math.Clamp(volume, 0, 1) * RadioEqualizerProfiles.Headroom(Preset);
+    public void SetVolume(double volume)
+    {
+        _input.OutgoingGain = Math.Clamp(volume, 0, 1) * RadioEqualizerProfiles.Headroom(Preset);
+    }
+
     public void Play() { _graph.Start(); State = MediaPlaybackState.Playing; StateChanged?.Invoke(this, State); }
     public void Pause() { _graph.Stop(); State = MediaPlaybackState.Paused; StateChanged?.Invoke(this, State); }
     public void Dispose()
