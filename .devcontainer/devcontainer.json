@@ -2,14 +2,15 @@
   "name": "Shoutkit Windows — .NET 11 RC editing and RadioCore",
   "build": {
     "dockerfile": "Dockerfile",
-    "context": ".."
+    "context": "..",
+    "target": "development"
   },
 
   "customizations": {
     "vscode": {
       "settings": {
         "terminal.integrated.defaultProfile.linux": "zsh",
-        "dotnet.defaultSolution": "smodr.slnx",
+        "dotnet.defaultSolution": "portable/Radio.Portable.slnx",
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
           "source.fixAll": "explicit",
@@ -37,29 +38,26 @@
         "davidanson.vscode-markdownlint",
         "eamodio.gitlens"
       ]
-    },
-    "codespaces": {
-      "repositories": {
-        "cascadiacollections/*": {
-          "permissions": {
-            "contents": "write",
-            "pull_requests": "write"
-          }
-        }
-      }
     }
   },
 
   "forwardPorts": [],
 
   "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "updateContentCommand": "bash .devcontainer/prewarm.sh",
+  "mounts": [
+    "source=shoutkit-radio-nuget-${devcontainerId},target=/home/vscode/.nuget/packages,type=volume",
+    "source=shoutkit-radio-artifacts-${devcontainerId},target=/var/tmp/shoutkit-radio-artifacts,type=volume"
+  ],
 
   "remoteUser": "vscode",
 
   "containerEnv": {
     "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
     "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1",
-    "DOTNET_NOLOGO": "1"
+    "DOTNET_NOLOGO": "1",
+    "RADIO_ARTIFACTS_DIR": "/var/tmp/shoutkit-radio-artifacts",
+    "RADIO_NUGET_AUDIT": "false"
   },
 
   "hostRequirements": {

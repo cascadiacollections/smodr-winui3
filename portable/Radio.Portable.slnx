@@ -1,0 +1,10 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+  </Configurations>
+  <Project Path="../Cascadia.Radio/Cascadia.Radio.csproj" />
+  <Project Path="../Cascadia.RadioBrowser/Cascadia.RadioBrowser.csproj" />
+  <Project Path="../Cascadia.Radio.Metadata/Cascadia.Radio.Metadata.csproj" />
+  <Project Path="../Cascadia.Radio.Services/Cascadia.Radio.Services.csproj" />
+  <Project Path="../Cascadia.Radio.Tests/Cascadia.Radio.Tests.csproj" />
+</Solution>

@@ -51,22 +51,81 @@ an ordinary audited restore and is the release gate.
 ## Linux dev container and Codespaces
 
 Open the repository in VS Code Dev Containers or GitHub Codespaces. The
-container installs the exact SDK pinned in `global.json`; post-create restores
-and builds `smodr.RadioCore` with warnings as errors. It does not attempt to
-restore the whole solution and does not report a failed WinUI build as success.
+container installs .NET 10.0.401 and the exact SDK pinned in `global.json`.
+Prebuild/update-content restores dependencies; post-create builds RadioCore and
+RadioSmoke and runs portable tests with warnings as errors. It never restores
+the Windows solution or launches live streams.
 
 The container supports editing, C# navigation, documentation, and cross-platform
 RadioCore builds. WinUI compilation, the app test project, native playback,
 packaging, and interactive debugging still require a Windows host or Windows CI.
-The container validation workflow performs the same RadioCore restore/build and
-fails if either step fails.
+The container validation workflow also packs all four libraries, runs an offline
+package consumer and publishes/runs a fully trimmed directory-client consumer.
+Every failed restore, build, test or consumer fails the workflow. It never pushes
+images. Existing Windows CI remains responsible for native WinUI.
 
 ```bash
-dotnet --version
-dotnet restore smodr.RadioCore/smodr.RadioCore.csproj --locked-mode -p:NuGetAudit=false --ignore-failed-sources
-dotnet build smodr.RadioCore/smodr.RadioCore.csproj -c Release --no-restore -warnaserror
+bash scripts/validate-portable-radio.sh --quick --include-compat
+# Full packages, offline consumers and architecture-native Linux trimming:
+bash scripts/validate-portable-radio.sh --include-compat
 ```
 
 If the container cannot download the pinned SDK or NuGet packages behind a
 corporate proxy, fix network/proxy access or use the Windows host's cached SDK;
 the setup intentionally does not hide that failure.
+
+Named volumes preserve NuGet downloads and isolated build outputs between
+container rebuilds. The portable Dockerfile restores dependencies before copying
+source; BuildKit mounts retain packages. Source changes still invalidate test
+layers. Removing caches causes a cold restore, not a change in correctness.
+Local draft package versions are unique to avoid testing stale cached drafts.
+Codespaces no longer requests additional cross-repository write permissions.
+
+The Linux solution is `portable/Radio.Portable.slnx`, scoped to stable .NET 10.
+Run `dotnet` from `portable/` to select that SDK. In C# Dev Kit, select this
+solution if your root workspace setting overrides the container default with the
+Windows solution. Windows ARM64/x64 tasks remain available on the host.
+
+Set `RADIO_NUGET_SOURCE=https://www.nuget.org/api/v2/` when corporate policy blocks
+v3. Local container restore disables advisory auditing; existing audited SDK CI
+remains the security gate. Missing packages still fail, without an
+`--ignore-failed-sources` workaround.
+
+## Local Docker without disturbing the desktop
+
+PowerShell 7.2 or newer is required:
+
+```powershell
+pwsh -NoProfile -File scripts/Test-LocalDocker.ps1 -CheckOnly
+pwsh -NoProfile -File scripts/Test-LocalDocker.ps1 -Target tests
+pwsh -NoProfile -File scripts/Test-LocalDocker.ps1 -Target full
+pwsh -NoProfile -File scripts/Test-LocalDocker.ps1 -Target compat
+pwsh -NoProfile -File scripts/Test-LocalDockerHarness.ps1
+```
+
+`tests` runs portable tests using stable .NET 10; `full` adds package/consumer and
+trim checks on Linux ARM64/x64; `compat` builds RadioCore/RadioSmoke using the
+pinned .NET 11 SDK and runs portable tests. Only local images are built. The
+ten-second probe never starts, unpauses or changes Docker. An unavailable or
+Windows-container engine fails by default. `-IfAvailable` explicitly reports a
+skip, not a pass. `-NativeFallback` runs native portable tests when Docker is
+unavailable and reports that Docker/packages/compatibility were not validated.
+No task opens the app, plays audio or publishes packages.
+
+## Resolving the pinned Windows SDK
+
+The root `global.json` keeps .NET 11 RC rather than retargeting the app to .NET 10.
+Search paths include the invoking host, repo-local `.dotnet`, and this enlistment's
+sibling ARM64 RC installation. On this host, ordinary `dotnet --version` resolves
+`11.0.100-rc.1.26425.128`. Explicit x64 hosts retain their own SDK via host-first
+search order. `scripts/dotnet-dev.ps1` remains available for older hosts;
+`SHOUTKIT_DOTNET_ARM64`/`SHOUTKIT_DOTNET_X64` select explicit binaries.
+
+For a new enlistment, install the exact SDK from `global.json` into `.dotnet`
+using Microsoft's dotnet-install script or use an architecture override.
+`.dotnet` is ignored by Git and excluded from Docker contexts. SDK search paths
+require a .NET 10-or-newer host; see Microsoft's
+[local SDK discovery guidance](https://learn.microsoft.com/en-us/dotnet/core/tools/test-prerelease-sdk-locally).
+Visual Studio must also support the preview SDK/MSBuild version and have preview
+SDK use enabled. CLI resolution does not establish support in an older IDE.
+Reload the solution after changing SDK resolution.

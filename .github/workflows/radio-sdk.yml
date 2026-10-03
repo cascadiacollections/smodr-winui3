@@ -14,6 +14,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
+      - name: Test Docker availability and safe build commands
+        shell: pwsh
+        run: ./scripts/Test-LocalDockerHarness.ps1
+      - name: Test headless Linux validation plans
+        if: runner.os == 'Linux'
+        run: bash scripts/test-portable-plan.sh
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'

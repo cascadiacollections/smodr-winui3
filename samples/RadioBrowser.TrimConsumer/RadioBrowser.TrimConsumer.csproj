@@ -7,8 +7,9 @@
     <TrimMode>full</TrimMode>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <IsPackable>false</IsPackable>
+    <RadioPackageVersion Condition="'$(RadioPackageVersion)' == ''">0.1.0</RadioPackageVersion>
     <!-- Packages are rebuilt locally with the same draft version on each platform. -->
     <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
   </PropertyGroup>
-  <ItemGroup><PackageReference Include="Cascadia.RadioBrowser" VersionOverride="0.1.0" /></ItemGroup>
+  <ItemGroup><PackageReference Include="Cascadia.RadioBrowser" VersionOverride="$(RadioPackageVersion)" /></ItemGroup>
 </Project>

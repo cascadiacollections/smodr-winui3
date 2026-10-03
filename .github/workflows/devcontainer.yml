@@ -6,11 +6,31 @@ on:
     paths:
       - '.devcontainer/**'
       - '.github/workflows/devcontainer.yml'
+      - 'global.json'
+      - 'Directory.*.props'
+      - 'nuget.config'
+      - '.editorconfig'
+      - 'portable/**'
+      - 'Cascadia.Radio*/**'
+      - 'smodr.Radio*/**'
+      - 'smodr.Tests/**'
+      - 'samples/**'
+      - 'scripts/validate-portable-radio.sh'
   pull_request:
     branches: [ main, master, develop ]
     paths:
       - '.devcontainer/**'
       - '.github/workflows/devcontainer.yml'
+      - 'global.json'
+      - 'Directory.*.props'
+      - 'nuget.config'
+      - '.editorconfig'
+      - 'portable/**'
+      - 'Cascadia.Radio*/**'
+      - 'smodr.Radio*/**'
+      - 'smodr.Tests/**'
+      - 'samples/**'
+      - 'scripts/validate-portable-radio.sh'
   workflow_dispatch:
 
 jobs:
@@ -31,9 +51,4 @@ jobs:
         cacheFrom: ghcr.io/${{ github.repository }}/devcontainer
         push: never
         runCmd: |
-          dotnet --version
-          dotnet restore smodr.RadioCore/smodr.RadioCore.csproj --locked-mode -p:NuGetAudit=false --ignore-failed-sources
-          dotnet build smodr.RadioCore/smodr.RadioCore.csproj -c Release --no-restore -warnaserror
-          cd Cascadia.Radio.Tests
-          dotnet restore --locked-mode -p:NuGetAudit=false --ignore-failed-sources
-          dotnet test -c Release --no-restore -warnaserror
+          bash scripts/validate-portable-radio.sh --include-compat

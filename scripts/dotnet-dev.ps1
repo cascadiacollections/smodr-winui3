@@ -18,8 +18,12 @@ $sharedOverride = [Environment]::GetEnvironmentVariable('SHOUTKIT_DOTNET')
 $localFolder = if ($Architecture -eq 'ARM64') { 'dotnet11-rc-sdk' } else { 'dotnet11-rc-x64' }
 $localSdk = Join-Path $repository "..\$localFolder\runtime\dotnet.exe"
 
-$candidates = @($override, $sharedOverride, $localSdk)
+$candidates = @($override, $sharedOverride)
 $hostArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+if ([string]::Equals($Architecture, $hostArchitecture, [StringComparison]::OrdinalIgnoreCase)) {
+    $candidates += Join-Path $repository '.dotnet/dotnet.exe'
+}
+$candidates += $localSdk
 if ([string]::Equals($Architecture, $hostArchitecture, [StringComparison]::OrdinalIgnoreCase)) {
     if ($env:DOTNET_ROOT) {
         $candidates += Join-Path $env:DOTNET_ROOT 'dotnet.exe'

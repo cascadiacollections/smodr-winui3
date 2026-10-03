@@ -2,6 +2,27 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "test: portable (Docker when available)",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoProfile", "-File", "${workspaceFolder}/scripts/Test-LocalDocker.ps1", "-NativeFallback"],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "test: packages (Docker required)",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoProfile", "-File", "${workspaceFolder}/scripts/Test-LocalDocker.ps1", "-Target", "full"],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "test: portable (container)",
+      "type": "process",
+      "command": "bash",
+      "args": ["scripts/validate-portable-radio.sh", "--quick", "--include-compat"],
+      "problemMatcher": "$msCompile"
+    },
+    {
       "label": "test: portable radio SDK (.NET 10)",
       "type": "process",
       "command": "dotnet",
