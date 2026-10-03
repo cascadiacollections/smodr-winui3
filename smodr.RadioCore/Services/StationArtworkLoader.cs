@@ -2,10 +2,11 @@ namespace smodr.Services;
 
 /// <summary>Optional, bounded artwork transport. The deadline includes response-body reads and queue time.</summary>
 public sealed class StationArtworkLoader(HttpClient client, StationArtworkDiskCache? diskCache = null,
-    TimeSpan? timeout = null) : IDisposable, IAsyncDisposable
+    TimeSpan? timeout = null, RuntimeDiagnosticCounters? diagnostics = null) : IDisposable, IAsyncDisposable
 {
+    private readonly RuntimeDiagnosticCounters _diagnostics = diagnostics ?? RuntimeDiagnostics.Counters;
     public const int MaxArtworkBytes = 1_000_000;
-    private readonly ArtworkMemoryCache<byte[]> _cache = new(48, 8 * 1024 * 1024);
+    private readonly ArtworkMemoryCache<byte[]> _cache = new(48, 8 * 1024 * 1024, diagnostics: diagnostics);
     private readonly SemaphoreSlim _downloads = new(4);
     private readonly Lock _gate = new();
     private readonly BackgroundWorkScope _background = new();
@@ -68,20 +69,20 @@ public sealed class StationArtworkLoader(HttpClient client, StationArtworkDiskCa
         }
         catch (OperationCanceledException)
         {
-            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.ArtworkTransportCanceled);
+            _diagnostics.Increment(RuntimeCounter.ArtworkTransportCanceled);
             if (cancellationToken.IsCancellationRequested) throw;
             return null;
         }
         catch (Exception exception) when (exception is HttpRequestException or IOException or UnauthorizedAccessException)
         {
-            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.ArtworkTransportFailed);
+            _diagnostics.Increment(RuntimeCounter.ArtworkTransportFailed);
             return null;
         }
     }
 
-    private static byte[]? RejectResponse()
+    private byte[]? RejectResponse()
     {
-        RuntimeDiagnostics.Counters.Increment(RuntimeCounter.ArtworkResponseRejected);
+        _diagnostics.Increment(RuntimeCounter.ArtworkResponseRejected);
         return null;
     }
 

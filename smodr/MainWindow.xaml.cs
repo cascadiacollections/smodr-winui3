@@ -24,6 +24,7 @@ public sealed partial class MainWindow : Window
     private bool _closed;
     private bool _settingsReady;
     private bool _licensesOpen;
+    private RadioWindowBackdrop? _appliedBackdrop;
     private readonly RadioStreamPrewarmer? _prewarmer;
     private readonly RadioJumpList? _jumpList;
     private readonly CancellationTokenSource _warmupCancellation = new();
@@ -518,6 +519,7 @@ public sealed partial class MainWindow : Window
     private void ApplyAppearance()
     {
         var choice = (RadioWindowBackdrop)Settings.SelectedBackdrop;
+        if (_appliedBackdrop == choice) return;
         SystemBackdrop = choice switch
         {
             RadioWindowBackdrop.Acrylic => new DesktopAcrylicBackdrop(),
@@ -525,6 +527,7 @@ public sealed partial class MainWindow : Window
             _ => null
         };
         SolidWindowBackground.Visibility = choice == RadioWindowBackdrop.Solid ? Visibility.Visible : Visibility.Collapsed;
+        _appliedBackdrop = choice;
     }
 
     private async void JumpListSwitch_Toggled(object sender, RoutedEventArgs e)

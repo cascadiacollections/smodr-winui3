@@ -7,8 +7,10 @@ using smodr.Models;
 namespace smodr.Services;
 
 /// <summary>Best-effort song artwork and store-page lookup. Never participates in playback.</summary>
-public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = null) : IAlbumArtworkLookup, IDisposable, IAsyncDisposable
+public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = null,
+    RuntimeDiagnosticCounters? diagnostics = null) : IAlbumArtworkLookup, IDisposable, IAsyncDisposable
 {
+    private readonly RuntimeDiagnosticCounters _diagnostics = diagnostics ?? RuntimeDiagnostics.Counters;
     private const int MaxResponseBytes = 64 * 1024;
     private const int MaxCacheEntries = 256;
     private readonly Lock _gate = new();
@@ -32,19 +34,19 @@ public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = nu
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_cache.TryGetValue(key, out var cached))
             {
-                RuntimeDiagnostics.Counters.Increment(RuntimeCounter.AlbumCacheHit);
+                _diagnostics.Increment(RuntimeCounter.AlbumCacheHit);
                 return cached;
             }
             if (!_inFlight.TryGetValue(key, out pending!))
             {
-                RuntimeDiagnostics.Counters.Increment(RuntimeCounter.AlbumLookupStarted);
+                _diagnostics.Increment(RuntimeCounter.AlbumLookupStarted);
                 completion = new TaskCompletionSource<AlbumArtworkMatch?>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
                 pending = completion.Task;
                 _inFlight[key] = pending;
                 _ = _background.RunAsync(token => FetchAndCompleteAsync(key, artist, title, country, completion, token));
             }
-            else RuntimeDiagnostics.Counters.Increment(RuntimeCounter.AlbumLookupJoined);
+            else _diagnostics.Increment(RuntimeCounter.AlbumLookupJoined);
         }
 
         // The request belongs to the shared lookup, not one UI listener. A
@@ -117,28 +119,28 @@ public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = nu
                 var resized = Regex.Replace(artwork.AbsoluteUri, @"/100x100bb(?=\.)", "/600x600bb",
                     RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
                 ReadStoreUri(item, out var store);
-                RuntimeDiagnostics.Counters.Increment(RuntimeCounter.AlbumMatch);
+                _diagnostics.Increment(RuntimeCounter.AlbumMatch);
                 return new(true, new AlbumArtworkMatch(new Uri(resized), store));
             }
-            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.AlbumMiss);
+            _diagnostics.Increment(RuntimeCounter.AlbumMiss);
             return new(true, null); // A valid response without usable artwork is a cacheable miss.
         }
         catch (OperationCanceledException)
         {
-            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.AlbumTransportCanceled);
+            _diagnostics.Increment(RuntimeCounter.AlbumTransportCanceled);
             return new(false, null);
         }
         catch (Exception exception) when (exception is HttpRequestException
             or IOException or JsonException)
         {
-            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.AlbumTransportFailed);
+            _diagnostics.Increment(RuntimeCounter.AlbumTransportFailed);
             return new(false, null); // Network and malformed responses may be retried.
         }
     }
 
-    private static LookupResult RejectResponse()
+    private LookupResult RejectResponse()
     {
-        RuntimeDiagnostics.Counters.Increment(RuntimeCounter.AlbumResponseRejected);
+        _diagnostics.Increment(RuntimeCounter.AlbumResponseRejected);
         return new(false, null);
     }
 

@@ -6,8 +6,10 @@ namespace smodr.Services;
 public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
     Func<TimeSpan, CancellationToken, Task>? delay = null,
     TimeProvider? clock = null,
-    IContinuousTrackMetadataReader? continuousReader = null) : IDisposable
+    IContinuousTrackMetadataReader? continuousReader = null,
+    RuntimeDiagnosticCounters? diagnostics = null) : IDisposable
 {
+    private readonly RuntimeDiagnosticCounters _diagnostics = diagnostics ?? RuntimeDiagnostics.Counters;
     // Windows MediaPlayer does not surface ICY titles. Prefer a continuous
     // sidecar connection; bounded probes remain a fallback if it drops.
     private static readonly TimeSpan _pollInterval = TimeSpan.FromSeconds(10);
@@ -100,7 +102,7 @@ public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
             {
                 if (generation != _generation || _disposed)
                 {
-                    RuntimeDiagnostics.Counters.Increment(RuntimeCounter.MetadataRetired);
+                    _diagnostics.Increment(RuntimeCounter.MetadataRetired);
                     return;
                 }
             }
@@ -113,14 +115,14 @@ public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
                     previousCueDamaged = true;
                     previousTrack = null;
                 }
-                RuntimeDiagnostics.Counters.Increment(RuntimeCounter.MetadataRejectedDamaged);
+                _diagnostics.Increment(RuntimeCounter.MetadataRejectedDamaged);
                 try { TrackInvalidated?.Invoke(this, station); }
                 catch (Exception exception) { AppDiagnostics.Record("track.callback", exception); }
                 return;
             }
             if (track is null)
             {
-                RuntimeDiagnostics.Counters.Increment(string.IsNullOrWhiteSpace(raw) ? RuntimeCounter.MetadataRejectedEmpty
+                _diagnostics.Increment(string.IsNullOrWhiteSpace(raw) ? RuntimeCounter.MetadataRejectedEmpty
                     : raw.Length > 4096 ? RuntimeCounter.MetadataRejectedOversize : RuntimeCounter.MetadataRejectedNonSong);
                 return;
             }
@@ -129,13 +131,13 @@ public sealed class IcyTrackMonitor(ITrackMetadataProbe probe,
                 if (generation != _generation || _disposed) return;
                 if (track == previousTrack)
                 {
-                    RuntimeDiagnostics.Counters.Increment(RuntimeCounter.MetadataDuplicate);
+                    _diagnostics.Increment(RuntimeCounter.MetadataDuplicate);
                     return;
                 }
                 previousTrack = track;
                 previousCueDamaged = false;
             }
-            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.MetadataAccepted);
+            _diagnostics.Increment(RuntimeCounter.MetadataAccepted);
             try { TrackChanged?.Invoke(this, new RadioTrackUpdate(station, track)); }
             catch (Exception exception) { AppDiagnostics.Record("track.callback", exception); }
         }

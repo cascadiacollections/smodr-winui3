@@ -1,8 +1,10 @@
 namespace smodr.Services;
 
 /// <summary>Bounded LRU cache with monotonic expiry; native image caches remain scoped to their UI dispatcher.</summary>
-public sealed class ArtworkMemoryCache<T>(int maxEntries, long maxWeight, TimeProvider? clock = null)
+public sealed class ArtworkMemoryCache<T>(int maxEntries, long maxWeight, TimeProvider? clock = null,
+    RuntimeDiagnosticCounters? diagnostics = null)
 {
+    private readonly RuntimeDiagnosticCounters _diagnostics = diagnostics ?? RuntimeDiagnostics.Counters;
     private readonly Lock _gate = new();
     private readonly Dictionary<string, Entry> _entries = [];
     private readonly LinkedList<string> _order = new();
@@ -17,17 +19,17 @@ public sealed class ArtworkMemoryCache<T>(int maxEntries, long maxWeight, TimePr
             value = default;
             if (!_entries.TryGetValue(key, out var entry))
             {
-                RuntimeDiagnostics.Counters.Increment(RuntimeCounter.ArtworkMemoryMiss);
+                _diagnostics.Increment(RuntimeCounter.ArtworkMemoryMiss);
                 return false;
             }
             if (_clock.GetElapsedTime(entry.CreatedAt) >= TimeSpan.FromMinutes(30))
             {
                 Remove(key);
-                RuntimeDiagnostics.Counters.Increment(RuntimeCounter.ArtworkMemoryExpired);
-                RuntimeDiagnostics.Counters.Increment(RuntimeCounter.ArtworkMemoryMiss);
+                _diagnostics.Increment(RuntimeCounter.ArtworkMemoryExpired);
+                _diagnostics.Increment(RuntimeCounter.ArtworkMemoryMiss);
                 return false;
             }
-            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.ArtworkMemoryHit);
+            _diagnostics.Increment(RuntimeCounter.ArtworkMemoryHit);
             _order.Remove(entry.Node);
             _order.AddLast(entry.Node);
             value = entry.Value;

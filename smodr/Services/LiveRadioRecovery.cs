@@ -15,6 +15,7 @@ internal sealed class LiveRadioRecovery : IDisposable
     private readonly TimeSpan _resumeTimeout;
     private readonly TimeSpan _retryBaseDelay;
     private readonly int _maxRetries;
+    private readonly RuntimeDiagnosticCounters _diagnostics;
     private CancellationTokenSource? _timer;
     private TimerKind _timerKind;
     private long _epoch;
@@ -34,13 +35,14 @@ internal sealed class LiveRadioRecovery : IDisposable
         TimeSpan? resumeTimeout = null,
         TimeSpan? retryBaseDelay = null,
         int maxRetries = 3,
-        Action<long>? beforeRetry = null)
+        Action<long>? beforeRetry = null, RuntimeDiagnosticCounters? diagnostics = null)
     {
         ArgumentNullException.ThrowIfNull(restart);
         ArgumentNullException.ThrowIfNull(exhausted);
         ArgumentOutOfRangeException.ThrowIfNegative(maxRetries);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(maxRetries, 10);
         _restart = restart;
+        _diagnostics = diagnostics ?? RuntimeDiagnostics.Counters;
         _exhausted = exhausted;
         _beforeRetry = beforeRetry;
         _clock = clock ?? TimeProvider.System;
@@ -132,12 +134,12 @@ internal sealed class LiveRadioRecovery : IDisposable
         if (_attempts >= _maxRetries)
         {
             _requested = false;
-            RuntimeDiagnostics.Counters.Increment(RuntimeCounter.RecoveryExhausted);
+            _diagnostics.Increment(RuntimeCounter.RecoveryExhausted);
             return new(_epoch, null, TimeSpan.Zero);
         }
 
         _attempts++;
-        RuntimeDiagnostics.Counters.Increment(RuntimeCounter.RecoveryRetryScheduled);
+        _diagnostics.Increment(RuntimeCounter.RecoveryRetryScheduled);
         _waitingForRetry = true;
         var delay = TimeSpan.FromTicks(_retryBaseDelay.Ticks * (1L << (_attempts - 1)));
         return new(null, _epoch, delay);
@@ -228,7 +230,7 @@ internal sealed class LiveRadioRecovery : IDisposable
                     _waitingForRetry = false;
                     ArmLocked(TimerKind.Stall, _stallTimeout);
                     callback = _restart;
-                    RuntimeDiagnostics.Counters.Increment(RuntimeCounter.RecoveryRestartRequested);
+                    _diagnostics.Increment(RuntimeCounter.RecoveryRestartRequested);
                 }
             }
 

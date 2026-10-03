@@ -33,6 +33,16 @@ Consecutive damaged cues count once per invalidation until a valid cue resumes.
 Redirect-hop assertions use the production policy's explicit redirect handling
 (its HTTP client has automatic redirects disabled).
 
+`DiagnosticScenario` injects isolated counter sets into real recovery, ICY
+monitoring, memory-cache, artwork transport, and catalog lookup components.
+Virtual-time retries and scripted responses assert exact counts for retry budget,
+acceptance/rejection/duplicates, monotonic expiry, coalesced lookups, negative
+cache hits, successful catalog matches, response rejection, and cancellation.
+Production defaults still use the shared process counters. These tests run in
+parallel without global-count races and do not introduce dynamic metric labels.
+The repeatable soak includes this category and `ParserFuzz` alongside metadata
+and transport races; the CI workflow calls the same script.
+
 ## Shutdown lifecycle
 
 `BackgroundWorkScope` registers work before invoking it, seals new admission during
@@ -210,3 +220,22 @@ A self-contained ARM64 preview was published to
 No app, audio session, computer-use interaction, or remote CI run was started.
 Native shutdown, audible reconnect, actual media controls, visual/accessibility
 interaction, and release signing still require the documented release checks.
+
+## Local Acrylic/parity follow-up verification (2026-10-02)
+
+The final source passed 349 Release tests on each of ARM64 and x64, with warnings
+treated as errors. Formatter verification passed for RadioCore, WinUI, and tests.
+The expanded 31-test soak passed 20 ARM64 and 13 x64 iterations in one-minute
+runs; each iteration includes the 10,000 seeded cue mutations, metadata/history
+races, and isolated diagnostic wiring tests. x64 runs are emulated on this ARM64
+host. Reports are local under `out/headless-soak/{arm64,x64}-acrylic-parity/`.
+
+The self-contained preview is `out/shoutkit-arm64-acrylic-parity/smodr.exe`.
+Published notices matched the unchanged inventory; all eight inventory fixture
+checks passed. Close an existing instance before launching a different preview:
+the app's single-instance routing otherwise targets the already-running build.
+No app, audio, or computer-use session was launched, and no remote CI was run.
+Settings/markup tests do not establish rendered blur, legibility, inactive-window
+fallback, or native media behavior. Those still need an interactive check. The
+backdrop is replaced only when its saved choice actually changes, avoiding native
+compositor churn from unrelated settings notifications.
