@@ -4,6 +4,8 @@ Repeatable, offline stream transport checks are documented in [STREAM_HARNESS.md
 Native decoder ownership and the common playback-control boundary are documented in [AUDIO_ENGINES.md](AUDIO_ENGINES.md).
 Headless runtime races, soak tests, and repeatable local performance diagnostics are documented in [HEADLESS_CONFIDENCE.md](HEADLESS_CONFIDENCE.md).
 Required Roslyn/SARIF gates and opt-in standalone ReSharper inspections are documented in [STATIC_ANALYSIS.md](STATIC_ANALYSIS.md).
+CodeQL, dependency review, NuGet vulnerability policy, and the pinned SPDX SBOM
+gate are documented in [RELEASE.md](RELEASE.md).
 
 **Settings → Playback** has separate resume policies for Windows sleep (off by
 default) and network loss (on by default). Sleep or loss of connected networks

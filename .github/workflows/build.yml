@@ -58,8 +58,9 @@ jobs:
       shell: pwsh
       run: ./scripts/Test-SolutionConfigurations.ps1 -SelfTest
 
-    - name: Restore project dependencies
-      run: dotnet restore ${{ env.SOLUTION_PATH }} -p:Platform=${{ matrix.platform }} --locked-mode
+    - name: Restore and audit project dependencies
+      shell: pwsh
+      run: dotnet restore ${{ env.SOLUTION_PATH }} -p:Platform=${{ matrix.platform }} --locked-mode -p:NuGetAudit=true -p:NuGetAuditMode=all "-p:WarningsAsErrors=NU1901;NU1902;NU1903;NU1904"
 
     - name: Verify generated software notices and test inventory tooling
       shell: pwsh
@@ -108,6 +109,23 @@ jobs:
     - name: Verify published software notices
       shell: pwsh
       run: ./scripts/Test-LicenseInventory.ps1 -PublishedDirectory out/shoutkit-${{ matrix.platform }}
+
+    - name: Download pinned Microsoft SBOM Tool
+      if: matrix.platform == 'x64'
+      shell: pwsh
+      run: |
+        $path = Join-Path $env:RUNNER_TEMP 'sbom-tool-win-x64.exe'
+        Invoke-WebRequest 'https://github.com/microsoft/sbom-tool/releases/download/v4.1.5/sbom-tool-win-x64.exe' -OutFile $path
+        $actual = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($actual -ne '625767b371b7fdd58f40f618b8a86da0247a33c89e419039c86b4edba1dad4b5') { throw "SBOM tool hash mismatch: $actual" }
+
+    - name: Generate and validate SPDX SBOM
+      if: matrix.platform == 'x64'
+      shell: pwsh
+      run: |
+        ./scripts/Test-SbomHarness.ps1
+        ./scripts/Generate-Sbom.ps1 -ToolPath "$env:RUNNER_TEMP/sbom-tool-win-x64.exe" -DropPath out/shoutkit-x64 -OutputDirectory out/sbom-x64 -PackageVersion '${{ github.run_number }}.0.0'
+        Copy-Item -LiteralPath out/sbom-x64/_manifest -Destination out/shoutkit-x64/_manifest -Recurse
 
     - name: Validate unsigned MSIX packaging
       run: dotnet msbuild smodr/smodr.csproj -restore -p:RestoreLockedMode=true -p:Configuration=${{ env.CONFIGURATION }} -p:Platform=${{ matrix.platform }} -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=false -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageDir=out/msix-${{ matrix.platform }}/ -v:q
