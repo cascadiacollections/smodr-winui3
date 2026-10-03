@@ -19,7 +19,11 @@ internal sealed partial class RadioJumpList(RadioPlaybackPreferences preferences
             : Array.Empty<RadioQuickLaunchItem>();
         lock (_gate)
         {
-            if (_disposed) return Task.CompletedTask;
+            if (_disposed)
+            {
+                return Task.CompletedTask;
+            }
+
             _tail = UpdateAfterAsync(_tail, Interlocked.Increment(ref _version), desired);
             return _tail;
         }
@@ -30,11 +34,27 @@ internal sealed partial class RadioJumpList(RadioPlaybackPreferences preferences
         await previous;
         try
         {
-            if (!IsSupported || _disposed) return;
-            if (version != Volatile.Read(ref _version)) return;
+            if (!IsSupported || _disposed)
+            {
+                return;
+            }
+
+            if (version != Volatile.Read(ref _version))
+            {
+                return;
+            }
+
             var list = await JumpList.LoadCurrentAsync();
-            if (version != Volatile.Read(ref _version)) return;
-            foreach (var item in list.Items.Where(item => item.RemovedByUser)) _removedArguments.Add(item.Arguments);
+            if (version != Volatile.Read(ref _version))
+            {
+                return;
+            }
+
+            foreach (var item in list.Items.Where(item => item.RemovedByUser))
+            {
+                _removedArguments.Add(item.Arguments);
+            }
+
             list.Items.Clear();
             list.SystemGroupKind = JumpListSystemGroupKind.None;
             foreach (var item in desired.Where(item => !_removedArguments.Contains(item.Arguments)))
@@ -63,5 +83,11 @@ internal sealed partial class RadioJumpList(RadioPlaybackPreferences preferences
         }
     }
 
-    internal Task FlushAsync() { lock (_gate) return _tail; }
+    internal Task FlushAsync()
+    {
+        lock (_gate)
+        {
+            return _tail;
+        }
+    }
 }
