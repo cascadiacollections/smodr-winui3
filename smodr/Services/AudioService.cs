@@ -31,6 +31,10 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
     private long _intentVersion;
     private int _disposed;
     private readonly BackgroundWorkScope _background = new();
+    private readonly PlaybackEnvironmentPolicy _environmentPolicy = new();
+    private WindowsPlaybackEnvironment? _environment;
+    private bool _systemSuspended;
+    private bool _networkConnected = true;
 
     public AudioService(IcyTrackMonitor trackMonitor, RadioPlaybackPreferences? preferences = null,
         RadioStreamPrewarmer? prewarmer = null)
@@ -56,11 +60,15 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
     public TimeSpan Duration => _engines.Duration;
     public bool IsPlaying => PlaybackState == MediaPlaybackState.Playing;
     public bool IsPaused => PlaybackState == MediaPlaybackState.Paused;
-    public bool IsPlaybackRequested => CurrentStation is not null && _recovery.IsRequested;
+    public bool IsPlaybackRequested => CurrentStation is not null
+        && (_recovery.IsRequested || _environmentPolicy.IsResumePending);
 
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _environment?.Dispose();
+        _environment = null;
+        _environmentPolicy.UserIntent(false);
         if (_observingDefaultRenderDevice)
         {
             try { MediaDevice.DefaultAudioRenderDeviceChanged -= MediaDevice_DefaultAudioRenderDeviceChanged; }
@@ -120,6 +128,8 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
         }
         catch (Exception exception) { AppDiagnostics.Record("station.audio-device-watch", exception); }
         _isInitialized = true;
+        _environment = new WindowsPlaybackEnvironment(EnvironmentChanged);
+        _environment.Start();
     }
 
     private void CreatePlayer(PreparedRadioSource? prepared = null)
@@ -175,12 +185,19 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
         _currentArtworkUri = ParseArtworkUri(station.ArtworkUrl);
         ClearTrack();
         StationChanged?.Invoke(this, station);
+        _environmentPolicy.UserIntent(true);
         try
         {
+            if (_environmentPolicy.IsBlocked)
+            {
+                HoldForEnvironment();
+                return Task.CompletedTask;
+            }
             StartRadioSource(station, streamUri);
         }
         catch
         {
+            _environmentPolicy.UserIntent(false);
             _recovery.Pause();
             ReleasePlayer();
             CurrentStation = null;
@@ -260,6 +277,8 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
     public void Play()
     {
         _intentVersion++;
+        _environmentPolicy.UserIntent(CurrentStation is not null);
+        if (_environmentPolicy.IsBlocked) return;
         if (CurrentStation is { } station)
         {
             var preset = _preferences?.Current.Equalizer ?? RadioEqualizerPreset.Off;
@@ -294,6 +313,7 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
     public void Pause()
     {
         _intentVersion++;
+        _environmentPolicy.UserIntent(false);
         _prewarmer?.Clear();
         _dspStart?.Cancel();
         _engines.Pause();
@@ -309,6 +329,7 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
     public void StopStation()
     {
         _intentVersion++;
+        _environmentPolicy.UserIntent(false);
         _prewarmer?.Clear();
         if (CurrentStation is null)
         {
@@ -331,6 +352,38 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
     }
 
     public double GetVolume() => _engines.Volume;
+
+    private void EnvironmentChanged(bool? suspended, bool? connected) => RunOnPlayerThread(() =>
+    {
+        if (Volatile.Read(ref _disposed) != 0) return;
+        if (suspended is { } sleeping) _systemSuspended = sleeping;
+        if (connected is { } available) _networkConnected = available;
+        var options = _preferences?.Current ?? new RadioPlaybackOptions();
+        switch (_environmentPolicy.Update(_systemSuspended, _networkConnected, IsPlaybackRequested,
+            options.ResumeAfterSleep, options.ResumeAfterNetworkLoss))
+        {
+            case PlaybackEnvironmentAction.Hold:
+                HoldForEnvironment();
+                break;
+            case PlaybackEnvironmentAction.Resume when CurrentStation is not null:
+                try { Play(); }
+                catch (Exception exception) { AppDiagnostics.Record("playback.environment-resume", exception); }
+                break;
+        }
+    });
+
+    private void HoldForEnvironment()
+    {
+        // Retire stale sockets/metadata and cancel retry timers without canceling
+        // the independent user intent stored in the environment policy.
+        _intentVersion++;
+        _prewarmer?.Clear();
+        _recovery.Pause();
+        _radioEnded = true;
+        ReleasePlayer();
+        ClearTrack();
+        if (CurrentStation is not null) PlaybackStateChanged?.Invoke(this, MediaPlaybackState.Paused);
+    }
 
     public void SetNowPlayingArtwork(RadioStation station, Uri? artworkUrl)
     {

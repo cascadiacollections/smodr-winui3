@@ -28,6 +28,8 @@ public partial class RadioSettingsViewModel(IRadioPrivacySettings privacy,
     public bool IsJumpListEnabled => playback?.Current.JumpLists == true;
     public bool IsStreamPrewarmingEnabled => playback?.Current.PrewarmStreams == true;
     public bool IsLoopFinishedBroadcastsEnabled => playback?.Current.LoopFinishedBroadcasts == true;
+    public bool IsResumeAfterSleepEnabled => playback?.Current.ResumeAfterSleep == true;
+    public bool IsResumeAfterNetworkLossEnabled => playback?.Current.ResumeAfterNetworkLoss ?? true;
     public int SelectedEqualizerPreset => (int)(playback?.Current.Equalizer ?? RadioEqualizerPreset.Off);
     public bool HasError => ErrorMessage.Length != 0;
 
@@ -62,6 +64,16 @@ public partial class RadioSettingsViewModel(IRadioPrivacySettings privacy,
         SaveAsync(enabled, IsLoopFinishedBroadcastsEnabled,
             value => playback?.UpdateAsync(options => options with { LoopFinishedBroadcasts = value }) ?? Task.CompletedTask,
             "playback.loop-write", "broadcast-looping");
+
+    public Task SetResumeAfterSleepEnabledAsync(bool enabled) =>
+        SaveAsync(enabled, IsResumeAfterSleepEnabled,
+            value => playback?.UpdateAsync(options => options with { ResumeAfterSleep = value }) ?? Task.CompletedTask,
+            "playback.sleep-resume-write", "resume-after-sleep");
+
+    public Task SetResumeAfterNetworkLossEnabledAsync(bool enabled) =>
+        SaveAsync(enabled, IsResumeAfterNetworkLossEnabled,
+            value => playback?.UpdateAsync(options => options with { ResumeAfterNetworkLoss = value }) ?? Task.CompletedTask,
+            "playback.network-resume-write", "resume-after-network-loss");
 
     public Task SetEqualizerPresetAsync(int index)
     {
@@ -118,6 +130,8 @@ public partial class RadioSettingsViewModel(IRadioPrivacySettings privacy,
             OnPropertyChanged(nameof(IsAlbumArtworkEnabled));
             OnPropertyChanged(nameof(IsStreamPrewarmingEnabled));
             OnPropertyChanged(nameof(IsLoopFinishedBroadcastsEnabled));
+            OnPropertyChanged(nameof(IsResumeAfterSleepEnabled));
+            OnPropertyChanged(nameof(IsResumeAfterNetworkLossEnabled));
             OnPropertyChanged(nameof(SelectedEqualizerPreset));
             OnPropertyChanged(nameof(IsJumpListEnabled));
             OnPropertyChanged(nameof(SelectedBackdrop));

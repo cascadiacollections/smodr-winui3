@@ -7,6 +7,26 @@ namespace smodr.Tests.Services;
 public sealed class RadioPlaybackPreferencesTests
 {
     [TestMethod]
+    public async Task LegacySettingsUseExplicitResumeDefaultsAndNewChoicesAreDurable()
+    {
+        using var profile = new TemporaryRadioProfile();
+        await File.WriteAllTextAsync(profile.FilePath,
+            """{"SchemaVersion":1,"Options":{"PrewarmStreams":true,"LoopFinishedBroadcasts":false,"Equalizer":"Off","JumpLists":false}}""");
+        var preferences = new RadioPlaybackPreferences(profile.FilePath);
+        Assert.IsFalse(preferences.IsReadOnly);
+        Assert.IsFalse(preferences.Current.ResumeAfterSleep);
+        Assert.IsTrue(preferences.Current.ResumeAfterNetworkLoss);
+        var settings = new RadioSettingsViewModel(new RadioPrivacySettings(profile.FilePath + ".privacy"), playback: preferences);
+        await settings.SetResumeAfterSleepEnabledAsync(true);
+        await settings.SetResumeAfterNetworkLossEnabledAsync(false);
+        await settings.FlushAsync();
+        var restored = new RadioPlaybackPreferences(profile.FilePath).Current;
+        Assert.IsTrue(restored.ResumeAfterSleep);
+        Assert.IsFalse(restored.ResumeAfterNetworkLoss);
+        Assert.IsTrue(restored.PrewarmStreams);
+    }
+
+    [TestMethod]
     public async Task OptionalFeaturesDefaultOffAndConcurrentEditsAreDurable()
     {
         using var profile = new TemporaryRadioProfile();

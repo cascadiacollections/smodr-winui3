@@ -20,6 +20,9 @@ a unique `out/static-analysis/<id>/` with per-project SARIF 2.1 reports, so old
 reports cannot supply a new verdict. CI runs the same gate on portable Linux/Windows
 and Windows x64/ARM64 and retains reports on failure. Compiler failure is failure
 even without SARIF. Restore stays separate and locked; this gate never repairs locks.
+Accepted in-source suppressions (for example reviewed `#pragma` directives) stay
+visible in SARIF without failing the verdict. External baselines are not accepted
+as waivers; rejected source suppressions fail normally.
 
 ## Optional ReSharper / Rider inspection
 

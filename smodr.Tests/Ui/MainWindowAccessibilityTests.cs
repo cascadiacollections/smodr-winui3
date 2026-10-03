@@ -114,7 +114,7 @@ public sealed class MainWindowAccessibilityTests
         var settings = document.Descendants().Single(element =>
             (string?)element.Attribute(_xaml + "Name") == "SettingsView");
         Assert.IsTrue(settings.Descendants().Any(element => element.Name.LocalName == "ScrollViewer"));
-        Assert.HasCount(8, settings.Descendants().Where(element => element.Name.LocalName == "SettingsCard"));
+        Assert.HasCount(10, settings.Descendants().Where(element => element.Name.LocalName == "SettingsCard"));
         foreach (var action in settings.Descendants().Where(element => element.Name.LocalName is "ToggleSwitch" or "ComboBox"
             || (element.Name.LocalName == "SettingsCard" && (string?)element.Attribute("IsClickEnabled") == "True")))
         {
@@ -138,11 +138,13 @@ public sealed class MainWindowAccessibilityTests
                 "AlbumArtworkSwitch" => "IsAlbumArtworkEnabled",
                 "PrewarmSwitch" => "IsStreamPrewarmingEnabled",
                 "LoopBroadcastsSwitch" => "IsLoopFinishedBroadcastsEnabled",
+                "ResumeSleepSwitch" => "IsResumeAfterSleepEnabled",
+                "ResumeNetworkSwitch" => "IsResumeAfterNetworkLossEnabled",
                 "JumpListSwitch" => "IsJumpListEnabled",
                 _ => throw new InvalidOperationException("Unexpected settings toggle")
             };
             var busy = name == "JumpListSwitch" ? "CanEditJumpLists"
-                : name is "PrewarmSwitch" or "LoopBroadcastsSwitch" ? "CanEditPlayback" : "CanEdit";
+                : name is "PrewarmSwitch" or "LoopBroadcastsSwitch" or "ResumeSleepSwitch" or "ResumeNetworkSwitch" ? "CanEditPlayback" : "CanEdit";
             Assert.AreEqual($"{{x:Bind Settings.{busy}, Mode=OneWay}}", (string?)toggle.Attribute("IsEnabled"));
             Assert.AreEqual($"{{x:Bind Settings.{property}, Mode=OneWay}}", (string?)toggle.Attribute("IsOn"));
         }

@@ -7,10 +7,9 @@ internal sealed class RadioAudioEngineCoordinator(Action<Action> dispatch) : IDi
 {
     private IRadioAudioEngine? _current;
     private long _generation;
-    private double _volume = 0.5;
     private bool _disposed;
     public IRadioAudioEngine? Current => Volatile.Read(ref _current);
-    public double Volume => _volume;
+    public double Volume { get; private set; } = 0.5;
     public TimeSpan Duration => Current?.Duration ?? TimeSpan.Zero;
     public event EventHandler<MediaPlaybackState>? StateChanged;
     public event EventHandler? Completed;
@@ -36,7 +35,7 @@ internal sealed class RadioAudioEngineCoordinator(Action<Action> dispatch) : IDi
         if (engine is null) return;
         try
         {
-            engine.SetVolume(_volume);
+            engine.SetVolume(Volume);
             Volatile.Write(ref _current, engine);
             engine.StateChanged += Engine_StateChanged;
             engine.Completed += Engine_Completed;
@@ -56,8 +55,8 @@ internal sealed class RadioAudioEngineCoordinator(Action<Action> dispatch) : IDi
     public void SetVolume(double value)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        _volume = double.IsFinite(value) ? Math.Clamp(value, 0, 1) : 0;
-        Current?.SetVolume(_volume);
+        Volume = double.IsFinite(value) ? Math.Clamp(value, 0, 1) : 0;
+        Current?.SetVolume(Volume);
     }
 
     public void Play()

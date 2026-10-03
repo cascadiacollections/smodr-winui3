@@ -12,7 +12,11 @@ public sealed class RadioAppearancePreferences
     private readonly string _path;
     private readonly Lock _gate = new();
     private Task _tail = Task.CompletedTask;
-    private RadioWindowBackdrop _current = RadioWindowBackdrop.Acrylic;
+    public RadioWindowBackdrop Current
+    {
+        get { lock (_gate) return field; }
+        private set { lock (_gate) field = value; }
+    } = RadioWindowBackdrop.Acrylic;
     public bool IsReadOnly { get; }
 
     public RadioAppearancePreferences(string path)
@@ -29,17 +33,16 @@ public sealed class RadioAppearancePreferences
             while (count < bytes.Length && (read = stream.Read(bytes.AsSpan(count))) > 0) count += read;
             if (count == bytes.Length) throw new InvalidDataException();
             var data = JsonSerializer.Deserialize<AppearanceData>(bytes.AsSpan(0, count));
-            if (data?.SchemaVersion == 1 && data.Backdrop is { } value && Enum.IsDefined(value)) { _current = value; return; }
+            if (data?.SchemaVersion == 1 && data.Backdrop is { } value && Enum.IsDefined(value)) { Current = value; return; }
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or JsonException)
         {
             AppDiagnostics.Record("appearance.read", exception);
         }
-        _current = RadioWindowBackdrop.Solid;
+        Current = RadioWindowBackdrop.Solid;
         IsReadOnly = true;
     }
 
-    public RadioWindowBackdrop Current { get { lock (_gate) return _current; } }
 
     public Task SetAsync(RadioWindowBackdrop backdrop)
     {
@@ -61,7 +64,7 @@ public sealed class RadioAppearancePreferences
         if (backdrop == Current) return;
         await Task.Run(() => AtomicFileWriter.WriteAllText(_path,
             JsonSerializer.Serialize(new AppearanceData(1, backdrop)))).ConfigureAwait(false);
-        lock (_gate) _current = backdrop;
+        Current = backdrop;
     }
 
     private static async Task ObserveAsync(Task operation)

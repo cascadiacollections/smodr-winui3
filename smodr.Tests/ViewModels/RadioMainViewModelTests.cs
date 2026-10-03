@@ -687,20 +687,18 @@ public sealed class RadioMainViewModelTests
 
     private sealed class StubPrivacy(bool enabled) : IRadioPrivacySettings
     {
-        private bool _enabled = enabled;
-        private bool _artworkEnabled = true;
-        public RadioPrivacyChoices Current => new(_enabled, _artworkEnabled);
-        public bool IsPlayReportingEnabled => _enabled;
-        public bool IsAlbumArtworkEnabled => _artworkEnabled;
+        public RadioPrivacyChoices Current => new(IsPlayReportingEnabled, IsAlbumArtworkEnabled);
+        public bool IsPlayReportingEnabled { get; private set; } = enabled;
+        public bool IsAlbumArtworkEnabled { get; private set; } = true;
         public Task SetPlayReportingEnabledAsync(bool value)
         {
-            _enabled = value;
+            IsPlayReportingEnabled = value;
             return Task.CompletedTask;
         }
         public Task FlushAsync() => Task.CompletedTask;
         public Task SetAlbumArtworkEnabledAsync(bool value)
         {
-            _artworkEnabled = value;
+            IsAlbumArtworkEnabled = value;
             return Task.CompletedTask;
         }
     }

@@ -22,7 +22,7 @@ public sealed partial class MainWindow : Window
     private bool _closingAfterFlush;
     private bool _closeAfterFlush;
     private bool _closed;
-    private bool _settingsReady;
+    private readonly bool _settingsReady;
     private bool _licensesOpen;
     private RadioWindowBackdrop? _appliedBackdrop;
     private readonly RadioStreamPrewarmer? _prewarmer;
@@ -135,10 +135,7 @@ public sealed partial class MainWindow : Window
         _prewarmer?.Clear();
         _sleepCountdownTimer.Stop();
         _sleepCountdownTimer.Tick -= SleepCountdownTimer_Tick;
-        if (_appWindow is not null)
-        {
-            _appWindow.Closing -= AppWindow_Closing;
-        }
+        _appWindow?.Closing -= AppWindow_Closing;
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         ViewModel.Recents.CollectionChanged -= LibraryCollectionChanged;
         ViewModel.Favorites.CollectionChanged -= LibraryCollectionChanged;
@@ -494,6 +491,16 @@ public sealed partial class MainWindow : Window
     private async void PrewarmSwitch_Toggled(object sender, RoutedEventArgs e)
     {
         if (_settingsReady) await Settings.SetStreamPrewarmingEnabledAsync(PrewarmSwitch.IsOn);
+    }
+
+    private async void ResumeSleepSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_settingsReady) await Settings.SetResumeAfterSleepEnabledAsync(ResumeSleepSwitch.IsOn);
+    }
+
+    private async void ResumeNetworkSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_settingsReady) await Settings.SetResumeAfterNetworkLossEnabledAsync(ResumeNetworkSwitch.IsOn);
     }
 
     private async void LoopBroadcastsSwitch_Toggled(object sender, RoutedEventArgs e)

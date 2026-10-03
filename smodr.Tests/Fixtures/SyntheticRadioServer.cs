@@ -90,9 +90,9 @@ internal sealed class SyntheticRadioServer : IAsyncDisposable
                     await Task.Delay(Timeout.InfiniteTimeSpan, _stop.Token);
                     return;
                 }
-                var titles = path == "/damaged"
-                    ? new[] { "Artist - First", "H\uFFFDsker D\uFFFD - Ice Cold Ice", "Artist - Second" }
-                    : new[] { "Hüsker Dü - Ice Cold Ice", "Artist - Rapid Second" };
+                string[] titles = path == "/damaged"
+                    ? ["Artist - First", "H\uFFFDsker D\uFFFD - Ice Cold Ice", "Artist - Second"]
+                    : ["Hüsker Dü - Ice Cold Ice", "Artist - Rapid Second"];
                 var body = new List<byte>();
                 foreach (var title in titles) AddIcyBlock(body, title);
                 if (path == "/truncated") body.RemoveRange(body.Count - 7, 7);

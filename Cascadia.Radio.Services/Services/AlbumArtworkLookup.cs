@@ -188,7 +188,7 @@ public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = nu
     }
 
     private static string Normalize(string value) =>
-        new(value.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
+        new([.. value.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant)]);
 
     private static bool ReadString(JsonElement item, string name, out string value)
     {

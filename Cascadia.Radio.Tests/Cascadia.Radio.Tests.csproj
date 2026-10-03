@@ -11,6 +11,8 @@
     <!-- This Windows-owned recovery policy has no platform dependencies; exercise
          its production source in stable .NET/Linux CI without moving app policy into the public SDK. -->
     <Compile Include="../smodr/Services/LiveRadioRecovery.cs" Link="Runtime/LiveRadioRecovery.cs" />
+    <Compile Include="../smodr/Services/PlaybackEnvironmentPolicy.cs" Link="Runtime/PlaybackEnvironmentPolicy.cs" />
+    <Compile Include="../smodr.Tests/Services/PlaybackEnvironmentPolicyTests.cs" Link="Runtime/PlaybackEnvironmentPolicyTests.cs" />
     <Compile Include="../smodr.Tests/Services/LiveRadioRecoveryDeterministicTests.cs" Link="Runtime/LiveRadioRecoveryDeterministicTests.cs" />
     <PackageReference Include="MSTest" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />

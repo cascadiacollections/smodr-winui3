@@ -88,7 +88,7 @@ public sealed class RadioDirectoryService : IRadioDirectoryService, IStationPlay
             if (servers.Count == 0 || servers.Any(uri => !uri.IsAbsoluteUri || uri.Scheme != "https"
                 || uri.UserInfo.Length != 0 || uri.AbsolutePath != "/" || uri.Query.Length != 0 || uri.Fragment.Length != 0))
                 throw new ArgumentException("At least one HTTPS directory root is required.", nameof(servers));
-            _servers = servers.ToArray();
+            _servers = [.. servers];
         }
         public Task<IReadOnlyList<Uri>> GetServersAsync(CancellationToken cancellationToken = default)
         {

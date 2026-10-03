@@ -46,13 +46,30 @@ Runtime fixes in this pass:
   tests include reverse delivery of obsolete title/clear callbacks.
 
 Existing engine-generation, shutdown, route-change and artwork cancellation tests
-remain in place. Sleep/resume and connectivity are **not** fully adapted yet:
-Windows has no explicit suspend/resume or connectivity-loss playback coordinator.
-Native buffering/failure and the DSP progress watchdog trigger recovery, but a
-MediaPlayer that remains falsely Playing without progress is not proven covered.
-Add intent-preserving OS lifecycle policy and real hardware/network tests next;
-an explicit user pause must never be turned into automatic playback on resume.
-The iOS interruption and media-services-reset policies should guide that work.
+remain in place. Windows now subscribes to Windows App SDK
+`PowerManager.SystemSuspendStatusChanged` and WinRT
+`NetworkInformation.NetworkStatusChanged`, dispatching observations to the player
+owner thread. Sleep or loss of every connected profile retires sockets and
+metadata, clears speculative preparation and cancels recovery timers. Selected
+station/user intent is retained independently; Pause/Stop cancels that intent,
+and a station chosen offline replaces it without opening a stream.
+
+Playback Settings now durably expose **Resume after Windows sleep** (default off)
+and **Resume after network loss** (default on). Overlapping interruptions require
+both conditions restored and both permissions. Reconnection does not generate a
+new user play report. Local/constrained connections remain eligible: NCSI's
+InternetAccess verdict is not a requirement for LAN radio. Connected-to-connected
+VPN/interface changes do not forcibly restart working audio; native failure and
+buffering recovery still handle those cases. OS reads that fail preserve the last
+known condition; subscription failures are local diagnostics, not startup failures.
+
+Pure-policy tests exercise duplicate events, overlapping interruptions, settings,
+manual pause/stop, already-paused streams and offline selection. Durable-settings
+tests prove old schema-1 files inherit the new defaults without losing choices.
+Headless XAML tests verify the added controls' names, busy gating and bindings.
+This closes the explicit coordination code gap, not real-device validation.
+A MediaPlayer that remains falsely Playing without progress is still not proven
+covered. iOS media-services-reset behavior remains a separate adaptation gap.
 
 Headless validation does not prove audible recovery after real sleep, Bluetooth
 handoff, VPN changes, or prolonged network loss. The native QA gates below remain

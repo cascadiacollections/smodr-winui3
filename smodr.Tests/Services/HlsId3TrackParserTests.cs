@@ -38,8 +38,8 @@ public sealed class HlsId3TrackParserTests
     }
 
     private static byte[] Cue(byte version, params (string Id, string Text)[] frames)
-        => CuePayloads(version, frames.Select(frame => (frame.Id,
-            new byte[] { 3 }.Concat(Encoding.UTF8.GetBytes(frame.Text)).ToArray())).ToArray());
+        => CuePayloads(version, [.. frames.Select(frame => (frame.Id,
+            (byte[])[3, .. Encoding.UTF8.GetBytes(frame.Text)]))]);
 
     [TestMethod]
     [DataRow((byte)0)]

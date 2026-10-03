@@ -8,16 +8,16 @@ public enum RadioEqualizerPreset { Off, Speech, Bass, Treble }
 
 public sealed record RadioPlaybackOptions(bool PrewarmStreams = false,
     bool LoopFinishedBroadcasts = false, RadioEqualizerPreset Equalizer = RadioEqualizerPreset.Off,
-    bool JumpLists = false);
+    bool JumpLists = false, bool ResumeAfterSleep = false, bool ResumeAfterNetworkLoss = true);
 
-/// <summary>Optional features default off; serialized atomic writes publish only durable choices.</summary>
+/// <summary>Serialized atomic writes publish only durable choices; OS resume policies have explicit defaults.</summary>
 public sealed class RadioPlaybackPreferences
 {
     private readonly string _path;
     private readonly Lock _gate = new();
     private RadioPlaybackOptions _current = new();
     private Task _tail = Task.CompletedTask;
-    private readonly bool _readOnly;
+    public bool IsReadOnly { get; }
 
     public RadioPlaybackPreferences(string path)
     {
@@ -30,28 +30,27 @@ public sealed class RadioPlaybackPreferences
             var count = 0;
             int read;
             while (count < bytes.Length && (read = input.Read(bytes.AsSpan(count))) > 0) count += read;
-            if (count == bytes.Length) { _readOnly = true; return; }
+            if (count == bytes.Length) { IsReadOnly = true; return; }
             var data = JsonSerializer.Deserialize<PreferencesData>(bytes.AsSpan(0, count));
-            if (data?.SchemaVersion != 1) { _readOnly = true; return; }
+            if (data?.SchemaVersion != 1) { IsReadOnly = true; return; }
             if (data.Options is { } options && Enum.IsDefined(options.Equalizer)) _current = options;
-            else _readOnly = true;
+            else IsReadOnly = true;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
             AppDiagnostics.Record("playback.settings-read", exception);
-            _readOnly = true;
+            IsReadOnly = true;
         }
     }
 
     public RadioPlaybackOptions Current { get { lock (_gate) return _current; } }
-    public bool IsReadOnly => _readOnly;
 
     public Task UpdateAsync(Func<RadioPlaybackOptions, RadioPlaybackOptions> change)
     {
         ArgumentNullException.ThrowIfNull(change);
         lock (_gate)
         {
-            if (_readOnly) return Task.FromException(new InvalidOperationException("Playback settings are read-only. Preserve the existing file and use a compatible app version."));
+            if (IsReadOnly) return Task.FromException(new InvalidOperationException("Playback settings are read-only. Preserve the existing file and use a compatible app version."));
             var operation = SaveAfterAsync(_tail, change);
             _tail = ObserveAsync(operation);
             return operation;

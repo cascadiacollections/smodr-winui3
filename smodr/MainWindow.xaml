@@ -214,6 +214,20 @@
                                           OnContent="On" OffContent="Off" Toggled="AlbumArtworkSwitch_Toggled"/>
                         </toolkit:SettingsCard>
                         <TextBlock Text="Playback" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                        <toolkit:SettingsCard Header="Resume after Windows sleep"
+                                              Description="Reopens the selected live stream after wake only if playback was requested before sleep. Pause or Stop cancels it. Off by default.">
+                            <ToggleSwitch x:Name="ResumeSleepSwitch" AutomationProperties.Name="Resume after Windows sleep"
+                                          IsOn="{x:Bind Settings.IsResumeAfterSleepEnabled, Mode=OneWay}"
+                                          IsEnabled="{x:Bind Settings.CanEditPlayback, Mode=OneWay}"
+                                          OnContent="On" OffContent="Off" Toggled="ResumeSleepSwitch_Toggled"/>
+                        </toolkit:SettingsCard>
+                        <toolkit:SettingsCard Header="Resume after network loss"
+                                              Description="Waits without retrying while no network is connected, then reopens requested playback. Pause or Stop cancels it. On by default; LAN connections are supported.">
+                            <ToggleSwitch x:Name="ResumeNetworkSwitch" AutomationProperties.Name="Resume after network loss"
+                                          IsOn="{x:Bind Settings.IsResumeAfterNetworkLossEnabled, Mode=OneWay}"
+                                          IsEnabled="{x:Bind Settings.CanEditPlayback, Mode=OneWay}"
+                                          OnContent="On" OffContent="Off" Toggled="ResumeNetworkSwitch_Toggled"/>
+                        </toolkit:SettingsCard>
                         <toolkit:SettingsCard Header="Prepare a saved stream on launch"
                                               Description="Opens one recent or favorite stream silently for up to 30 seconds on unrestricted connections with Energy Saver off. Uses network data; sends no Radio Browser play report. Off by default; applies on next launch with equalizer off.">
                             <ToggleSwitch x:Name="PrewarmSwitch" AutomationProperties.Name="Prepare a saved stream on launch"

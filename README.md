@@ -3,6 +3,14 @@
 Repeatable, offline stream transport checks are documented in [STREAM_HARNESS.md](STREAM_HARNESS.md).
 Native decoder ownership and the common playback-control boundary are documented in [AUDIO_ENGINES.md](AUDIO_ENGINES.md).
 Headless runtime races, soak tests, and repeatable local performance diagnostics are documented in [HEADLESS_CONFIDENCE.md](HEADLESS_CONFIDENCE.md).
+Required Roslyn/SARIF gates and opt-in standalone ReSharper inspections are documented in [STATIC_ANALYSIS.md](STATIC_ANALYSIS.md).
+
+**Settings → Playback** has separate resume policies for Windows sleep (off by
+default) and network loss (on by default). Sleep or loss of connected networks
+retires the stream and suspends retries; recovery respects Pause/Stop, the latest
+station selection and both settings. Local-network streams do not require an
+InternetAccess verdict. This is implemented and headlessly tested; real sleep,
+VPN/interface transitions and audible recovery remain native QA checks.
 
 Normal close also saves `runtime-counters.json` in the app's storage directory. This local-only, fixed-size session report contains retry, metadata-rejection, and cache/transport counts, with no station URLs, song text, queries, or remote telemetry. See [the diagnostics contract](HEADLESS_CONFIDENCE.md#local-aggregate-diagnostics) for counter meanings and shutdown limits.
 
