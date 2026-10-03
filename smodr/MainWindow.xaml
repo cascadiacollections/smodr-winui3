@@ -130,7 +130,7 @@
                                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                                 <Grid Margin="8,0">
                                     <TextBlock Text="Top Tracks" Style="{ThemeResource SubtitleTextBlockStyle}" VerticalAlignment="Center"/>
-                                    <ComboBox x:Name="TopTracksTimeframeBox" HorizontalAlignment="Right"
+                                    <ComboBox HorizontalAlignment="Right"
                                               AutomationProperties.Name="Top tracks timeframe" SelectionChanged="TopTracksTimeframeBox_SelectionChanged">
                                         <ComboBoxItem Content="This Week" IsSelected="True"/>
                                         <ComboBoxItem Content="This Month"/>

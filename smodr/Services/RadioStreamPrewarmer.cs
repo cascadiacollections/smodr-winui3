@@ -26,7 +26,11 @@ public sealed class RadioStreamPrewarmer(RadioPlaybackPreferences preferences,
     {
         lock (_gate)
         {
-            if (!Allowed || Interlocked.CompareExchange(ref _warming, 1, 0) != 0) return Task.CompletedTask;
+            if (!Allowed || Interlocked.CompareExchange(ref _warming, 1, 0) != 0)
+            {
+                return Task.CompletedTask;
+            }
+
             return _background.RunAsync(token => WarmCoreAsync(stations, cancellationToken, token));
         }
     }
@@ -43,16 +47,28 @@ public sealed class RadioStreamPrewarmer(RadioPlaybackPreferences preferences,
                 !station.Id.StartsWith("shoutcast:", StringComparison.Ordinal)
                 && Uri.TryCreate(station.StreamUrl, UriKind.Absolute, out var uri)
                 && uri.Scheme is "http" or "https" && uri.UserInfo.Length == 0 && !uri.IsLoopback);
-            if (station is null) return;
+            if (station is null)
+            {
+                return;
+            }
+
             cancellation.CancelAfter(TimeSpan.FromSeconds(8));
             var prepared = await _prepare(station, cancellation.Token);
-            if (prepared is null) return;
+            if (prepared is null)
+            {
+                return;
+            }
+
             if (!Allowed || cancellation.IsCancellationRequested || version != Volatile.Read(ref _version))
             { prepared.Dispose(); return; }
             _slot.Put(station.StreamUrl, prepared);
             lock (_gate)
             {
-                if (Volatile.Read(ref _disposed) != 0) return;
+                if (Volatile.Read(ref _disposed) != 0)
+                {
+                    return;
+                }
+
                 CancelOne(_expiry);
                 var expiry = _expiry = CancellationTokenSource.CreateLinkedTokenSource(lifetime);
                 _ = _background.RunAsync(_ => ExpireAsync(Interlocked.Increment(ref _version), expiry));
@@ -97,7 +113,10 @@ public sealed class RadioStreamPrewarmer(RadioPlaybackPreferences preferences,
         try
         {
             await Task.Delay(TimeSpan.FromSeconds(30), _clock, cancellation.Token);
-            if (version == Volatile.Read(ref _version)) Clear();
+            if (version == Volatile.Read(ref _version))
+            {
+                Clear();
+            }
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception exception) { AppDiagnostics.Record("stream.prewarm-expire", exception); }

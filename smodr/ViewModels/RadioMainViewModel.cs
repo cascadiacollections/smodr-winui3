@@ -82,7 +82,10 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _audio.PlaybackFailed += Audio_PlaybackFailed;
         _audio.UserPlaybackStarted += Audio_UserPlaybackStarted;
         RefreshLibraryCollections();
-        if (_trackHistory is not null) RefreshTrackCollections();
+        if (_trackHistory is not null)
+        {
+            RefreshTrackCollections();
+        }
     }
 
     public ObservableCollection<RadioStation> PopularStations { get; } = [];
@@ -101,7 +104,6 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     [ObservableProperty] public partial bool IsLoading { get; set; }
     [ObservableProperty] public partial string Status { get; set; } = "Tuning in…";
     public bool IsPlayReportingEnabled => _privacySettings?.IsPlayReportingEnabled ?? false;
-    public bool IsAlbumArtworkEnabled => _privacySettings?.IsAlbumArtworkEnabled ?? false;
 
     public Task SetPlayReportingEnabledAsync(bool enabled) =>
         _privacySettings?.SetPlayReportingEnabledAsync(enabled) ?? Task.CompletedTask;

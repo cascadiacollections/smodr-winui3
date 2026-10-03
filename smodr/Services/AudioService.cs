@@ -67,7 +67,11 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
+
         _environment?.Dispose();
         _environment = null;
         _environmentPolicy.UserIntent(false);
@@ -83,7 +87,10 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
         _recovery.Dispose();
         try
         {
-            if (SystemPlayer is not null) ReleasePlayer();
+            if (SystemPlayer is not null)
+            {
+                ReleasePlayer();
+            }
         }
         finally
         {
@@ -158,14 +165,24 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
         ReleaseDsp();
         _trackMonitor.Stop();
         DetachTimedTracks();
-        if (_mediaEngine is not { } engine) return;
+        if (_mediaEngine is not { } engine)
+        {
+            return;
+        }
+
         var player = engine.Player;
         _mediaEngine = null;
         player.CommandManager.PlayReceived -= CommandManager_PlayReceived;
         player.CommandManager.PauseReceived -= CommandManager_PauseReceived;
         // A DSP engine has already been retired above; its source-less SMTC bridge is owned here.
-        if (ReferenceEquals(_engines.Current, engine)) _engines.Replace(null);
-        else engine.Dispose();
+        if (ReferenceEquals(_engines.Current, engine))
+        {
+            _engines.Replace(null);
+        }
+        else
+        {
+            engine.Dispose();
+        }
     }
 
     public Task PlayStationAsync(RadioStation station)
@@ -229,7 +246,10 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
             return;
         }
         var metadata = NowPlayingMetadata.ForPlayback(station, CurrentTrack);
-        if (prepared is null) SetPlayerSource(streamUri, metadata);
+        if (prepared is null)
+        {
+            SetPlayerSource(streamUri, metadata);
+        }
         SetNowPlayingArtwork(station, _currentArtworkUri);
         _engines.Play();
     }

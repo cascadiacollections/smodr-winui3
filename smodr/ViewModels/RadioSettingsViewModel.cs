@@ -13,13 +13,12 @@ public partial class RadioSettingsViewModel(IRadioPrivacySettings privacy,
     private Task _pendingEdit = Task.CompletedTask;
     private readonly Lock _licenseGate = new();
     private Task<IReadOnlyList<string>>? _licenseSections;
-    private readonly IRadioPrivacySettings _privacy = privacy;
     private readonly Func<bool, Task> _setArtwork = setArtwork ?? privacy.SetAlbumArtworkEnabledAsync;
     private readonly Func<Task<string>> _readLicenses = readLicenses ?? (() => File.ReadAllTextAsync(
         Path.Combine(AppContext.BaseDirectory, "Assets", "SoftwareLicenses.txt")));
 
-    public bool IsPlayReportingEnabled => _privacy.IsPlayReportingEnabled;
-    public bool IsAlbumArtworkEnabled => _privacy.IsAlbumArtworkEnabled;
+    public bool IsPlayReportingEnabled => privacy.IsPlayReportingEnabled;
+    public bool IsAlbumArtworkEnabled => privacy.IsAlbumArtworkEnabled;
     public bool CanEdit => !IsSaving;
     public bool CanEditPlayback => CanEdit && playback is { IsReadOnly: false };
     public bool CanEditJumpLists => CanEditPlayback && jumpListSupported;
@@ -44,41 +43,57 @@ public partial class RadioSettingsViewModel(IRadioPrivacySettings privacy,
     [NotifyPropertyChangedFor(nameof(HasError))]
     public partial string ErrorMessage { get; set; } = string.Empty;
 
-    public Task SetPlayReportingEnabledAsync(bool enabled) =>
-        SaveAsync(enabled, IsPlayReportingEnabled, _privacy.SetPlayReportingEnabledAsync,
+    public Task SetPlayReportingEnabledAsync(bool enabled)
+    {
+        return SaveAsync(enabled, IsPlayReportingEnabled, privacy.SetPlayReportingEnabledAsync,
             "privacy.write", "play-reporting");
+    }
 
-    public Task SetAlbumArtworkEnabledAsync(bool enabled) =>
-        SaveAsync(enabled, IsAlbumArtworkEnabled, _setArtwork,
+    public Task SetAlbumArtworkEnabledAsync(bool enabled)
+    {
+        return SaveAsync(enabled, IsAlbumArtworkEnabled, _setArtwork,
             "privacy.artwork-write", "album-artwork");
+    }
 
-    public Task SetStreamPrewarmingEnabledAsync(bool enabled) =>
-        SaveAsync(enabled, IsStreamPrewarmingEnabled, async value =>
+    public Task SetStreamPrewarmingEnabledAsync(bool enabled)
+    {
+        return SaveAsync(enabled, IsStreamPrewarmingEnabled, async value =>
         {
-            if (playback is null) return;
+            if (playback is null)
+            {
+                return;
+            }
+
             await playback.UpdateAsync(options => options with { PrewarmStreams = value });
             clearWarmup?.Invoke();
         }, "playback.prewarm-write", "stream-prewarming");
+    }
 
-    public Task SetLoopFinishedBroadcastsEnabledAsync(bool enabled) =>
-        SaveAsync(enabled, IsLoopFinishedBroadcastsEnabled,
-            value => playback?.UpdateAsync(options => options with { LoopFinishedBroadcasts = value }) ?? Task.CompletedTask,
+    public Task SetLoopFinishedBroadcastsEnabledAsync(bool enabled)
+    {
+        return SaveAsync(enabled, IsLoopFinishedBroadcastsEnabled,
+            value => playback?.UpdateAsync(options => options with { LoopFinishedBroadcasts = value }) ??
+                     Task.CompletedTask,
             "playback.loop-write", "broadcast-looping");
+    }
 
-    public Task SetResumeAfterSleepEnabledAsync(bool enabled) =>
-        SaveAsync(enabled, IsResumeAfterSleepEnabled,
+    public Task SetResumeAfterSleepEnabledAsync(bool enabled)
+    {
+        return SaveAsync(enabled, IsResumeAfterSleepEnabled,
             value => playback?.UpdateAsync(options => options with { ResumeAfterSleep = value }) ?? Task.CompletedTask,
             "playback.sleep-resume-write", "resume-after-sleep");
+    }
 
-    public Task SetResumeAfterNetworkLossEnabledAsync(bool enabled) =>
-        SaveAsync(enabled, IsResumeAfterNetworkLossEnabled,
+    public Task SetResumeAfterNetworkLossEnabledAsync(bool enabled)
+    {
+        return SaveAsync(enabled, IsResumeAfterNetworkLossEnabled,
             value => playback?.UpdateAsync(options => options with { ResumeAfterNetworkLoss = value }) ?? Task.CompletedTask,
             "playback.network-resume-write", "resume-after-network-loss");
+    }
 
     public Task SetEqualizerPresetAsync(int index)
     {
-        if (!Enum.IsDefined((RadioEqualizerPreset)index) || playback is null) return Task.CompletedTask;
-        return SaveAsync(index, SelectedEqualizerPreset, async value =>
+        return !Enum.IsDefined((RadioEqualizerPreset)index) || playback is null ? Task.CompletedTask : SaveAsync(index, SelectedEqualizerPreset, async value =>
         {
             await playback.UpdateAsync(options => options with { Equalizer = (RadioEqualizerPreset)value });
             clearWarmup?.Invoke();
@@ -87,25 +102,37 @@ public partial class RadioSettingsViewModel(IRadioPrivacySettings privacy,
 
     public Task SetBackdropAsync(int index)
     {
-        if (!Enum.IsDefined((RadioWindowBackdrop)index) || appearance is null) return Task.CompletedTask;
-        return SaveAsync(index, SelectedBackdrop, value => appearance.SetAsync((RadioWindowBackdrop)value),
+        return !Enum.IsDefined((RadioWindowBackdrop)index) || appearance is null ? Task.CompletedTask : SaveAsync(index, SelectedBackdrop, value => appearance.SetAsync((RadioWindowBackdrop)value),
             "appearance.write", "window-background");
     }
 
-    public Task FlushAsync() => Task.WhenAll(_pendingEdit, playback?.FlushAsync() ?? Task.CompletedTask,
-        appearance?.FlushAsync() ?? Task.CompletedTask);
+    public Task FlushAsync()
+    {
+        return Task.WhenAll(_pendingEdit, playback?.FlushAsync() ?? Task.CompletedTask,
+            appearance?.FlushAsync() ?? Task.CompletedTask);
+    }
 
-    public Task SetJumpListEnabledAsync(bool enabled) =>
-        SaveAsync(enabled, IsJumpListEnabled, async value =>
+    public Task SetJumpListEnabledAsync(bool enabled)
+    {
+        return SaveAsync(enabled, IsJumpListEnabled, async value =>
         {
-            if (playback is null) return;
+            if (playback is null)
+            {
+                return;
+            }
+
             await playback.UpdateAsync(options => options with { JumpLists = value });
             refreshJumpList?.Invoke();
         }, "shell.jump-list-choice", "jump-list");
+    }
 
     private Task SaveAsync<T>(T enabled, T current, Func<T, Task> save, string category, string choice)
     {
-        if (IsSaving || EqualityComparer<T>.Default.Equals(enabled, current)) return Task.CompletedTask;
+        if (IsSaving || EqualityComparer<T>.Default.Equals(enabled, current))
+        {
+            return Task.CompletedTask;
+        }
+
         _pendingEdit = SaveCoreAsync(enabled, save, category, choice);
         return _pendingEdit;
     }

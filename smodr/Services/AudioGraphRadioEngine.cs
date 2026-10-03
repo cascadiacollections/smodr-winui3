@@ -34,13 +34,18 @@ internal sealed partial class AudioGraphRadioEngine : IRadioAudioEngine
 
     private void InputCompleted(MediaSourceAudioInputNode sender, object args)
     {
-        if (Volatile.Read(ref _disposed) == 0) Completed?.Invoke(this, EventArgs.Empty);
+        if (Volatile.Read(ref _disposed) == 0)
+        {
+            Completed?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     private void GraphFailed(AudioGraph sender, AudioGraphUnrecoverableErrorOccurredEventArgs args)
     {
         if (Volatile.Read(ref _disposed) == 0 && args.Error != AudioGraphUnrecoverableError.None)
+        {
             Failed?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     public static async Task<AudioGraphRadioEngine> CreateAsync(Uri uri, RadioEqualizerPreset preset,
@@ -51,16 +56,32 @@ internal sealed partial class AudioGraphRadioEngine : IRadioAudioEngine
         try
         {
             var created = await AudioGraph.CreateAsync(new AudioGraphSettings(AudioRenderCategory.Media)).AsTask(cancellationToken);
-            if (created.Status != AudioGraphCreationStatus.Success) throw new InvalidOperationException("AudioGraph creation failed.");
+            if (created.Status != AudioGraphCreationStatus.Success)
+            {
+                throw new InvalidOperationException("AudioGraph creation failed.");
+            }
+
             graph = created.Graph;
             var output = await graph.CreateDeviceOutputNodeAsync().AsTask(cancellationToken);
-            if (output.Status != AudioDeviceNodeCreationStatus.Success) throw new InvalidOperationException("Audio output unavailable.");
+            if (output.Status != AudioDeviceNodeCreationStatus.Success)
+            {
+                throw new InvalidOperationException("Audio output unavailable.");
+            }
+
             source = MediaSource.CreateFromUri(uri);
             var input = await graph.CreateMediaSourceAudioInputNodeAsync(source).AsTask(cancellationToken);
-            if (input.Status != MediaSourceAudioInputNodeCreationStatus.Success) throw new InvalidOperationException("DSP source unsupported.");
+            if (input.Status != MediaSourceAudioInputNodeCreationStatus.Success)
+            {
+                throw new InvalidOperationException("DSP source unsupported.");
+            }
+
             var equalizer = new EqualizerEffectDefinition(graph);
             var bands = RadioEqualizerProfiles.Bands(preset);
-            if (equalizer.Bands.Count != bands.Count) throw new InvalidOperationException("Unexpected equalizer band count.");
+            if (equalizer.Bands.Count != bands.Count)
+            {
+                throw new InvalidOperationException("Unexpected equalizer band count.");
+            }
+
             for (var index = 0; index < bands.Count; index++)
             {
                 equalizer.Bands[index].FrequencyCenter = bands[index].Frequency;
@@ -88,7 +109,11 @@ internal sealed partial class AudioGraphRadioEngine : IRadioAudioEngine
     public void Pause() { _graph.Stop(); State = MediaPlaybackState.Paused; StateChanged?.Invoke(this, State); }
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
+
         _input.MediaSourceCompleted -= InputCompleted;
         _graph.UnrecoverableErrorOccurred -= GraphFailed;
         try { _graph.Stop(); }

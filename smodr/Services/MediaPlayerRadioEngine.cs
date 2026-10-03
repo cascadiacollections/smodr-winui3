@@ -20,8 +20,15 @@ internal sealed class MediaPlayerRadioEngine : IRadioAudioEngine
 
     public MediaPlayerRadioEngine(PreparedRadioSource? prepared = null)
     {
-        if (prepared is not null) (Player, _source) = prepared.Transfer();
-        else Player = new MediaPlayer { AudioCategory = MediaPlayerAudioCategory.Media, AudioDeviceType = MediaPlayerAudioDeviceType.Multimedia };
+        if (prepared is not null)
+        {
+            (Player, _source) = prepared.Transfer();
+        }
+        else
+        {
+            Player = new MediaPlayer { AudioCategory = MediaPlayerAudioCategory.Media, AudioDeviceType = MediaPlayerAudioDeviceType.Multimedia };
+        }
+
         try
         {
             Player.CommandManager.IsEnabled = true;
@@ -36,31 +43,59 @@ internal sealed class MediaPlayerRadioEngine : IRadioAudioEngine
     internal void AdoptSource(MediaSource source, MediaPlaybackItem item)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
-        if (_source is not null) throw new InvalidOperationException("A radio engine owns only one source.");
+        if (_source is not null)
+        {
+            throw new InvalidOperationException("A radio engine owns only one source.");
+        }
+
         Player.Source = item;
         _source = source;
     }
 
     private void PlaybackStateChanged(MediaPlaybackSession sender, object args)
     {
-        if (Volatile.Read(ref _disposed) == 0) StateChanged?.Invoke(this, sender.PlaybackState);
+        if (Volatile.Read(ref _disposed) == 0)
+        {
+            StateChanged?.Invoke(this, sender.PlaybackState);
+        }
     }
     private void MediaEnded(MediaPlayer sender, object args)
     {
-        if (Volatile.Read(ref _disposed) == 0) Completed?.Invoke(this, EventArgs.Empty);
+        if (Volatile.Read(ref _disposed) == 0)
+        {
+            Completed?.Invoke(this, EventArgs.Empty);
+        }
     }
     private void MediaFailed(MediaPlayer sender, MediaPlayerFailedEventArgs args)
     {
         // Do not propagate native error messages that can contain station URLs.
-        if (Volatile.Read(ref _disposed) == 0) Failed?.Invoke(this, EventArgs.Empty);
+        if (Volatile.Read(ref _disposed) == 0)
+        {
+            Failed?.Invoke(this, EventArgs.Empty);
+        }
     }
-    public void Play() => Player.Play();
-    public void Pause() => Player.Pause();
-    public void SetVolume(double volume) => Player.Volume = Math.Clamp(volume, 0, 1);
+    public void Play()
+    {
+        Player.Play();
+    }
+
+    public void Pause()
+    {
+        Player.Pause();
+    }
+
+    public void SetVolume(double volume)
+    {
+        Player.Volume = Math.Clamp(volume, 0, 1);
+    }
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
+
         try
         {
             Player.PlaybackSession.PlaybackStateChanged -= PlaybackStateChanged;

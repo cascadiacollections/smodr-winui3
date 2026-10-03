@@ -3,6 +3,10 @@ using Windows.UI.StartScreen;
 
 namespace smodr.Services;
 
+/// <summary>
+/// Represents a jump list for the radio application, allowing users to quickly access their favorite and recent radio stations from the Windows taskbar or Start menu.
+/// </summary>
+/// <param name="preferences">The radio playback preferences.</param>
 internal sealed partial class RadioJumpList(RadioPlaybackPreferences preferences) : IDisposable
 {
     private readonly Lock _gate = new();

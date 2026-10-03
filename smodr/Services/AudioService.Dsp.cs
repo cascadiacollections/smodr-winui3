@@ -54,7 +54,11 @@ public partial class AudioService
         catch (OperationCanceledException) when (version != _sourceVersion || !_recovery.IsRequested) { }
         catch (Exception exception)
         {
-            if (version != _sourceVersion || !ReferenceEquals(station, CurrentStation) || !_recovery.IsRequested) return;
+            if (version != _sourceVersion || !ReferenceEquals(station, CurrentStation) || !_recovery.IsRequested)
+            {
+                return;
+            }
+
             AppDiagnostics.Record("station.dsp-start", exception);
             PublishDspState(MediaPlaybackState.Buffering);
             _recovery.Fail();
@@ -62,7 +66,10 @@ public partial class AudioService
         finally
         {
             pending?.Dispose();
-            if (ReferenceEquals(_dspStart, cancellation)) _dspStart = null;
+            if (ReferenceEquals(_dspStart, cancellation))
+            {
+                _dspStart = null;
+            }
         }
     }
 
@@ -86,8 +93,14 @@ public partial class AudioService
         if (_dsp is { } dsp)
         {
             _dsp = null;
-            if (ReferenceEquals(_engines.Current, dsp)) _engines.Replace(null);
-            else dsp.Dispose();
+            if (ReferenceEquals(_engines.Current, dsp))
+            {
+                _engines.Replace(null);
+            }
+            else
+            {
+                dsp.Dispose();
+            }
         }
         _dspState = MediaPlaybackState.None;
     }
@@ -96,6 +109,7 @@ public partial class AudioService
     {
         _dspState = state;
         if (_manualControls is { } controls)
+        {
             controls.PlaybackStatus = state switch
             {
                 MediaPlaybackState.Playing => MediaPlaybackStatus.Playing,
@@ -103,18 +117,27 @@ public partial class AudioService
                 MediaPlaybackState.Opening or MediaPlaybackState.Buffering => MediaPlaybackStatus.Changing,
                 _ => MediaPlaybackStatus.Stopped
             };
+        }
+
         if (state == MediaPlaybackState.Playing)
         {
             _dspWatchdog?.Start();
             _recovery.Playing();
-            if (CurrentStation is { } station) _trackMonitor.Start(station);
+            if (CurrentStation is { } station)
+            {
+                _trackMonitor.Start(station);
+            }
+
             _dspProgress.Reset(_dsp?.Position ?? TimeSpan.Zero);
         }
         else
         {
             _dspWatchdog?.Stop();
             _trackMonitor.Stop();
-            if (state is MediaPlaybackState.Opening or MediaPlaybackState.Buffering) _recovery.Buffering();
+            if (state is MediaPlaybackState.Opening or MediaPlaybackState.Buffering)
+            {
+                _recovery.Buffering();
+            }
         }
         PlaybackStateChanged?.Invoke(this, state);
     }
@@ -127,14 +150,20 @@ public partial class AudioService
 
     private void DspWatchdog_Tick(object? sender, object args)
     {
-        if (_dsp is not { } dsp || !_recovery.IsRequested || _dspState != MediaPlaybackState.Playing) return;
+        if (_dsp is not { } dsp || !_recovery.IsRequested || _dspState != MediaPlaybackState.Playing)
+        {
+            return;
+        }
+
         try
         {
-            if (_dspProgress.IsStalled(dsp.Position))
+            if (!_dspProgress.IsStalled(dsp.Position))
             {
-                PublishDspState(MediaPlaybackState.Buffering);
-                _recovery.Fail();
+                return;
             }
+
+            PublishDspState(MediaPlaybackState.Buffering);
+            _recovery.Fail();
         }
         catch (Exception exception)
         {
@@ -149,15 +178,23 @@ public partial class AudioService
     {
         RunOnPlayerThread(() =>
         {
-            if (!ReferenceEquals(sender, _manualControls) || CurrentStation is null) return;
+            if (!ReferenceEquals(sender, _manualControls) || CurrentStation is null)
+            {
+                return;
+            }
+
             try
             {
-                if (args.Button == SystemMediaTransportControlsButton.Play && !_recovery.IsRequested)
+                switch (args.Button)
                 {
-                    Play();
-                    UserPlaybackStarted?.Invoke(this, EventArgs.Empty);
+                    case SystemMediaTransportControlsButton.Play when !_recovery.IsRequested:
+                        Play();
+                        UserPlaybackStarted?.Invoke(this, EventArgs.Empty);
+                        break;
+                    case SystemMediaTransportControlsButton.Pause:
+                        Pause();
+                        break;
                 }
-                else if (args.Button == SystemMediaTransportControlsButton.Pause) Pause();
             }
             catch (Exception exception) { AppDiagnostics.Record("station.dsp-system-control", exception); }
         });
@@ -165,7 +202,11 @@ public partial class AudioService
 
     private void UpdateManualMetadata()
     {
-        if (_manualControls is not { } controls || CurrentStation is not { } station) return;
+        if (_manualControls is not { } controls || CurrentStation is not { } station)
+        {
+            return;
+        }
+
         try
         {
             var metadata = NowPlayingMetadata.ForPlayback(station, CurrentTrack);

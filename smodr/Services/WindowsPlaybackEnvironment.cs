@@ -29,16 +29,31 @@ internal sealed class WindowsPlaybackEnvironment(Action<bool?, bool?> changed) :
         catch (Exception exception) { AppDiagnostics.Record("playback.network-watch", exception); }
     }
 
-    private void SuspendChanged(object? sender, object args) => PublishPower();
-    private void NetworkChanged(object sender) => PublishNetwork();
+    private void SuspendChanged(object? sender, object args)
+    {
+        PublishPower();
+    }
+
+    private void NetworkChanged(object sender)
+    {
+        PublishNetwork();
+    }
 
     private void PublishPower()
     {
-        if (Volatile.Read(ref _disposed) != 0) return;
+        if (Volatile.Read(ref _disposed) != 0)
+        {
+            return;
+        }
+
         try
         {
             var status = PowerManager.SystemSuspendStatus;
-            if (status == SystemSuspendStatus.Uninitialized) return;
+            if (status == SystemSuspendStatus.Uninitialized)
+            {
+                return;
+            }
+
             changed(status == SystemSuspendStatus.Entering, null);
         }
         catch (Exception exception) { AppDiagnostics.Record("playback.power-read", exception); }
@@ -46,7 +61,11 @@ internal sealed class WindowsPlaybackEnvironment(Action<bool?, bool?> changed) :
 
     private void PublishNetwork()
     {
-        if (Volatile.Read(ref _disposed) != 0) return;
+        if (Volatile.Read(ref _disposed) != 0)
+        {
+            return;
+        }
+
         try
         {
             // NCSI InternetAccess is not required: LAN radio and captive-network
@@ -60,7 +79,11 @@ internal sealed class WindowsPlaybackEnvironment(Action<bool?, bool?> changed) :
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
+
         if (_powerSubscribed)
         {
             try { PowerManager.SystemSuspendStatusChanged -= SuspendChanged; }

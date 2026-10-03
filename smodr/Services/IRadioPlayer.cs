@@ -7,7 +7,6 @@ public interface IRadioPlayer
 {
     RadioStation? CurrentStation { get; }
     RadioTrackInfo? CurrentTrack { get; }
-    bool IsPlaying { get; }
     bool IsPlaybackRequested { get; }
     event EventHandler<RadioStation?>? StationChanged;
     event EventHandler<RadioTrackUpdate?>? TrackChanged;

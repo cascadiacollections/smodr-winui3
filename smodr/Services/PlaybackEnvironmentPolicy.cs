@@ -13,7 +13,12 @@ internal sealed class PlaybackEnvironmentPolicy
     public void UserIntent(bool requested)
     {
         IsResumePending = requested && IsBlocked;
-        if (!requested) { _sleepInterrupted = false; _networkInterrupted = false; }
+        if (requested)
+        {
+            return;
+        }
+
+        _sleepInterrupted = false; _networkInterrupted = false;
     }
 
     public PlaybackEnvironmentAction Update(bool suspended, bool connected, bool requested,
@@ -22,14 +27,30 @@ internal sealed class PlaybackEnvironmentPolicy
         var blocked = suspended || !connected;
         if (blocked)
         {
-            if (suspended) _sleepInterrupted = true;
-            if (!connected) _networkInterrupted = true;
-            if (IsBlocked) return PlaybackEnvironmentAction.None;
+            if (suspended)
+            {
+                _sleepInterrupted = true;
+            }
+
+            if (!connected)
+            {
+                _networkInterrupted = true;
+            }
+
+            if (IsBlocked)
+            {
+                return PlaybackEnvironmentAction.None;
+            }
+
             IsBlocked = true;
             IsResumePending = requested;
             return PlaybackEnvironmentAction.Hold;
         }
-        if (!IsBlocked) return PlaybackEnvironmentAction.None;
+        if (!IsBlocked)
+        {
+            return PlaybackEnvironmentAction.None;
+        }
+
         IsBlocked = false;
         var resume = IsResumePending && (!_sleepInterrupted || resumeAfterSleep)
             && (!_networkInterrupted || resumeAfterNetwork);
