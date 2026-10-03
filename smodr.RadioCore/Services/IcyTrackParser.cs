@@ -32,8 +32,8 @@ public static class IcyTrackParser
     {
         if (string.IsNullOrWhiteSpace(raw) || raw.Length > 4096) return false;
         var info = ParseCore(raw.TrimEnd('\0'), 0);
-        return info is not null && (info.Title.Contains('\uFFFD', StringComparison.Ordinal)
-            || info.Artist?.Contains('\uFFFD', StringComparison.Ordinal) == true)
+        return info is not null && (HasDamagedText(info.Title)
+            || info.Artist is { } artist && HasDamagedText(artist))
             && IsLikelySong(info, stationName, allowDamagedText: true);
     }
 
@@ -152,7 +152,7 @@ public static class IcyTrackParser
         {
             // Original bytes are unrecoverable once a replacement character is
             // received. Reject damaged text rather than guessing an artist.
-            if (!allowDamagedText && value!.Contains('\uFFFD', StringComparison.Ordinal)) return false;
+            if (!allowDamagedText && HasDamagedText(value!)) return false;
             if (value!.Contains("http://", StringComparison.OrdinalIgnoreCase)
                 || value.Contains("https://", StringComparison.OrdinalIgnoreCase)
                 || value.Contains("www.", StringComparison.OrdinalIgnoreCase)
@@ -176,5 +176,21 @@ public static class IcyTrackParser
         foreach (var character in value)
             if (char.IsLetterOrDigit(character)) builder.Append(char.ToLowerInvariant(character));
         return builder.ToString();
+    }
+
+    private static bool HasDamagedText(string value)
+    {
+        for (var index = 0; index < value.Length; index++)
+        {
+            var character = value[index];
+            if (character == '\uFFFD' || char.IsControl(character)) return true;
+            if (char.IsHighSurrogate(character))
+            {
+                if (index + 1 >= value.Length || !char.IsLowSurrogate(value[index + 1])) return true;
+                index++;
+            }
+            else if (char.IsLowSurrogate(character)) return true;
+        }
+        return false;
     }
 }

@@ -185,6 +185,15 @@ accepted record from `FlushAsync`; shutdown must wait for that record to reach
 the real history store before flushing. Post-close queued collection refreshes
 are ignored. These tests use explicit gates rather than timing sleeps.
 
+`ParserFuzz` uses two fixed seeds and 5,000 ICY-field mutations per seed. It
+checks deterministic results, bounded display fields, and rejection of damaged
+Unicode/control text without logging generated song strings. Separate regressions
+cover input/field size limits, nested-field recursion, and valid emoji. This is
+a reproducible mutation corpus, not exhaustive fuzzing or a wall-clock SLA.
+The parser now rejects embedded controls and unpaired UTF-16 surrogates as damaged
+cues as well as replacement characters, so a damaged cue clears obsolete track
+state instead of sending invalid display text to native media controls.
+
 ## Local shutdown/metadata hardening verification (2026-10-02)
 
 Both ARM64 and x64 Release builds/tests passed with warnings treated as errors:
