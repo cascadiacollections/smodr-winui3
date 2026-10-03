@@ -95,6 +95,49 @@ public sealed class MetadataOrchestrationTests
 
     private static AlbumArtworkMatch Match(string name) => new(new Uri($"https://art.example/{name}.jpg"), null);
 
+    [TestMethod]
+    public async Task QueuedArtworkFromEarlierOccurrenceCannotReplaceSameSongAfterInterveningTrack()
+    {
+        await using var scenario = new Scenario();
+        var session = await scenario.SelectAsync("first");
+        var first = await scenario.EmitAsync(session, "Song A");
+        await scenario.UntilAsync(() => scenario.ViewModel.HeardTracks.Count == 1);
+        first.Result.SetResult(Match("earlier-a"));
+        var queuedArtwork = await scenario.TakePostedAsync();
+        var middle = await scenario.EmitAsync(session, "Song B");
+        var repeated = await scenario.EmitAsync(session, "Song A");
+        queuedArtwork();
+        Assert.AreEqual(scenario.Player.CurrentStation!.ArtworkUrl, scenario.ViewModel.CurrentArtworkUrl);
+        repeated.Result.SetResult(Match("current-a"));
+        await scenario.UntilAsync(() => scenario.ViewModel.CurrentArtworkUrl == Match("current-a").ArtworkUrl.AbsoluteUri);
+        middle.Result.SetResult(Match("late-b"));
+        await scenario.ViewModel.ShutdownAsync();
+        scenario.Drain();
+        var saved = scenario.ReloadHistory();
+        Assert.HasCount(3, saved);
+        Assert.AreEqual("Song A", saved[0].Title);
+        Assert.AreEqual(Match("current-a").ArtworkUrl.AbsoluteUri, saved[0].ArtworkUrl);
+        Assert.AreEqual(string.Empty, saved[1].ArtworkUrl);
+        Assert.AreEqual(string.Empty, saved[2].ArtworkUrl);
+        Assert.AreEqual(Match("current-a").ArtworkUrl, scenario.Player.Artwork);
+    }
+
+    [TestMethod]
+    public async Task ShutdownWaitsForAcceptedHistoryRecordBeforeFlushAndIgnoresQueuedUiRefresh()
+    {
+        await using var scenario = new Scenario(delayHistory: true);
+        var session = await scenario.SelectAsync("first");
+        await scenario.EmitAsync(session, "Accepted");
+        await scenario.History.Started.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        var shutdown = scenario.ViewModel.ShutdownAsync();
+        Assert.IsFalse(shutdown.IsCompleted);
+        scenario.History.Release.TrySetResult();
+        await shutdown.WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.AreEqual("Accepted", scenario.ReloadHistory().Single().Title);
+        scenario.Drain();
+        Assert.HasCount(0, scenario.ViewModel.HeardTracks);
+    }
+
     private sealed class Scenario : IAsyncDisposable
     {
         private readonly DirectoryInfo _directory = Directory.CreateTempSubdirectory("shoutkit-metadata-scenario-");
@@ -105,16 +148,19 @@ public sealed class MetadataOrchestrationTests
         public Player Player { get; }
         public RadioPrivacySettings Privacy { get; }
         public RadioMainViewModel ViewModel { get; }
+        public DeferredHistory History { get; }
 
-        public Scenario()
+        public Scenario(bool delayHistory = false)
         {
             Player = new Player(new IcyTrackMonitor(new Probe(), continuousReader: Reader));
             Privacy = new RadioPrivacySettings(Path.Combine(_directory.FullName, "privacy.json"));
+            History = new DeferredHistory(new TrackHistoryService(Path.Combine(_directory.FullName, "history.json")));
+            if (!delayHistory) History.Release.TrySetResult();
             ViewModel = new RadioMainViewModel(Player, new DirectoryStub(),
                 new RadioLibraryService(Path.Combine(_directory.FullName, "library.json")),
                 action => { _dispatch.Enqueue(action); _posted.Writer.TryWrite(true); },
                 privacySettings: Privacy,
-                trackHistory: new TrackHistoryService(Path.Combine(_directory.FullName, "history.json")),
+                trackHistory: History,
                 albumArtworkLookup: _catalog, canPrefetch: () => false);
         }
 
@@ -143,6 +189,16 @@ public sealed class MetadataOrchestrationTests
 
         public void Drain() { while (_dispatch.TryDequeue(out var action)) action(); }
 
+        public async Task<Action> TakePostedAsync()
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            while (true)
+            {
+                if (_dispatch.TryDequeue(out var action)) return action;
+                await _posted.Reader.ReadAsync(deadline.Token);
+            }
+        }
+
         public async Task UntilAsync(Func<bool> condition)
         {
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
@@ -156,10 +212,27 @@ public sealed class MetadataOrchestrationTests
 
         public async ValueTask DisposeAsync()
         {
+            History.Release.TrySetResult();
             await ViewModel.ShutdownAsync();
             await Privacy.FlushAsync();
             _directory.Delete(recursive: true);
         }
+    }
+
+    private sealed class DeferredHistory(ITrackHistoryService inner) : ITrackHistoryService
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public IReadOnlyList<HeardTrack> Entries => inner.Entries;
+        public async Task<Guid> RecordAsync(RadioStation station, RadioTrackInfo track)
+        {
+            Started.TrySetResult();
+            await Release.Task;
+            return await inner.RecordAsync(station, track);
+        }
+        public Task UpdateArtworkAsync(Guid entryId, AlbumArtworkMatch artwork) => inner.UpdateArtworkAsync(entryId, artwork);
+        // This flush cannot see the admission blocked above: the view model must drain first.
+        public Task FlushAsync() => inner.FlushAsync();
     }
 
     private sealed record Request(TaskCompletionSource<AlbumArtworkMatch?> Result);

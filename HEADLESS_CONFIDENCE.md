@@ -178,6 +178,13 @@ The player and catalog are controlled test doubles: these tests do not prove
 native MediaPlayer decoding, audible playback, XAML layout, or actual SMTC
 rendering. Their category is `MetadataScenario` for repeated headless runs.
 
+Additional scenarios hold an artwork dispatcher callback across A → B → A and
+verify that the earlier occurrence cannot update the UI, player artwork, or the
+wrong persisted history entry. A gated history adapter intentionally hides its
+accepted record from `FlushAsync`; shutdown must wait for that record to reach
+the real history store before flushing. Post-close queued collection refreshes
+are ignored. These tests use explicit gates rather than timing sleeps.
+
 ## Local shutdown/metadata hardening verification (2026-10-02)
 
 Both ARM64 and x64 Release builds/tests passed with warnings treated as errors:
