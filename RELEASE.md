@@ -95,3 +95,5 @@ Software notices are generated from the restored app lockfile and self-contained
 7. Move from .NET 11 RC to a serviced GA version when available; republish both architectures and repeat the release gate.
 
 References: [Windows packaging choices](https://learn.microsoft.com/windows/apps/package-and-deploy/packaging/), [MSIX signing](https://learn.microsoft.com/windows/msix/package/sign-msix-package-guide), [WinUI testing](https://learn.microsoft.com/windows/apps/develop/testing/), and [GitHub-hosted Windows ARM64 runners](https://docs.github.com/actions/reference/runners/github-hosted-runners).
+
+Latest local results: see [2026-10-07 headless validation](HEADLESS_VALIDATION.md) for both architectures, portable SDK, soak, packaging and hashed evidence, plus remaining distribution gates.

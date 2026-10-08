@@ -119,10 +119,9 @@ public sealed class RecoveryUxTests
 
     private sealed class RecoveringPlayer : IRadioPlayer
     {
-        private bool _requested;
         public RadioStation? CurrentStation { get; private set; }
         public RadioTrackInfo? CurrentTrack => null;
-        public bool IsPlaybackRequested => _requested;
+        public bool IsPlaybackRequested { get; private set; }
         public bool IsReconnecting { get; set; }
         public int PlayCalls { get; private set; }
         public event EventHandler<RadioStation?>? StationChanged;
@@ -137,7 +136,7 @@ public sealed class RecoveryUxTests
 
         public void Fail(string message)
         {
-            _requested = false;
+            IsPlaybackRequested = false;
             IsReconnecting = false;
             PlaybackFailed?.Invoke(this, message);
         }
@@ -145,7 +144,7 @@ public sealed class RecoveryUxTests
         public Task PlayStationAsync(RadioStation station)
         {
             CurrentStation = station;
-            _requested = true;
+            IsPlaybackRequested = true;
             StationChanged?.Invoke(this, station);
             return Task.CompletedTask;
         }
@@ -153,15 +152,15 @@ public sealed class RecoveryUxTests
         public void Play()
         {
             PlayCalls++;
-            _requested = true;
+            IsPlaybackRequested = true;
         }
 
-        public void Pause() => _requested = false;
+        public void Pause() => IsPlaybackRequested = false;
 
         public void StopStation()
         {
             CurrentStation = null;
-            _requested = false;
+            IsPlaybackRequested = false;
             StationChanged?.Invoke(this, null);
         }
 

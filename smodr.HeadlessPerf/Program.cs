@@ -56,10 +56,10 @@ try
         }
         stream.Seek(0);
         var decoder = await BitmapDecoder.CreateAsync(stream);
-        var size = ArtworkSizing.DecodeDimensions(decoder.PixelWidth, decoder.PixelHeight, 128)
+        var (width, height) = ArtworkSizing.DecodeDimensions(decoder.PixelWidth, decoder.PixelHeight, 128)
             ?? throw new InvalidOperationException("Synthetic dimensions rejected.");
         var pixels = await decoder.GetPixelDataAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore,
-            new BitmapTransform { ScaledWidth = (uint)size.Width, ScaledHeight = (uint)size.Height },
+            new BitmapTransform { ScaledWidth = (uint)width, ScaledHeight = (uint)height },
             ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
         Require(pixels.DetachPixelData().Length == 128 * 128 * 4);
     }),
