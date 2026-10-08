@@ -40,4 +40,14 @@ public sealed class RadioStationTests
     {
         Assert.IsFalse(RadioStationIdentity.Matches(new RadioStation(), new RadioStation()));
     }
+
+    [TestMethod]
+    public void ListItemsAnnounceReadableNamesInsteadOfTypeNames()
+    {
+        Assert.AreEqual("KEXP", new RadioStation { Name = "KEXP" }.ToString());
+        Assert.AreEqual("Unnamed station", new RadioStation().ToString());
+        var heard = new HeardTrack { Title = "Song", Artist = "Artist", StationName = "KEXP" };
+        Assert.StartsWith("Artist — Song, KEXP · ", heard.ToString());
+        Assert.StartsWith("Artist — Song, 2 plays", new TopTrack("Song", "Artist", 2, DateTimeOffset.UnixEpoch).ToString());
+    }
 }

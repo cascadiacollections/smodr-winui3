@@ -51,4 +51,7 @@ public sealed class RadioStation
         (Tags ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault() ?? string.Empty,
         Bitrate > 0 ? $"{Bitrate} kbps {Codec}" : Codec ?? string.Empty
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    /// <summary>List containers announce ToString() to screen readers.</summary>
+    public override string ToString() => string.IsNullOrWhiteSpace(Name) ? "Unnamed station" : Name;
 }

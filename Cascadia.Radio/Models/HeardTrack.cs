@@ -19,4 +19,7 @@ public sealed class HeardTrack
 
     [JsonIgnore]
     public string Details => $"{StationName} · {HeardAt.ToLocalTime():g}";
+
+    /// <summary>List containers announce ToString() to screen readers.</summary>
+    public override string ToString() => $"{Display}, {Details}";
 }

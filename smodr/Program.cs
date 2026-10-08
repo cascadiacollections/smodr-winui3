@@ -8,8 +8,12 @@ namespace smodr;
 
 public static class Program
 {
+    // Main must stay synchronous: the compiler does not copy [STAThread] onto the
+    // entry point it synthesizes for an async Main, so XAML would start on an MTA
+    // thread and the first out-of-process UI Automation query (Narrator, Voice
+    // Access, test tools) crashes the app. ProgramEntryPointTests guards this.
     [STAThread]
-    public static async Task Main(string[] args)
+    public static void Main(string[] args)
     {
         WinRT.ComWrappersSupport.InitializeComWrappers();
 
@@ -36,7 +40,9 @@ public static class Program
         var instance = AppInstance.FindOrRegisterForKey("CascadiaCollections.Shoutkit.Windows");
         if (!instance.IsCurrent)
         {
-            await instance.RedirectActivationToAsync(current.GetActivatedEventArgs());
+            // Run the redirect off the STA; the blocking wait still pumps COM, as Windows App SDK's sample requires.
+            var activation = current.GetActivatedEventArgs();
+            Task.Run(() => instance.RedirectActivationToAsync(activation).AsTask()).Wait();
             return;
         }
 
