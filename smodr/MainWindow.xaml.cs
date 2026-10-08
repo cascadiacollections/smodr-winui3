@@ -282,6 +282,7 @@ public sealed partial class MainWindow : Window
         await ViewModel.ToggleFavoriteAsync(station);
 
     private void PlayPauseButton_Click(object sender, RoutedEventArgs e) => ViewModel.PlayPause();
+    private void RetryPlaybackButton_Click(object sender, RoutedEventArgs e) => ViewModel.RetryPlayback();
     private void StopButton_Click(object sender, RoutedEventArgs e) => ViewModel.Stop();
 
     private void SleepTimerDuration_Click(object sender, RoutedEventArgs e)
@@ -390,6 +391,9 @@ public sealed partial class MainWindow : Window
             case nameof(ViewModel.RemovedFavorite):
                 UpdateFavoriteUndo();
                 break;
+            case nameof(ViewModel.CanRetry):
+                UpdateStatus();
+                break;
         }
     }
 
@@ -481,6 +485,7 @@ public sealed partial class MainWindow : Window
                 ? "Playback failed"
                 : "Radio directory unavailable";
         StatusInfoBar.Message = isError ? ViewModel.Status : string.Empty;
+        RetryPlaybackButton.Visibility = isError && ViewModel.CanRetry ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void LibraryCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)

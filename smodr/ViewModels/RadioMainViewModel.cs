@@ -102,6 +102,10 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     [ObservableProperty] public partial string CurrentAppleMusicUrl { get; set; } = string.Empty;
     [ObservableProperty] public partial bool IsPlaying { get; set; }
     [ObservableProperty] public partial bool IsLoading { get; set; }
+    /// <summary>An automatic rejoin is underway; the UI says Reconnecting rather than Buffering.</summary>
+    [ObservableProperty] public partial bool IsReconnecting { get; set; }
+    /// <summary>Automatic recovery gave up on the current station; offer an explicit Retry.</summary>
+    [ObservableProperty] public partial bool CanRetry { get; set; }
     [ObservableProperty] public partial string Status { get; set; } = "Tuning in…";
     public bool IsPlayReportingEnabled => _privacySettings?.IsPlayReportingEnabled ?? false;
 
@@ -421,6 +425,13 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
 
     public void PlayPause() => PlayPauseCore(reportPlay: true);
 
+    public void RetryPlayback()
+    {
+        if (!CanRetry) return;
+        CanRetry = false;
+        if (!_audio.IsPlaybackRequested) PlayPauseCore(reportPlay: true);
+    }
+
     private void PlayPauseCore(bool reportPlay)
     {
         CancelPendingSelection();
@@ -462,6 +473,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             _audio.StopStation();
             CurrentStation = null;
             IsPlaying = false;
+            CanRetry = false;
+            IsReconnecting = false;
         }
         catch (Exception ex)
         {
@@ -652,6 +665,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             CurrentPlaybackState = MediaPlaybackState.None;
             CancelArtworkLookup();
             _currentHistoryRecord = null;
+            CanRetry = false;
+            IsReconnecting = false;
             CurrentStation = station;
             CurrentTrack = null;
             CurrentArtworkUrl = station?.ArtworkUrl ?? string.Empty;
@@ -779,8 +794,11 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             // the transport button must offer Pause, not start another Play.
             CurrentPlaybackState = state;
             IsPlaying = _audio.IsPlaybackRequested;
+            IsReconnecting = _audio.IsReconnecting;
+            if (state is MediaPlaybackState.Opening or MediaPlaybackState.Buffering or MediaPlaybackState.Playing) CanRetry = false;
             Status = state switch
             {
+                MediaPlaybackState.Opening or MediaPlaybackState.Buffering when IsReconnecting => "Reconnecting…",
                 MediaPlaybackState.Opening => "Loading…",
                 MediaPlaybackState.Buffering => "Buffering…",
                 MediaPlaybackState.Paused => "Paused",
@@ -793,6 +811,8 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         _dispatch(() =>
         {
             IsPlaying = false;
+            IsReconnecting = false;
+            CanRetry = _audio.CurrentStation is not null;
             Status = $"Unable to play this station: {message}";
         });
 

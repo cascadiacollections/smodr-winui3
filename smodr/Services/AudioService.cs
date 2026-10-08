@@ -116,6 +116,8 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
     public bool IsPlaybackRequested => CurrentStation is not null
                                        && (_recovery.IsRequested || _environmentPolicy.IsResumePending);
 
+    public bool IsReconnecting => CurrentStation is not null && _recovery.IsReconnecting;
+
     public event EventHandler<RadioStation?>? StationChanged;
     public event EventHandler<RadioTrackUpdate?>? TrackChanged;
     public event EventHandler<string>? PlaybackFailed;
@@ -795,7 +797,7 @@ public partial class AudioService : IRadioPlayer, IDisposable, IAsyncDisposable
             }
 
             ReleasePlayer();
-            PlaybackFailed?.Invoke(this, "The stream stopped responding. Select Play to retry.");
+            PlaybackFailed?.Invoke(this, "The stream stopped responding. Select Retry or Play to try again.");
         });
     }
 

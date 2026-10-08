@@ -288,7 +288,12 @@
                 <ProgressRing x:Name="LoadingRing" Width="42" Height="42" IsActive="False" Visibility="Collapsed"
                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <InfoBar x:Name="StatusInfoBar" IsOpen="False" Severity="Informational" AutomationProperties.LiveSetting="Polite"
-                         HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="16"/>
+                         HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="16">
+                    <InfoBar.ActionButton>
+                        <Button x:Name="RetryPlaybackButton" Content="Retry" Visibility="Collapsed" Click="RetryPlaybackButton_Click"
+                                AutomationProperties.Name="Retry playback"/>
+                    </InfoBar.ActionButton>
+                </InfoBar>
                 <InfoBar x:Name="FavoriteUndoBar" IsOpen="False" Severity="Informational" IsClosable="True"
                          AutomationProperties.LiveSetting="Polite" Closed="FavoriteUndoBar_Closed"
                          HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="16" MaxWidth="560">

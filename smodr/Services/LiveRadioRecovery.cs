@@ -25,6 +25,7 @@ internal sealed class LiveRadioRecovery : IDisposable
     private int _attempts;
     private bool _requested;
     private bool _waitingForRetry;
+    private bool _reconnecting;
     private bool _disposed;
 
     private enum TimerKind { None, Stall, Resume, Retry }
@@ -72,6 +73,18 @@ internal sealed class LiveRadioRecovery : IDisposable
         }
     }
 
+    /// <summary>True from a scheduled retry until audio plays again, the user pauses, or the budget is spent.</summary>
+    public bool IsReconnecting
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return !_disposed && _requested && _reconnecting;
+            }
+        }
+    }
+
     public bool IsCurrent(long epoch)
     {
         lock (_gate)
@@ -102,6 +115,7 @@ internal sealed class LiveRadioRecovery : IDisposable
             _attempts = 0;
             _playing = false;
             _waitingForRetry = false;
+            _reconnecting = false;
             ArmLocked(TimerKind.Stall, _stallTimeout);
         }
     }
@@ -141,6 +155,7 @@ internal sealed class LiveRadioRecovery : IDisposable
             }
 
             _playing = true;
+            _reconnecting = false;
             CancelTimerLocked();
         }
     }
@@ -159,6 +174,7 @@ internal sealed class LiveRadioRecovery : IDisposable
             _attempts = 0;
             _playing = false;
             _waitingForRetry = false;
+            _reconnecting = false;
             ArmLocked(TimerKind.Resume, _resumeTimeout);
         }
     }
@@ -186,6 +202,7 @@ internal sealed class LiveRadioRecovery : IDisposable
         if (_attempts >= _maxRetries)
         {
             _requested = false;
+            _reconnecting = false;
             _diagnostics.Increment(RuntimeCounter.RecoveryExhausted);
             return new FailureDecision(_epoch, null, TimeSpan.Zero);
         }
@@ -193,6 +210,7 @@ internal sealed class LiveRadioRecovery : IDisposable
         _attempts++;
         _diagnostics.Increment(RuntimeCounter.RecoveryRetryScheduled);
         _waitingForRetry = true;
+        _reconnecting = true;
         var delay = TimeSpan.FromTicks(_retryBaseDelay.Ticks * (1L << (_attempts - 1)));
         return new FailureDecision(null, _epoch, delay);
     }
@@ -250,6 +268,7 @@ internal sealed class LiveRadioRecovery : IDisposable
             _epoch++;
             _requested = false;
             _waitingForRetry = false;
+            _reconnecting = false;
             CancelTimerLocked();
         }
     }

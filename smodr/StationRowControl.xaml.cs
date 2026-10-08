@@ -90,7 +90,8 @@ public sealed partial class StationRowControl : UserControl
 
     private void StateChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (args.PropertyName is nameof(RadioMainViewModel.CurrentStation) or nameof(RadioMainViewModel.CurrentPlaybackState)) UpdateState();
+        if (args.PropertyName is nameof(RadioMainViewModel.CurrentStation) or nameof(RadioMainViewModel.CurrentPlaybackState)
+            or nameof(RadioMainViewModel.IsReconnecting)) UpdateState();
     }
 
     private void FavoritesChanged(object? sender, NotifyCollectionChangedEventArgs args) => UpdateState();
@@ -103,6 +104,7 @@ public sealed partial class StationRowControl : UserControl
         var state = active ? _viewModel!.CurrentPlaybackState : MediaPlaybackState.None;
         var label = state switch
         {
+            MediaPlaybackState.Opening or MediaPlaybackState.Buffering when _viewModel!.IsReconnecting => "Reconnecting…",
             MediaPlaybackState.Playing => "Playing",
             MediaPlaybackState.Buffering => "Buffering…",
             MediaPlaybackState.Opening => "Loading…",
