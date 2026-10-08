@@ -6,7 +6,7 @@
         xmlns:models="using:smodr.Models"
         xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
         Title="Shoutkit">
-    <Window.SystemBackdrop><DesktopAcrylicBackdrop/></Window.SystemBackdrop>
+    <Window.SystemBackdrop><local:ThinDesktopAcrylicBackdrop/></Window.SystemBackdrop>
     <Grid>
         <Grid.Resources>
             <Style x:Key="StationListStyle" TargetType="ListView">
@@ -15,14 +15,10 @@
                 </Setter>
             </Style>
         </Grid.Resources>
-        <Grid.RowDefinitions><RowDefinition Height="32"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <Border x:Name="SolidWindowBackground" Grid.RowSpan="3" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
                 Visibility="Collapsed" IsHitTestVisible="False"/>
-        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="Transparent">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="48"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-            <FontIcon Grid.Column="0" Glyph="&#xE720;" FontSize="16" HorizontalAlignment="Center"/>
-            <TextBlock Grid.Column="1" Text="Shoutkit" VerticalAlignment="Center" Style="{ThemeResource CaptionTextBlockStyle}"/>
-        </Grid>
+        <TitleBar x:Name="AppTitleBar" Grid.Row="0" Title="Shoutkit" Background="Transparent"/>
         <NavigationView x:Name="AppNavigation" Grid.Row="1" PaneDisplayMode="Auto"
                         IsBackButtonVisible="Collapsed" IsSettingsVisible="True"
                         OpenPaneLength="220" CompactPaneLength="48"
@@ -172,9 +168,13 @@
                             <Grid x:Name="HeardTracksSection" RowSpacing="10" Visibility="Collapsed">
                                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                                 <Grid Margin="8,0">
-                                    <TextBlock Text="Recently Heard" Style="{ThemeResource SubtitleTextBlockStyle}" VerticalAlignment="Center"/>
-                                    <Button x:Name="ClearHeardTracksButton" Content="Clear" HorizontalAlignment="Right" Click="ClearHeardTracksButton_Click"
-                                            AutomationProperties.Name="Clear listening history"/>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="Recently Heard" Style="{ThemeResource SubtitleTextBlockStyle}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                                        <Button Content="Export" Click="ExportHistory_Click" AutomationProperties.Name="Export listening history"/>
+                                        <Button x:Name="ClearHeardTracksButton" Content="Clear" Click="ClearHeardTracksButton_Click"
+                                                AutomationProperties.Name="Clear listening history"/>
+                                    </StackPanel>
                                 </Grid>
                                 <ListView Grid.Row="1" ItemsSource="{x:Bind ViewModel.HeardTracks, Mode=OneWay}" SelectionMode="None"
                                           AutomationProperties.Name="Recently heard tracks">
@@ -275,6 +275,8 @@
                                           OnContent="On" OffContent="Off" Toggled="JumpListSwitch_Toggled"/>
                         </toolkit:SettingsCard>
                         <TextBlock Text="About" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                        <toolkit:SettingsCard Header="Export local diagnostics" Description="Save aggregate runtime counters. Contains no station names, song titles, URLs, or saved history."
+                                              IsClickEnabled="True" Click="ExportDiagnostics_Click" AutomationProperties.Name="Export local diagnostics"/>
                         <TextBlock Text="Shoutkit for Windows · Native ARM64 preview"/>
                         <TextBlock Text="Favorites and recent stations are saved on this device. Station listings come from Radio Browser."
                                    TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>

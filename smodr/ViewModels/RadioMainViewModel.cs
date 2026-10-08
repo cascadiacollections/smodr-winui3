@@ -673,7 +673,9 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             CurrentAppleMusicUrl = string.Empty;
         });
 
-    private void Audio_TrackChanged(object? sender, RadioTrackUpdate? update) =>
+    private void Audio_TrackChanged(object? sender, RadioTrackUpdate? update)
+    {
+        var receivedAt = DateTimeOffset.UtcNow;
         _dispatch(() =>
         {
             if (Volatile.Read(ref _disposed) != 0) return;
@@ -691,9 +693,14 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
             }
             if (!ReferenceEquals(_audio.CurrentStation, update.Station) || _audio.CurrentTrack != update.Track) return;
             CurrentTrack = update.Track;
-            _currentHistoryRecord = _trackHistory is null ? null : _background.RunAsync(_ => RecordTrackBestEffortAsync(update));
+            _currentHistoryRecord = _trackHistory is null ? null : _background.RunAsync(_ => RecordTrackBestEffortAsync(update, receivedAt));
             StartArtworkLookup(update.Station, update.Track);
         });
+    }
+
+    public Task<string> ExportHistoryAsync() => _trackHistory is { } history
+        ? LocalDataExport.HistoryAsync(history)
+        : Task.FromException<string>(new InvalidOperationException("Listening history is unavailable."));
 
     private void StartArtworkLookup(RadioStation station, RadioTrackInfo track)
     {
@@ -768,11 +775,11 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         catch (Exception exception) { AppDiagnostics.Record("track-history.artwork", exception); }
     }
 
-    private async Task<Guid?> RecordTrackBestEffortAsync(RadioTrackUpdate update)
+    private async Task<Guid?> RecordTrackBestEffortAsync(RadioTrackUpdate update, DateTimeOffset receivedAt)
     {
         try
         {
-            var entryId = await _trackHistory!.RecordAsync(update.Station, update.Track);
+            var entryId = await _trackHistory!.RecordAtAsync(update.Station, update.Track, receivedAt);
             _dispatch(() =>
             {
                 if (Volatile.Read(ref _disposed) == 0) RefreshTrackCollections();

@@ -13,6 +13,20 @@ for the current app behavior and self-contained publish command.
 
 ## Windows host: VS Code or Zed
 
+Stable dependencies use Windows App SDK 2.5.1, Windows SDK BuildTools 10.0.28000.2705,
+CommunityToolkit.Mvvm 8.4.2 and MSTest 4.5.1. The Windows app still pins .NET 11 RC1;
+the portable SDK remains on stable .NET 10.
+
+`scripts/Test-WinUiExperiment.ps1` copies current source into a unique ignored directory,
+restores the selected SDK/Toolkit there, regenerates that copy's notices, and runs
+warning-as-error builds, tests, and three performance processes. The stable workspace's
+lockfiles and notices are unchanged. Its defaults test Windows App SDK 2.5.4-experimental;
+use `-Version 2.5.1 -ToolkitVersion 8.3.260402-preview2` for the Toolkit preview.
+Use `-DotnetPath` with an absolute matching ARM64/x64 pinned SDK executable locally.
+The comparison alone opts into CS8305 evaluation APIs emitted by experimental XAML
+metadata providers. The optional GitHub workflow retains comparison reports; passing
+headless checks does not qualify an experimental SDK for production or prove its visuals.
+
 Use a Windows host with the pinned .NET 11 RC SDK and the Windows build tools
 required by WinUI. Restore with the checked-in lock files before building. The
 editor tasks use `scripts/dotnet-dev.ps1`, which looks for:

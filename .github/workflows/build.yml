@@ -142,9 +142,9 @@ jobs:
       run: ./scripts/Test-LicenseInventory.ps1 -MsixDirectory out/msix-${{ matrix.platform }}
 
     - name: Install and upgrade disposable signed MSIX
-      if: matrix.platform == 'ARM64'
+      if: matrix.platform == 'ARM64' || matrix.platform == 'x64'
       shell: powershell
-      run: ./scripts/Test-MsixInstall.ps1 -Platform ARM64
+      run: ./scripts/Test-MsixInstall.ps1 -Platform ${{ matrix.platform }}
 
     - name: Upload build artifacts
       if: success()

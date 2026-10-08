@@ -37,7 +37,7 @@ public sealed class MainWindowAccessibilityTests
     public void AppearanceUsesNativeBackdropAccessibleChoiceAndThemedSolidSurface()
     {
         var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml"));
-        Assert.IsTrue(document.Descendants().Any(element => element.Name.LocalName == "DesktopAcrylicBackdrop"));
+        Assert.IsTrue(document.Descendants().Any(element => element.Name.LocalName == "ThinDesktopAcrylicBackdrop"));
         var choice = document.Descendants().Single(element => (string?)element.Attribute(_xaml + "Name") == "BackdropBox");
         Assert.AreEqual("Window background", (string?)choice.Attribute("AutomationProperties.Name"));
         CollectionAssert.AreEqual(_backdropLabels, choice.Elements().Select(element => (string?)element.Attribute("Content")).ToArray());
@@ -139,7 +139,7 @@ public sealed class MainWindowAccessibilityTests
         var settings = document.Descendants().Single(element =>
             (string?)element.Attribute(_xaml + "Name") == "SettingsView");
         Assert.IsTrue(settings.Descendants().Any(element => element.Name.LocalName == "ScrollViewer"));
-        Assert.HasCount(10, settings.Descendants().Where(element => element.Name.LocalName == "SettingsCard"));
+        Assert.HasCount(11, settings.Descendants().Where(element => element.Name.LocalName == "SettingsCard"));
         foreach (var action in settings.Descendants().Where(element => element.Name.LocalName is "ToggleSwitch" or "ComboBox"
             || (element.Name.LocalName == "SettingsCard" && (string?)element.Attribute("IsClickEnabled") == "True")))
         {

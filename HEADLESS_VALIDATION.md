@@ -1,4 +1,30 @@
-# Headless validation - 2026-10-07
+# Headless validation - 2026-10-08
+
+Validated on Windows 11 ARM64 from base commit `4d6cf7f`, with the modernization changes in this working tree. x64 runs used Windows emulation. Windows uses .NET 11 RC1; portable tests use stable .NET 10. No app window or audible playback was tested.
+
+## Current results
+
+| Check | Result |
+| --- | --- |
+| Stable dependencies | Windows App SDK 2.5.1, MVVM 8.4.2, MSTest 4.5.1, SDK BuildTools 10.0.28000.2705; refreshed locks and notices |
+| Windows builds/tests | Zero warnings/errors; 392 tests passed on each architecture, zero skipped |
+| Portable tests / analyzers | 172 passed, zero skipped; 23 clean SARIF reports across Windows and portable builds |
+| Five-minute soak | ARM64: 156 iterations; x64: 81 iterations; 46 cases per iteration |
+| Performance/resource harness | Three fresh processes per architecture, eight metrics and 20,000 resource cycles per process; no end-to-end private-byte or handle growth observed |
+| SDK packages | Four packages validated; fresh-cache offline consumer, API compatibility negative fixture, and fully trimmed ARM64 consumer passed |
+| Publish / unsigned MSIX | Both architectures passed; embedded notices verified; symbol packaging reports unavailable mspdbcmf.exe |
+| SBOM | Pinned tool hash verified; SPDX inventory validated against 572 files and 53 package records |
+| Other gates | Formatting, license inventory and fixtures, manifest, solution mappings, release evidence, SBOM fixtures, and Docker orchestration fixtures passed |
+| Dependency audit | Locked restore with NuGetAudit enabled, mode all, and warnings as errors passed |
+| Prerelease experiments | Isolated ARM64 SDK 2.5.4-experimental and Toolkit 8.3.260402-preview2 builds each passed with zero warnings and 392 tests; stable app pins retained |
+
+Evidence lives under `out/headless-20261008`: `final-ARM64`, `final-x64`, `portable-final`, `analysis-arm64-full`, `analysis-x64-final`, `analysis-portable-final`, `performance-arm64`, `performance-x64`, `soak-arm64`, `soak-x64`, `publish-arm64`, `publish-x64`, and `sbom-x64-final`. Experimental comparison reports live under `out/winui-experiment` in isolated source copies.
+
+Thin desktop Acrylic now uses the supported controller API, with OS-managed inactive, transparency, power and accessibility fallbacks. Mica uses Base; the shell uses the native TitleBar. History captures receipt time before dispatch and exports a flushed snapshot; diagnostic exports contain local counters only. Native visual QA remains required to confirm translucency, title-bar interactions, dialogs and accessible behavior. Headless resource measurements do not establish GPU, live audio or whole-app leak freedom, and these timings establish no speedup.
+
+The SBOM generator now scans a clean tracked-source snapshot plus the evaluated app dependency graph, preventing ignored historic manifests from becoming external references. Local Docker could not execute because no Linux daemon was available; orchestration fixtures do not substitute for a real Linux run. Disposable-runner MSIX installation/upgrade checks cover both architectures in CI; they were not run on this workstation. Unsigned packages and headless evidence do not establish production readiness.
+
+## Previous validation - 2026-10-07
 
 Validated on Windows 11 ARM64 at base commit `26a86288378c61458e82a001d15acef9235e6c77`, with the working-tree fixes below. x64 binaries ran under Windows emulation on this host. Windows uses pinned .NET 11 RC1; portable checks use .NET 10.0.401.
 

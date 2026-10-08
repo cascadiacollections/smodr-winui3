@@ -540,11 +540,13 @@ public sealed partial class MainWindow : Window
         if (_appliedBackdrop == choice) return;
         SystemBackdrop = choice switch
         {
-            RadioWindowBackdrop.Acrylic => new DesktopAcrylicBackdrop(),
-            RadioWindowBackdrop.Mica => new MicaBackdrop { Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.BaseAlt },
+            RadioWindowBackdrop.Acrylic => new ThinDesktopAcrylicBackdrop(),
+            RadioWindowBackdrop.Mica => new MicaBackdrop { Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.Base },
             _ => null
         };
-        SolidWindowBackground.Visibility = choice == RadioWindowBackdrop.Solid ? Visibility.Visible : Visibility.Collapsed;
+        SolidWindowBackground.Visibility = choice == RadioWindowBackdrop.Solid
+            || (choice == RadioWindowBackdrop.Acrylic && !Microsoft.UI.Composition.SystemBackdrops.DesktopAcrylicController.IsSupported())
+            ? Visibility.Visible : Visibility.Collapsed;
         _appliedBackdrop = choice;
     }
 

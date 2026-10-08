@@ -29,12 +29,16 @@ public sealed class TrackHistoryService : ITrackHistoryService
     public IReadOnlyList<HeardTrack> Entries => [.. Volatile.Read(ref _data).Entries];
 
     public Task<Guid> RecordAsync(RadioStation station, RadioTrackInfo track)
+        => RecordAtAsync(station, track, _clock.GetUtcNow());
+
+    /// <summary>Records the time the cue arrived, independently of queued persistence work.</summary>
+    public Task<Guid> RecordAtAsync(RadioStation station, RadioTrackInfo track, DateTimeOffset receivedAt)
     {
         ArgumentNullException.ThrowIfNull(station);
         ArgumentNullException.ThrowIfNull(track);
         lock (_gate)
         {
-            var operation = RecordAfterAsync(_writeTail, station, track);
+            var operation = RecordAfterAsync(_writeTail, station, track, receivedAt);
             _writeTail = ObserveCompletionAsync(operation);
             return operation;
         }
@@ -79,7 +83,7 @@ public sealed class TrackHistoryService : ITrackHistoryService
         }).ConfigureAwait(false);
     }
 
-    private async Task<Guid> RecordAfterAsync(Task previous, RadioStation station, RadioTrackInfo track)
+    private async Task<Guid> RecordAfterAsync(Task previous, RadioStation station, RadioTrackInfo track, DateTimeOffset timestamp)
     {
         await previous.ConfigureAwait(false);
         return await Task.Run(() =>
@@ -87,7 +91,6 @@ public sealed class TrackHistoryService : ITrackHistoryService
             if (_readOnly) throw new IOException("Unreadable or newer track history cannot be changed by this app.");
             var current = Volatile.Read(ref _data);
             var next = new HistoryData { Entries = [.. current.Entries] };
-            var timestamp = _clock.GetUtcNow();
             var latest = next.Entries.FirstOrDefault();
             Guid entryId;
             if (latest is not null
