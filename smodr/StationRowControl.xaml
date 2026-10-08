@@ -6,7 +6,15 @@
              xmlns:models="using:smodr.Models">
     <Grid x:Name="RowRoot" Padding="10" ColumnSpacing="12" MinHeight="68">
         <Grid.ContextFlyout>
-            <MenuFlyout><MenuFlyoutItem Text="Toggle Favorite" Click="FavoriteMenuItem_Click"/></MenuFlyout>
+            <MenuFlyout>
+                <MenuFlyoutItem Text="Toggle Favorite" Click="FavoriteMenuItem_Click"/>
+                <MenuFlyoutItem x:Name="MoveUpItem" Text="Move up" Tag="-1" Click="MoveMenuItem_Click" Visibility="Collapsed">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE70E;"/></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem x:Name="MoveDownItem" Text="Move down" Tag="1" Click="MoveMenuItem_Click" Visibility="Collapsed">
+                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE70D;"/></MenuFlyoutItem.Icon>
+                </MenuFlyoutItem>
+            </MenuFlyout>
         </Grid.ContextFlyout>
         <Grid.ColumnDefinitions><ColumnDefinition Width="52"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
         <Border Width="52" Height="52" CornerRadius="12" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">

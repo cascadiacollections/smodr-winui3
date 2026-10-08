@@ -52,9 +52,31 @@ public sealed class TrackHistoryService : ITrackHistoryService
         }
     }
 
+    public Task ClearAsync()
+    {
+        lock (_gate)
+        {
+            var operation = ClearAfterAsync(_writeTail);
+            _writeTail = ObserveCompletionAsync(operation);
+            return operation;
+        }
+    }
+
     public Task FlushAsync()
     {
         lock (_gate) return _writeTail;
+    }
+
+    private async Task ClearAfterAsync(Task previous)
+    {
+        await previous.ConfigureAwait(false);
+        await Task.Run(() =>
+        {
+            if (_readOnly) throw new IOException("Unreadable or newer track history cannot be changed by this app.");
+            var next = new HistoryData();
+            Save(next);
+            Volatile.Write(ref _data, next);
+        }).ConfigureAwait(false);
     }
 
     private async Task<Guid> RecordAfterAsync(Task previous, RadioStation station, RadioTrackInfo track)

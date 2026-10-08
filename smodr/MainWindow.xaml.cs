@@ -46,6 +46,7 @@ public sealed partial class MainWindow : Window
         HeroArtwork.AccentColorChanged += HeroArtwork_AccentColorChanged;
         _settingsReady = true;
         _sleepCountdownTimer.Tick += SleepCountdownTimer_Tick;
+        _undoTimer.Tick += UndoTimer_Tick;
         UpdateSleepTimer();
         ConfigureWindow();
 
@@ -135,6 +136,8 @@ public sealed partial class MainWindow : Window
         _prewarmer?.Clear();
         _sleepCountdownTimer.Stop();
         _sleepCountdownTimer.Tick -= SleepCountdownTimer_Tick;
+        _undoTimer.Stop();
+        _undoTimer.Tick -= UndoTimer_Tick;
         _appWindow?.Closing -= AppWindow_Closing;
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
         ViewModel.Recents.CollectionChanged -= LibraryCollectionChanged;
@@ -384,6 +387,9 @@ public sealed partial class MainWindow : Window
             case nameof(ViewModel.SleepTimerEndsAt):
                 UpdateSleepTimer();
                 break;
+            case nameof(ViewModel.RemovedFavorite):
+                UpdateFavoriteUndo();
+                break;
         }
     }
 
@@ -570,6 +576,8 @@ public sealed partial class MainWindow : Window
         EmptyLibraryView.Visibility = empty
             ? Visibility.Visible
             : Visibility.Collapsed;
+        ClearRecentsButton.IsEnabled = ViewModel.Recents.Count > 0;
+        ClearHeardTracksButton.IsEnabled = ViewModel.HeardTracks.Count > 0;
     }
 
     private void LibrarySectionBox_SelectionChanged(object sender, SelectionChangedEventArgs args) => UpdateLibraryVisibility();

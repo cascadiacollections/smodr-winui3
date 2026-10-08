@@ -652,6 +652,11 @@ public sealed class RadioMainViewModelTests
             });
             return Task.FromResult(id);
         }
+        public Task ClearAsync()
+        {
+            _entries.Clear();
+            return Task.CompletedTask;
+        }
         public Task FlushAsync() => Task.CompletedTask;
         public Task UpdateArtworkAsync(Guid entryId, AlbumArtworkMatch artwork)
         {
@@ -730,11 +735,15 @@ public sealed class RadioMainViewModelTests
         public bool IsFavorite(RadioStation station) => false;
         public Task ToggleFavoriteAsync(RadioStation station) =>
             toggleFavorite?.Invoke(station) ?? Task.CompletedTask;
+        public Task<int> RemoveFavoriteAsync(RadioStation station) => Task.FromResult(-1);
+        public Task RestoreFavoriteAsync(RadioStation station, int index) => Task.CompletedTask;
+        public Task ReorderFavoritesAsync(IReadOnlyList<RadioStation> order) => Task.CompletedTask;
         public Task LogRecentAsync(RadioStation station)
         {
             RecentSaves++;
             return logRecent?.Invoke(station) ?? Task.CompletedTask;
         }
+        public Task ClearRecentsAsync() => Task.CompletedTask;
         public Task FlushAsync() => Task.CompletedTask;
     }
 

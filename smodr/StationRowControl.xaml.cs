@@ -33,7 +33,35 @@ public sealed partial class StationRowControl : UserControl
         set => SetValue(StationProperty, value);
     }
 
+    public static readonly DependencyProperty IsReorderableProperty = DependencyProperty.Register(
+        nameof(IsReorderable),
+        typeof(bool),
+        typeof(StationRowControl),
+        new PropertyMetadata(false, (sender, args) => ((StationRowControl)sender).UpdateReorderMenu((bool)args.NewValue)));
+
+    /// <summary>Shows Move up/down commands, the non-drag alternative for keyboard, touch and screen-reader users.</summary>
+    public bool IsReorderable
+    {
+        get => (bool)GetValue(IsReorderableProperty);
+        set => SetValue(IsReorderableProperty, value);
+    }
+
     public event EventHandler<RadioStation>? FavoriteRequested;
+
+    /// <summary>Raised with -1 (up) or 1 (down).</summary>
+    public event EventHandler<int>? MoveRequested;
+
+    private void UpdateReorderMenu(bool reorderable)
+    {
+        if (MoveUpItem is null) return;
+        MoveUpItem.Visibility = MoveDownItem.Visibility = reorderable ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void MoveMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem { Tag: string tag } && int.TryParse(tag, out var offset))
+            MoveRequested?.Invoke(this, offset);
+    }
 
     internal void SetViewModel(RadioMainViewModel? viewModel)
     {

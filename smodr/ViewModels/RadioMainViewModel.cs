@@ -475,7 +475,22 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            await _library.ToggleFavoriteAsync(station);
+            if (_library.IsFavorite(station))
+            {
+                var index = await _library.RemoveFavoriteAsync(station);
+                if (index >= 0 && Volatile.Read(ref _disposed) == 0)
+                {
+                    _removedFavoriteIndex = index;
+                    RemovedFavorite = station;
+                }
+            }
+            else
+            {
+                await _library.ToggleFavoriteAsync(station);
+                if (RemovedFavorite is { } removed && RadioStationIdentity.Matches(removed, station))
+                    RemovedFavorite = null;
+            }
+
             if (Volatile.Read(ref _disposed) == 0)
             {
                 RefreshLibraryCollections();
@@ -486,6 +501,82 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         {
             AppDiagnostics.Record("library.favorite-save", exception);
             Status = "Favorites could not be saved.";
+        }
+    }
+
+    /// <summary>The most recently removed favorite, offered for undo until restored, dismissed, or replaced.</summary>
+    [ObservableProperty] public partial RadioStation? RemovedFavorite { get; set; }
+    private int _removedFavoriteIndex = -1;
+
+    public Task UndoRemoveFavoriteAsync() => RunTracked(UndoRemoveFavoriteCoreAsync);
+
+    private async Task UndoRemoveFavoriteCoreAsync()
+    {
+        if (RemovedFavorite is not { } station) return;
+        RemovedFavorite = null;
+        await SaveLibraryChangeAsync(() => _library.RestoreFavoriteAsync(station, _removedFavoriteIndex), "library.favorite-restore");
+        if (Volatile.Read(ref _disposed) == 0) OnPropertyChanged(nameof(CurrentStation));
+    }
+
+    public void DismissRemovedFavorite() => RemovedFavorite = null;
+
+    /// <summary>Persists the order the user produced by dragging rows in <see cref="Favorites"/>.</summary>
+    public Task SaveFavoriteOrderAsync() => RunTracked(() =>
+    {
+        RadioStation[] order = [.. Favorites];
+        return SaveLibraryChangeAsync(() => _library.ReorderFavoritesAsync(order), "library.favorite-reorder");
+    });
+
+    /// <summary>Keyboard and screen-reader alternative to dragging: moves a favorite by <paramref name="offset"/> rows.</summary>
+    public Task MoveFavoriteAsync(RadioStation station, int offset)
+    {
+        var from = Favorites.IndexOf(station);
+        var to = Math.Clamp(from + offset, 0, Favorites.Count - 1);
+        if (from < 0 || from == to) return Task.CompletedTask;
+        Favorites.Move(from, to);
+        return SaveFavoriteOrderAsync();
+    }
+
+    public Task ClearRecentsAsync() => RunTracked(() =>
+        SaveLibraryChangeAsync(_library.ClearRecentsAsync, "library.recents-clear"));
+
+    public Task ClearHeardTracksAsync() => RunTracked(ClearHeardTracksCoreAsync);
+
+    private async Task ClearHeardTracksCoreAsync()
+    {
+        if (_trackHistory is null) return;
+        try
+        {
+            // Entries recorded before the clear must not regain artwork from a lookup already in flight.
+            _currentHistoryRecord = null;
+            await _trackHistory.ClearAsync();
+        }
+        catch (Exception exception)
+        {
+            AppDiagnostics.Record("track-history.clear", exception);
+            if (Volatile.Read(ref _disposed) == 0) Status = "Listening history could not be saved.";
+        }
+        finally
+        {
+            if (Volatile.Read(ref _disposed) == 0) RefreshTrackCollections();
+        }
+    }
+
+    private async Task SaveLibraryChangeAsync(Func<Task> change, string diagnostic)
+    {
+        try
+        {
+            await change();
+        }
+        catch (Exception exception)
+        {
+            AppDiagnostics.Record(diagnostic, exception);
+            if (Volatile.Read(ref _disposed) == 0) Status = "Favorites could not be saved.";
+        }
+        finally
+        {
+            // Always resynchronize with durable state so a failed save cannot leave a phantom UI order.
+            if (Volatile.Read(ref _disposed) == 0) RefreshLibraryCollections();
         }
     }
 

@@ -274,6 +274,7 @@ public sealed class MetadataOrchestrationTests
             return await inner.RecordAsync(station, track);
         }
         public Task UpdateArtworkAsync(Guid entryId, AlbumArtworkMatch artwork) => inner.UpdateArtworkAsync(entryId, artwork);
+        public Task ClearAsync() => inner.ClearAsync();
         // This flush cannot see the admission blocked above: the view model must drain first.
         public Task FlushAsync() => inner.FlushAsync();
     }

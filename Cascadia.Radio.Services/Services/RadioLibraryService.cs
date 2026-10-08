@@ -43,6 +43,62 @@ public sealed class RadioLibraryService : IRadioLibraryService
         });
     }
 
+    public Task<int> RemoveFavoriteAsync(RadioStation station)
+    {
+        ArgumentNullException.ThrowIfNull(station);
+        return MutateAsync(data =>
+        {
+            var index = data.Favorites.FindIndex(item => RadioStationIdentity.Matches(item, station));
+            if (index >= 0)
+            {
+                data.Favorites.RemoveAt(index);
+            }
+
+            return index;
+        });
+    }
+
+    public Task RestoreFavoriteAsync(RadioStation station, int index)
+    {
+        ArgumentNullException.ThrowIfNull(station);
+        return MutateAsync(data =>
+        {
+            if (data.Favorites.Exists(item => RadioStationIdentity.Matches(item, station)))
+            {
+                return;
+            }
+
+            data.Favorites.Insert(Math.Clamp(index, 0, data.Favorites.Count), station);
+        });
+    }
+
+    public Task ReorderFavoritesAsync(IReadOnlyList<RadioStation> order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        RadioStation[] requested = [.. order];
+        return MutateAsync(data =>
+        {
+            // Match against the saved list rather than trusting the UI snapshot, so a
+            // favorite added or removed while a drag was in flight is neither lost nor resurrected.
+            var remaining = new List<RadioStation>(data.Favorites);
+            var reordered = new List<RadioStation>(remaining.Count);
+            foreach (var station in requested)
+            {
+                var index = remaining.FindIndex(item => RadioStationIdentity.Matches(item, station));
+                if (index < 0)
+                {
+                    continue;
+                }
+
+                reordered.Add(remaining[index]);
+                remaining.RemoveAt(index);
+            }
+
+            reordered.AddRange(remaining);
+            data.Favorites = reordered;
+        });
+    }
+
     public Task LogRecentAsync(RadioStation station)
     {
         return MutateAsync(data =>
@@ -56,6 +112,8 @@ public sealed class RadioLibraryService : IRadioLibraryService
         });
     }
 
+    public Task ClearRecentsAsync() => MutateAsync(data => data.Recents.Clear());
+
     public Task FlushAsync()
     {
         lock (_writeGate)
@@ -64,7 +122,14 @@ public sealed class RadioLibraryService : IRadioLibraryService
         }
     }
 
-    private Task MutateAsync(Action<RadioLibraryData> mutation)
+    private Task<bool> MutateAsync(Action<RadioLibraryData> mutation) =>
+        MutateAsync(data =>
+        {
+            mutation(data);
+            return true;
+        });
+
+    private Task<T> MutateAsync<T>(Func<RadioLibraryData, T> mutation)
     {
         lock (_writeGate)
         {
@@ -74,10 +139,10 @@ public sealed class RadioLibraryService : IRadioLibraryService
         }
     }
 
-    private async Task ApplyMutationAfterAsync(Task previous, Action<RadioLibraryData> mutation)
+    private async Task<T> ApplyMutationAfterAsync<T>(Task previous, Func<RadioLibraryData, T> mutation)
     {
         await previous.ConfigureAwait(false);
-        await Task.Run(() =>
+        return await Task.Run(() =>
         {
             if (_readOnly)
             {
@@ -90,9 +155,10 @@ public sealed class RadioLibraryService : IRadioLibraryService
                 Favorites = [.. current.Favorites],
                 Recents = [.. current.Recents]
             };
-            mutation(next);
+            var result = mutation(next);
             Save(next);
             Volatile.Write(ref _data, next);
+            return result;
         }).ConfigureAwait(false);
     }
 
