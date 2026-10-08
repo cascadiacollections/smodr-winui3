@@ -64,7 +64,4 @@ public sealed record ClientOptions
     public TimeSpan RequestTimeout { get; init; } = TimeSpan.FromSeconds(8);
 }
 
-public sealed class DirectoryUnavailableException : Exception
-{
-    public DirectoryUnavailableException() : base("Radio Browser directory unavailable.") { }
-}
+public sealed class DirectoryUnavailableException() : Exception("Radio Browser directory unavailable.");
