@@ -6,6 +6,44 @@ See [Radio Browser API usage audit](RADIO_BROWSER_API_AUDIT.md) for upstream iOS
 
 ## Already represented
 
+### Upstream sync (2026-10-07)
+
+Re-audited against iOS `origin/main` at `d10868f`. Since `a57dd0b` upstream
+landed only #220 (dependency refresh, album-art request coalescing, http(s)+host
+validation of upsized artwork URLs) and a CodeQL action bump. Windows already
+coalesces lookups under one lock (`AlbumArtworkLookup`) and is stricter on URLs
+(HTTPS, `mzstatic.com` / Apple store hosts only); nothing to port. Upstream
+branches `codex/playback-audit-fixes` and
+`copilot/extract-libraryfeaturecore-and-settingsfeaturecore` were already
+squash-merged (#208, #203); `claude/rust-swift-ffi-spike-*` is an unmerged uniffi
+spike with no Windows impact yet.
+
+Closed in this pass (headless tests plus a sandboxed `LOCALAPPDATA` run on
+Windows 11 ARM64 driven through UI Automation):
+
+- **UI Automation crash (pre-existing, release-blocking).** `async Task Main`
+  dropped `[STAThread]` from the synthesized entry point, so XAML ran MTA and the
+  first out-of-process UIA query (Narrator, Voice Access, Inspect) crashed the
+  process with 0xc0000005. `Main` is synchronous again and a metadata test pins
+  the attribute. List items also announced `smodr.Models.RadioStation`; list
+  models now have readable `ToString()` values.
+- **Library editing** (`LibraryListEditing`, `SavedStationsNotice`): drag,
+  Alt+Up/Down and context-menu reordering of favorites; 10-second Undo after
+  removing a favorite; confirmed Clear for Recently Played and listening
+  history (which also resets Top Tracks).
+- **Recovery UX** (#208): "Reconnecting…" during automatic rejoins and a Retry
+  action once the retry budget is spent.
+
+Still missing versus iOS/Android, highest value first: favorites export/import,
+search filters (bitrate/tag/country; the client already supports bitrate),
+localization (`.resw`; iOS ships 10 catalogs), first-run welcome, initials
+placeholder artwork, directory-unavailable empty state with Retry, Share
+(`DataTransferManager`), fade-in on rejoin, and the iOS `SongTitleFilter`
+station-name heuristics. Android-only (`sir-android`): home widget, Quick
+Settings tile, pinned play shortcuts, headless play links, resume on headphone
+reconnect. `cascadia-audio-win-mvp` (Rust/cpal, ffmpeg CLI for AAC) is superseded
+by the engines in [AUDIO_ENGINES.md](AUDIO_ENGINES.md).
+
 ### Focused runtime/settings audit (2026-10-02)
 
 Compared the local iOS checkout at `a57dd0b`; no upstream files were changed or
@@ -104,6 +142,9 @@ verification also passed. Windows build/test outputs are isolated under
 | Default output changes | Native `MediaDevice` event pauses requested radio playback; no surprise auto-resume |
 | Play-reporting and album-artwork choices | Persisted privacy switches, matching the two iOS defaults |
 | In-app software licenses | Offline-readable app license and runtime dependency inventory in Settings |
+| Reorder/remove saved stations with undo | ListView drag, Alt+Up/Down and Move up/down menu; InfoBar Undo restoring the former position |
+| Clear listening history | Confirmed Clear for Recently Played and Recently Heard; Top Tracks recomputed |
+| Reconnecting state and Retry | `LiveRadioRecovery.IsReconnecting` mapped to "Reconnecting…"; InfoBar Retry after the budget is spent |
 
 ## Next platform-native slices
 
@@ -112,6 +153,9 @@ verification also passed. Windows build/test outputs are isolated under
 3. **Equalizer validation and spatial audio.** Experimental Speech/Bass/Treble presets now process the actual stream through Windows AudioGraph, preserve manual SMTC and ICY metadata, and use opening/progress deadlines plus existing recovery. Off retains MediaPlayer. HLS timed-ID3 and prewarming are unavailable on the DSP path. Native audibility, decoder compatibility, route changes, latency, CPU/memory, and cleanup remain release gates. Spatial audio is not implemented.
 4. **Optional SHOUTcast validation.** A process-environment developer key enables a bounded HTTPS legacy directory fallback with keyless PLS tune-in resolution. The key is not persisted or embedded. Resolution is cancellable/version-guarded and non-UUID station IDs do not submit Radio Browser telemetry. Synthetic coverage exists; developer access/terms review and live key-backed smoke tests are still required.
 5. **Settings and flags.** Windows now exposes opt-in finite-broadcast looping, genuine native saved-stream preparation, and experimental equalizer presets through durable Playback settings. Invalid/future settings fail closed without overwriting their files. Diagnostics remain local category/type/HResult records; there is no instrumentation/export toggle, precise-location feature, spatial audio, or Live Activity equivalent. The iOS internal prewarming/location/instrumentation flags are not all ordinary Release Settings. Windows genre snapshot warmup and native stream preparation are separate features; neither guarantees a startup latency improvement.
+
+6. **ARM64 startup: ReadyToRun.** Measured 2026-10-07 on Windows 11 ARM64 (self-contained `win-arm64` publish, sandboxed profile, 5 warm launches each, time from process start to the titled main window): JIT median 601 ms (568–2820), `PublishReadyToRun` median 478 ms (408–630), about 20% faster for +57 MB (308 vs 251 MB). Not yet enabled: `publish --no-restore` fails with NETSDK1094 because the Crossgen2 pack is only restored for a RID-specific restore, which adds RID sections to every lockfile. Enable it together with a RID-aware locked restore (`-r win-arm64` / `win-x64`) and the CI/MSIX publish steps in one change. Trimming and Native AOT come after .NET 11 GA.
+7. **Toolchain.** Windows App SDK 2.5.1 is the latest stable (2.4.0 pinned; confirmed via the NuGet v2 feed because `api.nuget.org` is blocked on the reference host). .NET 11 is still RC1. Bump each separately with the full locked restore, ARM64/x64 tests and MSIX lanes, and raise the manifest's `MaxVersionTested` at the same time.
 
 Windows widgets, cross-device Handoff, watch/TV targets, and CarPlay do not have one-to-one desktop equivalents. Scope each as a separate product feature rather than treating it as a missing method call. The immediate release gates remain signed package identity, live stream/device-change smoke tests, accessibility, and visual checks; see [RELEASE.md](RELEASE.md).
 
