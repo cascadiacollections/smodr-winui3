@@ -63,7 +63,9 @@ internal sealed class LiveRadioRecovery : IDisposable
 
     public bool IsRequested
     {
-        get { lock (_gate)
+        get
+        {
+            lock (_gate)
             {
                 return _requested;
             }

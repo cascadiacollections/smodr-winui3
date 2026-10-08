@@ -761,7 +761,6 @@ public sealed class RadioMainViewModelTests
         public RadioStation? CurrentStation { get; private set; }
         public RadioTrackInfo? CurrentTrack { get; private set; }
         public Uri? LastArtworkUrl { get; private set; }
-        public bool IsPlaying => false;
         public bool IsPlaybackRequested => playbackRequested;
         public event EventHandler<RadioStation?>? StationChanged;
         public event EventHandler<RadioTrackUpdate?>? TrackChanged;
