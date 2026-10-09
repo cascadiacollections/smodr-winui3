@@ -67,7 +67,7 @@ jobs:
 
     - name: Restore and audit project dependencies
       shell: pwsh
-      run: dotnet restore ${{ env.SOLUTION_PATH }} -p:Platform=${{ matrix.platform }} --locked-mode -p:NuGetAudit=true -p:NuGetAuditMode=all "-p:WarningsAsErrors=NU1901;NU1902;NU1903;NU1904"
+      run: dotnet restore ${{ env.SOLUTION_PATH }} -p:Platform=${{ matrix.platform }} --locked-mode -p:NuGetAudit=true -p:NuGetAuditMode=all "-p:WarningsAsErrors=NU1901%3BNU1902%3BNU1903%3BNU1904"
 
     - name: Verify generated software notices and test inventory tooling
       shell: pwsh
