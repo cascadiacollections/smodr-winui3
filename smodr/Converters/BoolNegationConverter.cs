@@ -3,12 +3,15 @@ using Microsoft.UI.Xaml.Data;
 namespace smodr.Converters;
 
 /// <summary>
-/// A value converter that negates a boolean value. This converter can be used in data binding scenarios where a boolean value needs to be inverted, such as toggling visibility or enabling/disabling UI elements based on a condition.
+///     A value converter that negates a boolean value. This converter can be used in data binding scenarios where a
+///     boolean value needs to be inverted, such as toggling visibility or enabling/disabling UI elements based on a
+///     condition.
 /// </summary>
 public class BoolNegationConverter : IValueConverter
 {
     /// <summary>
-    /// Converts a boolean value to its negated equivalent. If the input value is true, it returns false; if the input value is false, it returns true.
+    ///     Converts a boolean value to its negated equivalent. If the input value is true, it returns false; if the input
+    ///     value is false, it returns true.
     /// </summary>
     /// <param name="value">The boolean value to convert.</param>
     /// <param name="targetType">The type of the binding target property.</param>
@@ -21,7 +24,8 @@ public class BoolNegationConverter : IValueConverter
     }
 
     /// <summary>
-    /// Converts a negated boolean value back to its original equivalent. If the input value is true, it returns false; if the input value is false, it returns true.
+    ///     Converts a negated boolean value back to its original equivalent. If the input value is true, it returns false; if
+    ///     the input value is false, it returns true.
     /// </summary>
     /// <param name="value">The boolean value to convert back.</param>
     /// <param name="targetType">The type of the binding target property.</param>

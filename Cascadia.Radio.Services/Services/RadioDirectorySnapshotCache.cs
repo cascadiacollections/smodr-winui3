@@ -12,8 +12,8 @@ public sealed class RadioDirectorySnapshotCache : IRadioDirectorySnapshotCache
     private const int MaxEntries = 24;
     private const int MaxStations = 60;
     private const long MaxFileBytes = 2_000_000;
-    private readonly string _filePath;
     private readonly TimeProvider _clock;
+    private readonly string _filePath;
     private readonly Lock _gate = new();
     private readonly Task _loadTask;
     private Dictionary<string, CacheEntry> _entries = [];
@@ -27,30 +27,17 @@ public sealed class RadioDirectorySnapshotCache : IRadioDirectorySnapshotCache
         _loadTask = Task.Run(Load);
     }
 
-    public static string PopularKey(int limit) => $"popular:{Math.Clamp(limit, 1, 100)}";
-    public static string GenreKey(string genre) => $"genre:{genre.Trim().ToLowerInvariant()}";
-
-    // Do not put a listener's search text in a filename or cache key.
-    public static string SearchKey(string query)
-    {
-        var normalized = query.Trim().ToLowerInvariant();
-        return $"search:{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalized)))}";
-    }
-
     public async Task<IReadOnlyList<RadioStation>?> GetAsync(string key, TimeSpan maxAge)
     {
         await _loadTask.ConfigureAwait(false);
         lock (_gate)
         {
             var now = _clock.GetUtcNow();
-            if (!_entries.TryGetValue(key, out var entry)
-                || entry.SavedAt > now
-                || now - entry.SavedAt > maxAge)
-            {
-                return null;
-            }
-
-            return [.. entry.Stations];
+            return !_entries.TryGetValue(key, out var entry)
+                   || entry.SavedAt > now
+                   || now - entry.SavedAt > maxAge
+                ? null
+                : [.. entry.Stations];
         }
     }
 
@@ -71,7 +58,10 @@ public sealed class RadioDirectorySnapshotCache : IRadioDirectorySnapshotCache
                 .OrderByDescending(item => item.Value.SavedAt)
                 .Take(MaxEntries)
                 .ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
-            var snapshot = new CacheData { Entries = new(_entries, StringComparer.Ordinal) };
+            var snapshot = new CacheData
+            {
+                Entries = new Dictionary<string, CacheEntry>(_entries, StringComparer.Ordinal)
+            };
             operation = SaveAfterAsync(_writeTail, snapshot);
             _writeTail = ObserveCompletionAsync(operation);
         }
@@ -81,7 +71,27 @@ public sealed class RadioDirectorySnapshotCache : IRadioDirectorySnapshotCache
 
     public Task FlushAsync()
     {
-        lock (_gate) return _writeTail;
+        lock (_gate)
+        {
+            return _writeTail;
+        }
+    }
+
+    public static string PopularKey(int limit)
+    {
+        return $"popular:{Math.Clamp(limit, 1, 100)}";
+    }
+
+    public static string GenreKey(string genre)
+    {
+        return $"genre:{genre.Trim().ToLowerInvariant()}";
+    }
+
+    // Do not put a listener's search text in a filename or cache key.
+    public static string SearchKey(string query)
+    {
+        var normalized = query.Trim().ToLowerInvariant();
+        return $"search:{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalized)))}";
     }
 
     private void Load()
@@ -89,12 +99,20 @@ public sealed class RadioDirectorySnapshotCache : IRadioDirectorySnapshotCache
         try
         {
             var file = new FileInfo(_filePath);
-            if (!file.Exists || file.Length > MaxFileBytes) return;
+            if (!file.Exists || file.Length > MaxFileBytes)
+            {
+                return;
+            }
+
             var data = JsonSerializer.Deserialize<CacheData>(File.ReadAllText(_filePath));
-            if (data?.Version != SchemaVersion || data.Entries is null) return;
+            if (data?.Version != SchemaVersion || data.Entries is null)
+            {
+                return;
+            }
+
             var entries = data.Entries
                 .Where(item => item.Value is { Stations: not null }
-                    && item.Value.SavedAt <= _clock.GetUtcNow())
+                               && item.Value.SavedAt <= _clock.GetUtcNow())
                 .OrderByDescending(item => item.Value.SavedAt)
                 .Take(MaxEntries)
                 .ToDictionary(
@@ -105,7 +123,10 @@ public sealed class RadioDirectorySnapshotCache : IRadioDirectorySnapshotCache
                         Stations = [.. item.Value.Stations.Where(IsValidStation).Take(MaxStations)]
                     },
                     StringComparer.Ordinal);
-            lock (_gate) _entries = entries;
+            lock (_gate)
+            {
+                _entries = entries;
+            }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -114,10 +135,12 @@ public sealed class RadioDirectorySnapshotCache : IRadioDirectorySnapshotCache
         }
     }
 
-    private static bool IsValidStation(RadioStation? station) =>
-        station is not null && !string.IsNullOrWhiteSpace(station.Name)
-        && Uri.TryCreate(station.StreamUrl, UriKind.Absolute, out var uri)
-        && uri.Scheme is "http" or "https";
+    private static bool IsValidStation(RadioStation? station)
+    {
+        return station is not null && !string.IsNullOrWhiteSpace(station.Name)
+                                   && Uri.TryCreate(station.StreamUrl, UriKind.Absolute, out var uri)
+                                   && uri.Scheme is "http" or "https";
+    }
 
     private async Task SaveAfterAsync(Task previous, CacheData snapshot)
     {
@@ -128,7 +151,10 @@ public sealed class RadioDirectorySnapshotCache : IRadioDirectorySnapshotCache
     private static async Task ObserveCompletionAsync(Task operation)
     {
         try { await operation.ConfigureAwait(false); }
-        catch { /* A failed cache write must not poison the next one. */ }
+        catch
+        {
+            /* A failed cache write must not poison the next one. */
+        }
     }
 
     private void Save(CacheData snapshot)

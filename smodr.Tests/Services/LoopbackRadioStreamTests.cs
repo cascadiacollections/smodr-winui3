@@ -9,6 +9,8 @@ namespace smodr.Tests.Services;
 [TestCategory("Loopback")]
 public sealed class LoopbackRadioStreamTests
 {
+    private static readonly string[] _expectedTransitions = ["First", "clear", "Second"];
+
     [TestMethod]
     [DataRow("icy", 2)]
     [DataRow("redirect", 2)]
@@ -26,7 +28,10 @@ public sealed class LoopbackRadioStreamTests
         var track = IcyTrackParser.Parse(cues[0], "Synthetic radio");
         Assert.AreEqual("Hüsker Dü", track?.Artist);
         Assert.AreEqual("Ice Cold Ice", track?.Title);
-        if (path != "redirect") Assert.IsTrue(await server.MetadataHeadersObserved.Task);
+        if (path != "redirect")
+        {
+            Assert.IsTrue(await server.MetadataHeadersObserved.Task);
+        }
     }
 
     [TestMethod]
@@ -36,16 +41,16 @@ public sealed class LoopbackRadioStreamTests
         using var handler = new HttpClientHandler { UseProxy = false };
         using var client = new HttpClient(handler);
         using var cancellation = new CancellationTokenSource();
-        var stalled = new IcyMetadataStreamReader(client).ListenAsync(server.UriFor("stall"), _ => { }, cancellation.Token);
+        var stalled =
+            new IcyMetadataStreamReader(client).ListenAsync(server.UriFor("stall"), _ => { }, cancellation.Token);
         await server.StallStarted.Task.WaitAsync(TimeSpan.FromSeconds(3));
         await cancellation.CancelAsync();
         await Assert.ThrowsAsync<OperationCanceledException>(() => stalled.WaitAsync(TimeSpan.FromSeconds(3)));
-        var result = await new IcyMetadataProbe(client).ProbeAsync(server.UriFor("icy")).WaitAsync(TimeSpan.FromSeconds(3));
+        var result = await new IcyMetadataProbe(client).ProbeAsync(server.UriFor("icy"))
+            .WaitAsync(TimeSpan.FromSeconds(3));
         Assert.IsNotNull(result.RawMetadata);
         Assert.AreEqual(2, server.Requests);
     }
-
-    private static readonly string[] _expectedTransitions = ["First", "clear", "Second"];
 
     [TestMethod]
     public async Task DamagedCueInvalidatesBeforeTheNextValidTitleOverRealSocket()
@@ -56,8 +61,14 @@ public sealed class LoopbackRadioStreamTests
         var states = new List<string>();
         await new IcyMetadataStreamReader(client).ListenAsync(server.UriFor("damaged"), raw =>
         {
-            if (IcyTrackParser.IsDamagedSongCue(raw, "Synthetic radio")) states.Add("clear");
-            else if (IcyTrackParser.Parse(raw, "Synthetic radio") is { } track) states.Add(track.Title);
+            if (IcyTrackParser.IsDamagedSongCue(raw, "Synthetic radio"))
+            {
+                states.Add("clear");
+            }
+            else if (IcyTrackParser.Parse(raw, "Synthetic radio") is { } track)
+            {
+                states.Add(track.Title);
+            }
         }).WaitAsync(TimeSpan.FromSeconds(3));
         CollectionAssert.AreEqual(_expectedTransitions, states);
     }
@@ -72,7 +83,7 @@ public sealed class LoopbackRadioStreamTests
         var restarts = Channel.CreateUnbounded<long>();
         var exhausted = false;
         using var recovery = new LiveRadioRecovery(epoch => restarts.Writer.TryWrite(epoch), _ => exhausted = true,
-            clock, stallTimeout: TimeSpan.FromSeconds(30), retryBaseDelay: TimeSpan.FromSeconds(1), maxRetries: 2);
+            clock, TimeSpan.FromSeconds(30), retryBaseDelay: TimeSpan.FromSeconds(1), maxRetries: 2);
         var probe = new IcyMetadataProbe(client);
         recovery.Begin();
         for (var attempt = 0; attempt < 2; attempt++)
@@ -83,6 +94,7 @@ public sealed class LoopbackRadioStreamTests
             var epoch = await restarts.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(3));
             Assert.IsTrue(recovery.IsCurrent(epoch));
         }
+
         Assert.IsNotNull((await probe.ProbeAsync(server.UriFor("recover"))).RawMetadata);
         recovery.Playing();
         clock.Advance(TimeSpan.FromHours(1));

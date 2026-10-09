@@ -1,72 +1,22 @@
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 using smodr.Models;
 using smodr.Services;
 using smodr.ViewModels;
+using Windows.ApplicationModel.Activation;
+using WinRT.Interop;
+using LaunchActivatedEventArgs = Microsoft.UI.Xaml.LaunchActivatedEventArgs;
 
 namespace smodr;
 
 public partial class App : Application
 {
-    private Window? _window;
-    private readonly ServiceProvider _services;
     private static StationLaunchLink? _pendingStationLink;
     private static string? _pendingStationId;
-    public static string StorageDirectory { get; private set; } = AppStorageResolver.LegacyDirectory;
-
-    public static Window? MainWindow { get; private set; }
-
-    public static void HandleActivation(AppActivationArguments activation)
-    {
-        StationLaunchLink? link = null;
-        if (activation.Kind == ExtendedActivationKind.Protocol
-            && activation.Data is Windows.ApplicationModel.Activation.IProtocolActivatedEventArgs protocol
-            && StationLaunchLink.TryParse(protocol.Uri, out var stationLink))
-            link = stationLink;
-        Interlocked.Exchange(ref _pendingStationLink, link);
-        var arguments = activation.Data switch
-        {
-            Windows.ApplicationModel.Activation.ILaunchActivatedEventArgs launch => launch.Arguments,
-            Windows.ApplicationModel.Activation.ICommandLineActivatedEventArgs command => command.Operation.Arguments,
-            _ => string.Empty
-        };
-        Interlocked.Exchange(ref _pendingStationId,
-            RadioQuickLaunch.TryParse(arguments, out var id, Environment.ProcessPath) ? id : null);
-        ActivateMainWindow();
-    }
-
-    public static void ActivateMainWindow()
-    {
-        var window = MainWindow;
-        if (window is null)
-        {
-            return;
-        }
-
-        window.DispatcherQueue.TryEnqueue(() =>
-        {
-            var handle = WinRT.Interop.WindowNative.GetWindowHandle(window);
-            if (IsIconic(handle))
-            {
-                ShowWindow(handle, 9); // SW_RESTORE
-            }
-
-            window.Activate();
-            if (window is MainWindow mainWindow
-                && Interlocked.Exchange(ref _pendingStationLink, null) is { } link)
-                _ = mainWindow.OpenStationLinkAsync(link);
-            if (window is MainWindow quickWindow
-                && Interlocked.Exchange(ref _pendingStationId, null) is { } id)
-                _ = quickWindow.OpenQuickStationAsync(id);
-        });
-    }
-
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    private static extern bool IsIconic(nint window);
-
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    private static extern bool ShowWindow(nint window, int command);
+    private readonly ServiceProvider _services;
+    private Window? _window;
 
     public App()
     {
@@ -88,7 +38,8 @@ public partial class App : Application
         };
         var services = new ServiceCollection();
         services.AddSingleton(new RadioPlaybackPreferences(Path.Combine(StorageDirectory, "playback-settings.json")));
-        services.AddSingleton(new RadioAppearancePreferences(Path.Combine(StorageDirectory, "appearance-settings.json")));
+        services.AddSingleton(
+            new RadioAppearancePreferences(Path.Combine(StorageDirectory, "appearance-settings.json")));
         services.AddSingleton<RadioStreamPrewarmer>();
         services.AddSingleton<RadioJumpList>();
         services.AddSingleton<IRadioPlayer, AudioService>();
@@ -108,7 +59,7 @@ public partial class App : Application
         services.AddSingleton<IRadioPrivacySettings>(new RadioPrivacySettings(
             Path.Combine(StorageDirectory, "privacy-settings.json")));
         services.AddHttpClient<IAlbumArtworkLookup, AlbumArtworkLookup>(client =>
-            client.Timeout = TimeSpan.FromSeconds(8))
+                client.Timeout = TimeSpan.FromSeconds(8))
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddSingleton<PlaybackSleepTimer>();
         services.AddRadioDirectoryHttpClients();
@@ -119,10 +70,13 @@ public partial class App : Application
                 .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
             services.AddSingleton(provider => new ShoutcastDirectoryService(
                 provider.GetRequiredService<IHttpClientFactory>().CreateClient("shoutcast"), shoutcastKey));
-            services.AddSingleton<IStationStreamResolver>(provider => provider.GetRequiredService<ShoutcastDirectoryService>());
+            services.AddSingleton<IStationStreamResolver>(provider =>
+                provider.GetRequiredService<ShoutcastDirectoryService>());
             services.AddTransient<IRadioDirectoryService>(provider => new FallbackRadioDirectory(
-                provider.GetRequiredService<RadioDirectoryService>(), provider.GetRequiredService<ShoutcastDirectoryService>()));
+                provider.GetRequiredService<RadioDirectoryService>(),
+                provider.GetRequiredService<ShoutcastDirectoryService>()));
         }
+
         services.AddSingleton<RadioMainViewModel>();
         services.AddSingleton(provider => new RadioSettingsViewModel(
             provider.GetRequiredService<IRadioPrivacySettings>(),
@@ -136,8 +90,71 @@ public partial class App : Application
                 _ = provider.GetRequiredService<RadioJumpList>().UpdateAsync(
                     (RadioStation[])[.. viewModel.Favorites], (RadioStation[])[.. viewModel.Recents]);
             }, appearance: provider.GetRequiredService<RadioAppearancePreferences>()));
-        _services = services.BuildServiceProvider(validateScopes: true);
+        _services = services.BuildServiceProvider(true);
     }
+
+    public static string StorageDirectory { get; private set; } = AppStorageResolver.LegacyDirectory;
+
+    public static Window? MainWindow { get; private set; }
+
+    public static void HandleActivation(AppActivationArguments activation)
+    {
+        StationLaunchLink? link = null;
+        if (activation.Kind == ExtendedActivationKind.Protocol
+            && activation.Data is IProtocolActivatedEventArgs protocol
+            && StationLaunchLink.TryParse(protocol.Uri, out var stationLink))
+        {
+            link = stationLink;
+        }
+
+        Interlocked.Exchange(ref _pendingStationLink, link);
+        var arguments = activation.Data switch
+        {
+            ILaunchActivatedEventArgs launch => launch.Arguments,
+            ICommandLineActivatedEventArgs command => command.Operation.Arguments,
+            _ => string.Empty
+        };
+        Interlocked.Exchange(ref _pendingStationId,
+            RadioQuickLaunch.TryParse(arguments, out var id, Environment.ProcessPath) ? id : null);
+        ActivateMainWindow();
+    }
+
+    public static void ActivateMainWindow()
+    {
+        var window = MainWindow;
+        if (window is null)
+        {
+            return;
+        }
+
+        window.DispatcherQueue.TryEnqueue(() =>
+        {
+            var handle = WindowNative.GetWindowHandle(window);
+            if (IsIconic(handle))
+            {
+                ShowWindow(handle, 9); // SW_RESTORE
+            }
+
+            window.Activate();
+            if (window is MainWindow mainWindow
+                && Interlocked.Exchange(ref _pendingStationLink, null) is { } link)
+            {
+                _ = mainWindow.OpenStationLinkAsync(link);
+            }
+
+            if (window is MainWindow quickWindow
+                && Interlocked.Exchange(ref _pendingStationId, null) is { } id)
+            {
+                _ = quickWindow.OpenQuickStationAsync(id);
+            }
+        });
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(nint window);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(nint window, int command);
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {

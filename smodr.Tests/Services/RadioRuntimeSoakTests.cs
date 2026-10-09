@@ -17,13 +17,17 @@ public sealed class RadioRuntimeSoakTests
         var retries = Channel.CreateUnbounded<long>();
         var queued = new Queue<Action>();
         using var coordinator = new RadioAudioEngineCoordinator(queued.Enqueue);
-        using var recovery = new LiveRadioRecovery(epoch => retries.Writer.TryWrite(epoch), _ => Assert.Fail("Unexpected exhaustion"), clock);
+        using var recovery = new LiveRadioRecovery(epoch => retries.Writer.TryWrite(epoch),
+            _ => Assert.Fail("Unexpected exhaustion"), clock);
         var engines = new List<TestRadioEngine>();
         var delivered = 0;
         coordinator.Failed += (_, _) => delivered++;
         for (var cycle = 0; cycle < 500; cycle++)
         {
-            var engine = new TestRadioEngine(cycle % 2 == 0 ? RadioAudioEngineKind.MediaPlayer : RadioAudioEngineKind.AudioGraph);
+            var engine =
+                new TestRadioEngine(cycle % 2 == 0
+                    ? RadioAudioEngineKind.MediaPlayer
+                    : RadioAudioEngineKind.AudioGraph);
             engines.Add(engine);
             coordinator.Replace(engine);
             recovery.Begin();
@@ -34,8 +38,12 @@ public sealed class RadioRuntimeSoakTests
             var epoch = await retries.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
             Assert.IsTrue(recovery.IsCurrent(epoch));
             recovery.Playing();
-            while (queued.TryDequeue(out var callback)) callback();
+            while (queued.TryDequeue(out var callback))
+            {
+                callback();
+            }
         }
+
         Assert.AreEqual(0, delivered);
         Assert.IsTrue(engines.All(engine => engine.Disposals == 1));
         recovery.Dispose();
@@ -59,14 +67,22 @@ public sealed class RadioRuntimeSoakTests
         long bytes = 0;
         for (var index = 0; index < 5000; index++)
         {
-            if (!cache.TryGet($"cover:{index}", out var cover)) continue;
+            if (!cache.TryGet($"cover:{index}", out var cover))
+            {
+                continue;
+            }
+
             retained++;
             bytes += cover!.Length;
         }
+
         Assert.IsTrue(retained is > 0 and <= 32);
         Assert.IsTrue(bytes <= 65_536);
         clock.Advance(TimeSpan.FromMinutes(30));
-        for (var index = 0; index < 5000; index++) Assert.IsFalse(cache.TryGet($"cover:{index}", out _));
+        for (var index = 0; index < 5000; index++)
+        {
+            Assert.IsFalse(cache.TryGet($"cover:{index}", out _));
+        }
     }
 
     [TestMethod]
@@ -76,29 +92,35 @@ public sealed class RadioRuntimeSoakTests
         try
         {
             var file = Path.Combine(directory.FullName, "history.json");
-            var history = new TrackHistoryService(file, limit: 32);
+            var history = new TrackHistoryService(file, 32);
             var station = new RadioStation { Id = "synthetic", Name = "Synthetic radio" };
             var artwork = new AlbumArtworkMatch(new Uri("https://example.com/cover.png"), null);
             Guid oldest = default;
             for (var batch = 0; batch < 16; batch++)
             {
                 var writes = Enumerable.Range(batch * 16, 16)
-                    .Select(index => history.RecordAsync(station, new RadioTrackInfo($"Song {index}", "Artist"))).ToArray();
+                    .Select(index => history.RecordAsync(station, new RadioTrackInfo($"Song {index}", "Artist")))
+                    .ToArray();
                 var ids = await Task.WhenAll(writes);
-                if (batch == 0) oldest = ids[0];
+                if (batch == 0)
+                {
+                    oldest = ids[0];
+                }
+
                 await history.UpdateArtworkAsync(ids[^1], artwork);
                 Assert.IsTrue(history.Entries.Count <= 32);
             }
+
             await history.UpdateArtworkAsync(oldest, artwork); // Evicted entry must not be resurrected.
             await history.FlushAsync();
-            var reloaded = new TrackHistoryService(file, limit: 32);
+            var reloaded = new TrackHistoryService(file, 32);
             Assert.HasCount(32, reloaded.Entries);
             Assert.HasCount(32, reloaded.Entries.Select(entry => entry.Id).Distinct());
             Assert.AreEqual("Song 255", reloaded.Entries[0].Title);
             Assert.IsFalse(reloaded.Entries.Any(entry => entry.Id == oldest));
             Assert.IsTrue(new FileInfo(file).Length < 2_000_000);
         }
-        finally { directory.Delete(recursive: true); }
+        finally { directory.Delete(true); }
     }
 
     [TestMethod]
@@ -116,6 +138,7 @@ public sealed class RadioRuntimeSoakTests
                 .WaitAsync(TimeSpan.FromSeconds(5)));
             Assert.AreEqual(iteration % 2 == 0 ? 2 : 1, cues);
         }
+
         Assert.AreEqual(128, server.Requests);
         // Disposal awaits the listener and handlers. One connection slot would stall if responses leaked.
     }

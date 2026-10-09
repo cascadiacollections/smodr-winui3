@@ -2,6 +2,8 @@
 
 See [STATIC_ANALYSIS.md](STATIC_ANALYSIS.md) for required Roslyn/SARIF quality gates,
 CI evidence and opt-in standalone ReSharper inspections without editor installation.
+The same guide documents shared ReSharper/Rider settings and
+`scripts/Reset-WinUiGeneratedCode.ps1` for stale generated XAML diagnostics.
 
 Both solution formats expose Debug/Release on ARM64 and x64 only. Native app/tests/performance projects map to that architecture; portable libraries map explicitly to Any CPU. Run `./scripts/Test-SolutionConfigurations.ps1 -SelfTest` with the pinned SDK to validate both formats against evaluated project configurations without restoring packages or launching UI. CI runs this check before restore. Reload the solution in Visual Studio after configuration mapping changes.
 

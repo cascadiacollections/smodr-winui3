@@ -7,10 +7,10 @@ public sealed class RadioPrivacySettings : IRadioPrivacySettings
 {
     private readonly string _filePath;
     private readonly Lock _gate = new();
-    private Task _writeTail = Task.CompletedTask;
-    private long _requestVersion;
     private RadioPrivacyChoices _current;
     private RadioPrivacyChoices _persisted;
+    private long _requestVersion;
+    private Task _writeTail = Task.CompletedTask;
 
     public RadioPrivacySettings(string? filePath = null)
     {
@@ -22,18 +22,18 @@ public sealed class RadioPrivacySettings : IRadioPrivacySettings
 
     public RadioPrivacyChoices Current
     {
-        get { lock (_gate) return _current; }
+        get
+        {
+            lock (_gate)
+            {
+                return _current;
+            }
+        }
     }
 
-    public bool IsPlayReportingEnabled
-    {
-        get => Current.PlayReportingEnabled;
-    }
+    public bool IsPlayReportingEnabled => Current.PlayReportingEnabled;
 
-    public bool IsAlbumArtworkEnabled
-    {
-        get => Current.AlbumArtworkEnabled;
-    }
+    public bool IsAlbumArtworkEnabled => Current.AlbumArtworkEnabled;
 
     public Task SetPlayReportingEnabledAsync(bool enabled)
     {
@@ -45,12 +45,24 @@ public sealed class RadioPrivacySettings : IRadioPrivacySettings
         return Update(current => current with { AlbumArtworkEnabled = enabled });
     }
 
+    public Task FlushAsync()
+    {
+        lock (_gate)
+        {
+            return _writeTail;
+        }
+    }
+
     private Task Update(Func<RadioPrivacyChoices, RadioPrivacyChoices> change)
     {
         lock (_gate)
         {
             var next = change(_current);
-            if (next == _current) return _writeTail;
+            if (next == _current)
+            {
+                return _writeTail;
+            }
+
             _current = next;
             var operation = SaveAfterAsync(_writeTail, next, ++_requestVersion);
             _writeTail = ObserveCompletionAsync(operation);
@@ -58,20 +70,20 @@ public sealed class RadioPrivacySettings : IRadioPrivacySettings
         }
     }
 
-    public Task FlushAsync()
-    {
-        lock (_gate) return _writeTail;
-    }
-
     private RadioPrivacyChoices Read()
     {
         try
         {
-            if (!File.Exists(_filePath)) return RadioPrivacyChoices.Default;
+            if (!File.Exists(_filePath))
+            {
+                return RadioPrivacyChoices.Default;
+            }
+
             // A damaged existing choice must not silently re-enable network reporting.
             var data = JsonSerializer.Deserialize<PrivacyData>(File.ReadAllText(_filePath));
-            return data?.PlayReportingEnabled is { } reporting && (data.SchemaVersion is null or 1)
-                ? new RadioPrivacyChoices(reporting, data.AlbumArtworkEnabled ?? true) // Existing settings predate artwork.
+            return data?.PlayReportingEnabled is { } reporting && data.SchemaVersion is null or 1
+                ? new RadioPrivacyChoices(reporting,
+                    data.AlbumArtworkEnabled ?? true) // Existing settings predate artwork.
                 : RadioPrivacyChoices.FailClosed;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
@@ -87,7 +99,10 @@ public sealed class RadioPrivacySettings : IRadioPrivacySettings
         try
         {
             await Task.Run(() => Save(choices)).ConfigureAwait(false);
-            lock (_gate) _persisted = choices;
+            lock (_gate)
+            {
+                _persisted = choices;
+            }
         }
         catch
         {
@@ -95,8 +110,12 @@ public sealed class RadioPrivacySettings : IRadioPrivacySettings
             {
                 // A later queued choice may still save successfully; only roll back
                 // when this failure is still the latest requested snapshot.
-                if (_requestVersion == requestVersion) _current = _persisted;
+                if (_requestVersion == requestVersion)
+                {
+                    _current = _persisted;
+                }
             }
+
             throw;
         }
     }
@@ -104,7 +123,10 @@ public sealed class RadioPrivacySettings : IRadioPrivacySettings
     private static async Task ObserveCompletionAsync(Task operation)
     {
         try { await operation.ConfigureAwait(false); }
-        catch { /* The next setting change must still be writable. */ }
+        catch
+        {
+            /* The next setting change must still be writable. */
+        }
     }
 
     private void Save(RadioPrivacyChoices choices)

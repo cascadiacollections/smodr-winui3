@@ -8,12 +8,12 @@ namespace smodr.Services;
 
 public partial class AudioService
 {
+    private readonly RadioPlaybackProgressWatchdog _dspProgress = new();
     private AudioGraphRadioEngine? _dsp;
     private CancellationTokenSource? _dspStart;
-    private SystemMediaTransportControls? _manualControls;
     private MediaPlaybackState _dspState = MediaPlaybackState.None;
     private DispatcherTimer? _dspWatchdog;
-    private readonly RadioPlaybackProgressWatchdog _dspProgress = new();
+    private SystemMediaTransportControls? _manualControls;
 
     private async Task StartDspAsync(RadioStation station, Uri uri, RadioEqualizerPreset preset)
     {
@@ -26,7 +26,8 @@ public partial class AudioService
             PublishDspState(MediaPlaybackState.Opening);
             pending = await AudioGraphRadioEngine.CreateAsync(uri, preset, cancellation.Token);
             if (cancellation.IsCancellationRequested || version != _sourceVersion
-                || !ReferenceEquals(station, CurrentStation) || !_recovery.IsRequested)
+                                                     || !ReferenceEquals(station, CurrentStation) ||
+                                                     !_recovery.IsRequested)
             {
                 return;
             }
@@ -46,7 +47,7 @@ public partial class AudioService
             _manualControls.IsPauseEnabled = true;
             _manualControls.ButtonPressed += ManualControls_ButtonPressed;
             // Preserve the source-less MediaPlayer solely as the manual SMTC bridge.
-            _engines.Replace(_dsp, disposePrevious: false);
+            _engines.Replace(_dsp, false);
             UpdateManualMetadata();
             StartDspWatchdog();
             _engines.Play();
@@ -84,12 +85,14 @@ public partial class AudioService
             timer.Tick -= DspWatchdog_Tick;
             _dspWatchdog = null;
         }
+
         if (_manualControls is { } controls)
         {
             controls.ButtonPressed -= ManualControls_ButtonPressed;
             controls.IsEnabled = false;
             _manualControls = null;
         }
+
         if (_dsp is { } dsp)
         {
             _dsp = null;
@@ -102,6 +105,7 @@ public partial class AudioService
                 dsp.Dispose();
             }
         }
+
         _dspState = MediaPlaybackState.None;
     }
 
@@ -139,6 +143,7 @@ public partial class AudioService
                 _recovery.Buffering();
             }
         }
+
         PlaybackStateChanged?.Invoke(this, state);
     }
 
@@ -216,7 +221,8 @@ public partial class AudioService
             display.MusicProperties.Artist = metadata.Artist;
             display.MusicProperties.AlbumTitle = metadata.AlbumTitle;
             display.Thumbnail = _currentArtworkUri is { Scheme: "http" or "https" } artwork
-                ? RandomAccessStreamReference.CreateFromUri(artwork) : null;
+                ? RandomAccessStreamReference.CreateFromUri(artwork)
+                : null;
             display.Update();
         }
         catch (Exception exception) { AppDiagnostics.Record("station.dsp-system-metadata", exception); }

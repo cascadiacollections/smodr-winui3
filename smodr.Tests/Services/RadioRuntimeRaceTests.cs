@@ -45,14 +45,22 @@ public sealed class RadioRuntimeRaceTests
         coordinator.Completed += (_, _) => completions++;
         for (var index = 0; index < 128; index++)
         {
-            var engine = new TestRadioEngine(index % 2 == 0 ? RadioAudioEngineKind.MediaPlayer : RadioAudioEngineKind.AudioGraph);
+            var engine =
+                new TestRadioEngine(index % 2 == 0
+                    ? RadioAudioEngineKind.MediaPlayer
+                    : RadioAudioEngineKind.AudioGraph);
             engines.Add(engine);
             coordinator.Replace(engine);
             engine.EmitState(MediaPlaybackState.Opening);
             engine.EmitFailed();
             engine.EmitCompleted();
         }
-        while (dispatch.TryDequeue(out var callback)) callback();
+
+        while (dispatch.TryDequeue(out var callback))
+        {
+            callback();
+        }
+
         Assert.AreEqual(1, states);
         Assert.AreEqual(1, failures);
         Assert.AreEqual(1, completions);
@@ -67,13 +75,21 @@ public sealed class RadioRuntimeRaceTests
     {
         var clock = new FakeTimeProvider();
         var retries = Channel.CreateUnbounded<long>();
-        using var recovery = new LiveRadioRecovery(epoch => retries.Writer.TryWrite(epoch), _ => Assert.Fail("Unexpected exhaustion"), clock);
+        using var recovery = new LiveRadioRecovery(epoch => retries.Writer.TryWrite(epoch),
+            _ => Assert.Fail("Unexpected exhaustion"), clock);
         recovery.Begin();
         recovery.Fail();
         clock.Advance(TimeSpan.FromSeconds(2));
         var queuedEpoch = await retries.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
-        if (switchStation) recovery.Begin();
-        else recovery.Pause();
+        if (switchStation)
+        {
+            recovery.Begin();
+        }
+        else
+        {
+            recovery.Pause();
+        }
+
         Assert.IsFalse(recovery.IsCurrent(queuedEpoch));
         Assert.AreEqual(switchStation, recovery.IsRequested);
         recovery.Dispose();
@@ -96,7 +112,11 @@ public sealed class RadioRuntimeRaceTests
         engine.EmitFailed();
         engine.EmitCompleted();
         coordinator.Dispose();
-        while (dispatch.TryDequeue(out var callback)) callback();
+        while (dispatch.TryDequeue(out var callback))
+        {
+            callback();
+        }
+
         engine.EmitFailed();
         Assert.AreEqual(0, deliveries);
         Assert.AreEqual(1, engine.Disposals);
@@ -112,17 +132,17 @@ public sealed class RadioRuntimeRaceTests
         using var coordinator = new RadioAudioEngineCoordinator(action => action());
         var prepared = new TestRadioEngine(RadioAudioEngineKind.MediaPlayer);
         slot.Put("https://example.com/stream", prepared);
-        var transferred = slot.Take("https://example.com/stream", allowed: true);
+        var transferred = slot.Take("https://example.com/stream", true);
         Assert.AreSame(prepared, transferred);
         coordinator.Replace(transferred);
         slot.Clear();
         Assert.AreEqual(0, prepared.Disposals);
-        Assert.IsNull(slot.Take("https://example.com/stream", allowed: true));
+        Assert.IsNull(slot.Take("https://example.com/stream", true));
         var bridge = new TestRadioEngine(RadioAudioEngineKind.MediaPlayer);
         coordinator.Replace(bridge);
         Assert.AreEqual(1, prepared.Disposals);
         var graph = new TestRadioEngine(RadioAudioEngineKind.AudioGraph);
-        coordinator.Replace(graph, disposePrevious: false);
+        coordinator.Replace(graph, false);
         coordinator.Play();
         Assert.AreEqual(1, graph.Plays);
         Assert.AreEqual(0, bridge.Plays);
@@ -140,7 +160,7 @@ public sealed class RadioRuntimeRaceTests
             var slot = new RadioStreamWarmupSlot<TestRadioEngine>();
             var resource = new TestRadioEngine(RadioAudioEngineKind.MediaPlayer);
             slot.Put("stream", resource);
-            var take = Task.Run(() => slot.Take("stream", allowed: true));
+            var take = Task.Run(() => slot.Take("stream", true));
             await Task.WhenAll(take, Task.Run(slot.Clear), Task.Run(slot.Dispose));
             (await take)?.Dispose();
             Assert.AreEqual(1, resource.Disposals);

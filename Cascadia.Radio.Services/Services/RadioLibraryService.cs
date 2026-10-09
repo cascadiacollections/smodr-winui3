@@ -10,9 +10,9 @@ public sealed class RadioLibraryService : IRadioLibraryService
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
     private readonly string _filePath;
     private readonly Lock _writeGate = new();
-    private Task _writeTail = Task.CompletedTask;
     private RadioLibraryData _data;
     private bool _readOnly;
+    private Task _writeTail = Task.CompletedTask;
 
     public RadioLibraryService(string filePath)
     {
@@ -24,8 +24,10 @@ public sealed class RadioLibraryService : IRadioLibraryService
     public IReadOnlyList<RadioStation> Favorites => [.. Volatile.Read(ref _data).Favorites];
     public IReadOnlyList<RadioStation> Recents => [.. Volatile.Read(ref _data).Recents];
 
-    public bool IsFavorite(RadioStation station) =>
-        Volatile.Read(ref _data).Favorites.Any(item => RadioStationIdentity.Matches(item, station));
+    public bool IsFavorite(RadioStation station)
+    {
+        return Volatile.Read(ref _data).Favorites.Any(item => RadioStationIdentity.Matches(item, station));
+    }
 
     public Task ToggleFavoriteAsync(RadioStation station)
     {
@@ -112,7 +114,10 @@ public sealed class RadioLibraryService : IRadioLibraryService
         });
     }
 
-    public Task ClearRecentsAsync() => MutateAsync(data => data.Recents.Clear());
+    public Task ClearRecentsAsync()
+    {
+        return MutateAsync(data => data.Recents.Clear());
+    }
 
     public Task FlushAsync()
     {
@@ -122,12 +127,14 @@ public sealed class RadioLibraryService : IRadioLibraryService
         }
     }
 
-    private Task<bool> MutateAsync(Action<RadioLibraryData> mutation) =>
-        MutateAsync(data =>
+    private Task<bool> MutateAsync(Action<RadioLibraryData> mutation)
+    {
+        return MutateAsync(data =>
         {
             mutation(data);
             return true;
         });
+    }
 
     private Task<T> MutateAsync<T>(Func<RadioLibraryData, T> mutation)
     {
@@ -150,11 +157,7 @@ public sealed class RadioLibraryService : IRadioLibraryService
             }
 
             var current = Volatile.Read(ref _data);
-            var next = new RadioLibraryData
-            {
-                Favorites = [.. current.Favorites],
-                Recents = [.. current.Recents]
-            };
+            var next = new RadioLibraryData { Favorites = [.. current.Favorites], Recents = [.. current.Recents] };
             var result = mutation(next);
             Save(next);
             Volatile.Write(ref _data, next);
@@ -180,7 +183,8 @@ public sealed class RadioLibraryService : IRadioLibraryService
         {
             if (File.Exists(_filePath))
             {
-                var data = JsonSerializer.Deserialize<RadioLibraryData>(File.ReadAllText(_filePath)) ?? new();
+                var data = JsonSerializer.Deserialize<RadioLibraryData>(File.ReadAllText(_filePath)) ??
+                           new RadioLibraryData();
                 data.Favorites ??= [];
                 data.Recents ??= [];
                 _readOnly = data.SchemaVersion > CurrentSchemaVersion;
@@ -202,7 +206,7 @@ public sealed class RadioLibraryService : IRadioLibraryService
         {
         }
 
-        return new();
+        return new RadioLibraryData();
     }
 
     private void PreserveInvalidLibrary()

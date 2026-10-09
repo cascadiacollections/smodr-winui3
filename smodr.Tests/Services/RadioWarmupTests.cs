@@ -13,8 +13,8 @@ public sealed class RadioWarmupTests
         using var slot = new RadioStreamWarmupSlot<Resource>();
         using var resource = new Resource();
         slot.Put("https://stream.example/live", resource);
-        Assert.AreSame(resource, slot.Take("https://stream.example/live", allowed: true));
-        Assert.IsNull(slot.Take("https://stream.example/live", allowed: true));
+        Assert.AreSame(resource, slot.Take("https://stream.example/live", true));
+        Assert.IsNull(slot.Take("https://stream.example/live", true));
         Assert.AreEqual(0, resource.Disposals);
     }
 
@@ -27,8 +27,12 @@ public sealed class RadioWarmupTests
         using var slot = new RadioStreamWarmupSlot<Resource>(clock);
         using var resource = new Resource();
         slot.Put("https://stream.example/live", resource);
-        if (expired) clock.Advance(TimeSpan.FromSeconds(30));
-        Assert.IsNull(slot.Take("https://stream.example/live", allowed: expired));
+        if (expired)
+        {
+            clock.Advance(TimeSpan.FromSeconds(30));
+        }
+
+        Assert.IsNull(slot.Take("https://stream.example/live", expired));
         Assert.AreEqual(1, resource.Disposals);
     }
 
@@ -41,13 +45,13 @@ public sealed class RadioWarmupTests
         slot.Put("one", first);
         slot.Put("two", second);
         Assert.AreEqual(1, first.Disposals);
-        Assert.IsNull(slot.Take("other", allowed: true));
+        Assert.IsNull(slot.Take("other", true));
         Assert.AreEqual(1, second.Disposals);
         slot.Dispose();
         using var late = new Resource();
         slot.Put("late", late);
         Assert.AreEqual(1, late.Disposals);
-        Assert.IsNull(slot.Take("late", allowed: true));
+        Assert.IsNull(slot.Take("late", true));
     }
 
     [TestMethod]
@@ -58,7 +62,10 @@ public sealed class RadioWarmupTests
         var calls = 0;
         var unrestricted = true;
         using var warmer = new RadioStreamPrewarmer(preferences, () => unrestricted, (_, _) =>
-        { calls++; return Task.FromResult<PreparedRadioSource?>(null); });
+        {
+            calls++;
+            return Task.FromResult<PreparedRadioSource?>(null);
+        });
         RadioStation[] stations = [new() { Id = "one", StreamUrl = "https://stream.example/live" }];
         await warmer.WarmAsync(stations);
         Assert.AreEqual(0, calls);
@@ -161,18 +168,26 @@ public sealed class RadioWarmupTests
     }
 
     [TestMethod]
-    public void PlaybackProgressRejectsInvalidDeadline() =>
+    public void PlaybackProgressRejectsInvalidDeadline()
+    {
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
             new RadioPlaybackProgressWatchdog(stallTimeout: TimeSpan.Zero));
+    }
 
     [TestMethod]
-    public void PlaybackProgressRejectsInvalidTimelineResetThreshold() =>
+    public void PlaybackProgressRejectsInvalidTimelineResetThreshold()
+    {
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
             new RadioPlaybackProgressWatchdog(timelineResetThreshold: TimeSpan.Zero));
+    }
 
     private sealed class Resource : IDisposable
     {
         public int Disposals { get; private set; }
-        public void Dispose() => Disposals++;
+
+        public void Dispose()
+        {
+            Disposals++;
+        }
     }
 }

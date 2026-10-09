@@ -65,11 +65,12 @@ public sealed class IcyMetadataStreamReaderTests
         using var client = new HttpClient(handler);
         var titles = new List<string>();
         using var cancellation = new CancellationTokenSource();
-        await Assert.ThrowsAsync<OperationCanceledException>(() => new IcyMetadataStreamReader(client).ListenAsync(new Uri("https://example.com/live"), raw =>
-        {
-            titles.Add(raw);
-            cancellation.Cancel();
-        }, cancellation.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() => new IcyMetadataStreamReader(client).ListenAsync(
+            new Uri("https://example.com/live"), raw =>
+            {
+                titles.Add(raw);
+                cancellation.Cancel();
+            }, cancellation.Token));
         Assert.HasCount(1, titles);
         Assert.AreEqual("StreamTitle='Björk - Jóga';", titles[0]);
     }
@@ -113,12 +114,6 @@ public sealed class IcyMetadataStreamReaderTests
         Assert.AreEqual(metadata, titles[0]);
     }
 
-    private sealed class FragmentedStream(byte[] bytes) : MemoryStream(bytes, writable: false)
-    {
-        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) =>
-            base.ReadAsync(buffer[..Math.Min(1, buffer.Length)], cancellationToken);
-    }
-
     private static HttpResponseMessage Response(byte[] body)
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(body) };
@@ -133,12 +128,23 @@ public sealed class IcyMetadataStreamReaderTests
         var blocks = (bytes.Length + 15) / 16;
         body.Add((byte)blocks);
         body.AddRange(bytes);
-        body.AddRange(new byte[blocks * 16 - bytes.Length]);
+        body.AddRange(new byte[(blocks * 16) - bytes.Length]);
+    }
+
+    private sealed class FragmentedStream(byte[] bytes) : MemoryStream(bytes, false)
+    {
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            return base.ReadAsync(buffer[..Math.Min(1, buffer.Length)], cancellationToken);
+        }
     }
 
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
-            CancellationToken cancellationToken) => Task.FromResult(respond(request));
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(respond(request));
+        }
     }
 }

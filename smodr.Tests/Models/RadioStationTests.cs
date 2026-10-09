@@ -8,13 +8,7 @@ public sealed class RadioStationTests
     [TestMethod]
     public void Details_CombinesUsefulStationMetadata()
     {
-        var station = new RadioStation
-        {
-            Country = "United States",
-            Tags = "jazz,blues",
-            Bitrate = 128,
-            Codec = "MP3"
-        };
+        var station = new RadioStation { Country = "United States", Tags = "jazz,blues", Bitrate = 128, Codec = "MP3" };
 
         Assert.AreEqual("United States · jazz · 128 kbps MP3", station.Details);
     }
@@ -48,6 +42,7 @@ public sealed class RadioStationTests
         Assert.AreEqual("Unnamed station", new RadioStation().ToString());
         var heard = new HeardTrack { Title = "Song", Artist = "Artist", StationName = "KEXP" };
         Assert.StartsWith("Artist — Song, KEXP · ", heard.ToString());
-        Assert.StartsWith("Artist — Song, 2 plays", new TopTrack("Song", "Artist", 2, DateTimeOffset.UnixEpoch).ToString());
+        Assert.StartsWith("Artist — Song, 2 plays",
+            new TopTrack("Song", "Artist", 2, DateTimeOffset.UnixEpoch).ToString());
     }
 }

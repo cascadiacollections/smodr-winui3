@@ -12,14 +12,6 @@ internal sealed partial class AudioGraphRadioEngine : IRadioAudioEngine
     private readonly MediaSourceAudioInputNode _input;
     private readonly MediaSource _source;
     private int _disposed;
-    public RadioEqualizerPreset Preset { get; }
-    public RadioAudioEngineKind Kind => RadioAudioEngineKind.AudioGraph;
-    public MediaPlaybackState State { get; private set; } = MediaPlaybackState.Opening;
-    public event EventHandler<MediaPlaybackState>? StateChanged;
-    public TimeSpan Duration => _input.Duration;
-    public TimeSpan Position => _input.Position;
-    public event EventHandler? Completed;
-    public event EventHandler? Failed;
 
     private AudioGraphRadioEngine(AudioGraph graph, MediaSourceAudioInputNode input, MediaSource source,
         RadioEqualizerPreset preset)
@@ -30,6 +22,53 @@ internal sealed partial class AudioGraphRadioEngine : IRadioAudioEngine
         Preset = preset;
         _input.MediaSourceCompleted += InputCompleted;
         _graph.UnrecoverableErrorOccurred += GraphFailed;
+    }
+
+    public RadioEqualizerPreset Preset { get; }
+    public RadioAudioEngineKind Kind => RadioAudioEngineKind.AudioGraph;
+    public MediaPlaybackState State { get; private set; } = MediaPlaybackState.Opening;
+    public event EventHandler<MediaPlaybackState>? StateChanged;
+    public TimeSpan Duration => _input.Duration;
+    public TimeSpan Position => _input.Position;
+    public event EventHandler? Completed;
+    public event EventHandler? Failed;
+
+    public void SetVolume(double volume)
+    {
+        _input.OutgoingGain = Math.Clamp(volume, 0, 1) * RadioEqualizerProfiles.Headroom(Preset);
+    }
+
+    public void Play()
+    {
+        _graph.Start();
+        State = MediaPlaybackState.Playing;
+        StateChanged?.Invoke(this, State);
+    }
+
+    public void Pause()
+    {
+        _graph.Stop();
+        State = MediaPlaybackState.Paused;
+        StateChanged?.Invoke(this, State);
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
+
+        _input.MediaSourceCompleted -= InputCompleted;
+        _graph.UnrecoverableErrorOccurred -= GraphFailed;
+        try { _graph.Stop(); }
+        finally
+        {
+            try { _graph.Dispose(); }
+            finally { _source.Dispose(); }
+        }
+
+        GC.SuppressFinalize(this);
     }
 
     private void InputCompleted(MediaSourceAudioInputNode sender, object args)
@@ -55,7 +94,8 @@ internal sealed partial class AudioGraphRadioEngine : IRadioAudioEngine
         MediaSource? source = null;
         try
         {
-            var created = await AudioGraph.CreateAsync(new AudioGraphSettings(AudioRenderCategory.Media)).AsTask(cancellationToken);
+            var created = await AudioGraph.CreateAsync(new AudioGraphSettings(AudioRenderCategory.Media))
+                .AsTask(cancellationToken);
             if (created.Status != AudioGraphCreationStatus.Success)
             {
                 throw new InvalidOperationException("AudioGraph creation failed.");
@@ -87,6 +127,7 @@ internal sealed partial class AudioGraphRadioEngine : IRadioAudioEngine
                 equalizer.Bands[index].FrequencyCenter = bands[index].Frequency;
                 equalizer.Bands[index].Gain = bands[index].Gain;
             }
+
             input.Node.EffectDefinitions.Add(equalizer);
             input.Node.AddOutgoingConnection(output.DeviceOutputNode);
             cancellationToken.ThrowIfCancellationRequested();
@@ -98,30 +139,5 @@ internal sealed partial class AudioGraphRadioEngine : IRadioAudioEngine
             source?.Dispose();
             throw;
         }
-    }
-
-    public void SetVolume(double volume)
-    {
-        _input.OutgoingGain = Math.Clamp(volume, 0, 1) * RadioEqualizerProfiles.Headroom(Preset);
-    }
-
-    public void Play() { _graph.Start(); State = MediaPlaybackState.Playing; StateChanged?.Invoke(this, State); }
-    public void Pause() { _graph.Stop(); State = MediaPlaybackState.Paused; StateChanged?.Invoke(this, State); }
-    public void Dispose()
-    {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
-        {
-            return;
-        }
-
-        _input.MediaSourceCompleted -= InputCompleted;
-        _graph.UnrecoverableErrorOccurred -= GraphFailed;
-        try { _graph.Stop(); }
-        finally
-        {
-            try { _graph.Dispose(); }
-            finally { _source.Dispose(); }
-        }
-        GC.SuppressFinalize(this);
     }
 }

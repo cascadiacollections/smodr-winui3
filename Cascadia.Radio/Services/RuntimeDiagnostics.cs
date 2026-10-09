@@ -43,7 +43,11 @@ public sealed class RuntimeDiagnosticCounters
     public void Increment(RuntimeCounter counter)
     {
         var index = (int)counter;
-        if ((uint)index >= (uint)_counts.Length) throw new ArgumentOutOfRangeException(nameof(counter));
+        if ((uint)index >= (uint)_counts.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(counter));
+        }
+
         Interlocked.Increment(ref _counts[index]);
     }
 
@@ -51,7 +55,11 @@ public sealed class RuntimeDiagnosticCounters
     public Dictionary<string, long> Snapshot()
     {
         var result = new Dictionary<string, long>(_names.Length, StringComparer.Ordinal);
-        for (var index = 0; index < _counts.Length; index++) result.Add(_names[index], Interlocked.Read(ref _counts[index]));
+        for (var index = 0; index < _counts.Length; index++)
+        {
+            result.Add(_names[index], Interlocked.Read(ref _counts[index]));
+        }
+
         return result;
     }
 
@@ -62,11 +70,18 @@ public sealed class RuntimeDiagnosticCounters
             JsonSerializer.Serialize(new DiagnosticSnapshot(1, DateTimeOffset.UtcNow, Snapshot()), _json)));
     }
 
-    private sealed record DiagnosticSnapshot(int SchemaVersion, DateTimeOffset CapturedAtUtc, Dictionary<string, long> Counters);
+    private sealed record DiagnosticSnapshot(
+        int SchemaVersion,
+        DateTimeOffset CapturedAtUtc,
+        Dictionary<string, long> Counters);
 }
 
 public static class RuntimeDiagnostics
 {
     public static RuntimeDiagnosticCounters Counters { get; } = new();
-    public static Task FlushAsync(string filePath) => Counters.SaveAsync(filePath);
+
+    public static Task FlushAsync(string filePath)
+    {
+        return Counters.SaveAsync(filePath);
+    }
 }

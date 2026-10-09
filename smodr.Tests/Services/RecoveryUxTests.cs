@@ -111,35 +111,26 @@ public sealed class RecoveryUxTests
         Assert.IsFalse(viewModel.CanRetry);
     }
 
-    private static RadioMainViewModel CreateViewModel(IRadioPlayer player) =>
-        new(player, new NullDirectory(), new NullLibrary(), action => action());
+    private static RadioMainViewModel CreateViewModel(IRadioPlayer player)
+    {
+        return new RadioMainViewModel(player, new NullDirectory(), new NullLibrary(), action => action());
+    }
 
-    private static RadioStation Station(string id = "station") =>
-        new() { Id = id, Name = id, StreamUrl = $"https://stream.example/{id}" };
+    private static RadioStation Station(string id = "station")
+    {
+        return new RadioStation { Id = id, Name = id, StreamUrl = $"https://stream.example/{id}" };
+    }
 
     private sealed class RecoveringPlayer : IRadioPlayer
     {
+        public int PlayCalls { get; private set; }
         public RadioStation? CurrentStation { get; private set; }
         public RadioTrackInfo? CurrentTrack => null;
         public bool IsPlaybackRequested { get; private set; }
         public bool IsReconnecting { get; set; }
-        public int PlayCalls { get; private set; }
         public event EventHandler<RadioStation?>? StationChanged;
-#pragma warning disable CS0067 // Track and user-start events are not part of recovery UX.
-        public event EventHandler<RadioTrackUpdate?>? TrackChanged;
-        public event EventHandler? UserPlaybackStarted;
-#pragma warning restore CS0067
         public event EventHandler<MediaPlaybackState>? PlaybackStateChanged;
         public event EventHandler<string>? PlaybackFailed;
-
-        public void Emit(MediaPlaybackState state) => PlaybackStateChanged?.Invoke(this, state);
-
-        public void Fail(string message)
-        {
-            IsPlaybackRequested = false;
-            IsReconnecting = false;
-            PlaybackFailed?.Invoke(this, message);
-        }
 
         public Task PlayStationAsync(RadioStation station)
         {
@@ -155,7 +146,10 @@ public sealed class RecoveryUxTests
             IsPlaybackRequested = true;
         }
 
-        public void Pause() => IsPlaybackRequested = false;
+        public void Pause()
+        {
+            IsPlaybackRequested = false;
+        }
 
         public void StopStation()
         {
@@ -165,29 +159,88 @@ public sealed class RecoveryUxTests
         }
 
         public void SetNowPlayingArtwork(RadioStation station, Uri? artworkUrl) { }
+
+        public void Emit(MediaPlaybackState state)
+        {
+            PlaybackStateChanged?.Invoke(this, state);
+        }
+
+        public void Fail(string message)
+        {
+            IsPlaybackRequested = false;
+            IsReconnecting = false;
+            PlaybackFailed?.Invoke(this, message);
+        }
+#pragma warning disable CS0067 // Track and user-start events are not part of recovery UX.
+        public event EventHandler<RadioTrackUpdate?>? TrackChanged;
+        public event EventHandler? UserPlaybackStarted;
+#pragma warning restore CS0067
     }
 
     private sealed class NullDirectory : IRadioDirectoryService
     {
-        public Task<IReadOnlyList<RadioStation>> GetPopularStationsAsync(int limit = 50, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<RadioStation>>([]);
-        public Task<IReadOnlyList<RadioStation>> SearchAsync(string query, int limit = 50, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<RadioStation>>([]);
-        public Task<IReadOnlyList<RadioStation>> SearchGenreAsync(string genre, int limit = 50, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<RadioStation>>([]);
+        public Task<IReadOnlyList<RadioStation>> GetPopularStationsAsync(int limit = 50,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<RadioStation>>([]);
+        }
+
+        public Task<IReadOnlyList<RadioStation>> SearchAsync(string query, int limit = 50,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<RadioStation>>([]);
+        }
+
+        public Task<IReadOnlyList<RadioStation>> SearchGenreAsync(string genre, int limit = 50,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<RadioStation>>([]);
+        }
     }
 
     private sealed class NullLibrary : IRadioLibraryService
     {
         public IReadOnlyList<RadioStation> Favorites => [];
         public IReadOnlyList<RadioStation> Recents => [];
-        public bool IsFavorite(RadioStation station) => false;
-        public Task ToggleFavoriteAsync(RadioStation station) => Task.CompletedTask;
-        public Task<int> RemoveFavoriteAsync(RadioStation station) => Task.FromResult(-1);
-        public Task RestoreFavoriteAsync(RadioStation station, int index) => Task.CompletedTask;
-        public Task ReorderFavoritesAsync(IReadOnlyList<RadioStation> order) => Task.CompletedTask;
-        public Task LogRecentAsync(RadioStation station) => Task.CompletedTask;
-        public Task ClearRecentsAsync() => Task.CompletedTask;
-        public Task FlushAsync() => Task.CompletedTask;
+
+        public bool IsFavorite(RadioStation station)
+        {
+            return false;
+        }
+
+        public Task ToggleFavoriteAsync(RadioStation station)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<int> RemoveFavoriteAsync(RadioStation station)
+        {
+            return Task.FromResult(-1);
+        }
+
+        public Task RestoreFavoriteAsync(RadioStation station, int index)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task ReorderFavoritesAsync(IReadOnlyList<RadioStation> order)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task LogRecentAsync(RadioStation station)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task ClearRecentsAsync()
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task FlushAsync()
+        {
+            return Task.CompletedTask;
+        }
     }
 }

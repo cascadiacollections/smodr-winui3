@@ -6,7 +6,11 @@ internal static class AtomicFileWriter
     public static void WriteAllText(string path, string contents)
     {
         var directory = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
         var temporaryPath = $"{path}.{Guid.NewGuid():N}.tmp";
         try
         {
@@ -15,7 +19,10 @@ internal static class AtomicFileWriter
         }
         finally
         {
-            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
         }
     }
 
@@ -29,8 +36,8 @@ internal static class AtomicFileWriter
                 return;
             }
             catch (Exception exception) when (attempt < 5
-                && !Directory.Exists(destinationPath)
-                && exception is IOException or UnauthorizedAccessException)
+                                              && !Directory.Exists(destinationPath)
+                                              && exception is IOException or UnauthorizedAccessException)
             {
                 Thread.Sleep(25 << attempt);
             }

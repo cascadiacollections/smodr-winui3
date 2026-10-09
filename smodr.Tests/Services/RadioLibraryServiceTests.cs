@@ -73,8 +73,9 @@ public sealed class RadioLibraryServiceTests
             {
                 File.Delete(filePath);
             }
+
             foreach (var backup in Directory.GetFiles(Path.GetDirectoryName(filePath)!,
-                $"{Path.GetFileName(filePath)}.corrupt-*"))
+                         $"{Path.GetFileName(filePath)}.corrupt-*"))
             {
                 File.Delete(backup);
             }
@@ -91,11 +92,7 @@ public sealed class RadioLibraryServiceTests
             await File.WriteAllTextAsync(filePath, invalidContent);
             var library = new RadioLibraryService(filePath);
 
-            await library.ToggleFavoriteAsync(new RadioStation
-            {
-                Id = "new",
-                StreamUrl = "https://example.com/live"
-            });
+            await library.ToggleFavoriteAsync(new RadioStation { Id = "new", StreamUrl = "https://example.com/live" });
 
             var backup = Directory.GetFiles(Path.GetDirectoryName(filePath)!,
                 $"{Path.GetFileName(filePath)}.corrupt-*").Single();
@@ -108,8 +105,9 @@ public sealed class RadioLibraryServiceTests
             {
                 File.Delete(filePath);
             }
+
             foreach (var backup in Directory.GetFiles(Path.GetDirectoryName(filePath)!,
-                $"{Path.GetFileName(filePath)}.corrupt-*"))
+                         $"{Path.GetFileName(filePath)}.corrupt-*"))
             {
                 File.Delete(backup);
             }
@@ -129,9 +127,15 @@ public sealed class RadioLibraryServiceTests
 
             // Directory replacement maps to access-denied on Windows and IO failure on Unix.
             if (OperatingSystem.IsWindows())
-                await Assert.ThrowsExactlyAsync<UnauthorizedAccessException>(() => library.ToggleFavoriteAsync(station));
+            {
+                await Assert.ThrowsExactlyAsync<UnauthorizedAccessException>(() =>
+                    library.ToggleFavoriteAsync(station));
+            }
             else
+            {
                 await Assert.ThrowsExactlyAsync<IOException>(() => library.ToggleFavoriteAsync(station));
+            }
+
             Assert.IsFalse(library.IsFavorite(station));
 
             Directory.Delete(filePath);
@@ -148,6 +152,7 @@ public sealed class RadioLibraryServiceTests
             {
                 Directory.Delete(filePath);
             }
+
             Directory.Delete(root);
         }
     }
@@ -206,8 +211,7 @@ public sealed class RadioLibraryServiceTests
             await File.WriteAllTextAsync(filePath, futureData);
             var library = new RadioLibraryService(filePath);
 
-            await Assert.ThrowsExactlyAsync<IOException>(
-                () => library.LogRecentAsync(new RadioStation()));
+            await Assert.ThrowsExactlyAsync<IOException>(() => library.LogRecentAsync(new RadioStation()));
             Assert.AreEqual(futureData, await File.ReadAllTextAsync(filePath));
         }
         finally
@@ -233,8 +237,7 @@ public sealed class RadioLibraryServiceTests
             var library = new RadioLibraryService(filePath);
             var operations = stations.SelectMany(station => new[]
             {
-                library.ToggleFavoriteAsync(station),
-                library.LogRecentAsync(station)
+                library.ToggleFavoriteAsync(station), library.LogRecentAsync(station)
             });
             await Task.WhenAll(operations);
 

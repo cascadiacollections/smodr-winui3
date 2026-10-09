@@ -29,12 +29,18 @@ public sealed record DirectoryValue
 }
 
 public enum StationOrder { Name, ClickCount, Votes, Bitrate, Random }
+
 public enum StationRanking { Popular, Votes, RecentlyClicked, RecentlyChanged }
+
 public enum DirectoryFacet { CountryCodes, Languages, Tags, Codecs }
+
 public enum ClientDiagnostic { MirrorFailed, DiscoveryFailed, ReportRejected }
 
 /// <summary>No URLs, queries, station names, titles or response bodies are emitted.</summary>
-public interface IClientDiagnostics { void Record(ClientDiagnostic diagnostic); }
+public interface IClientDiagnostics
+{
+    void Record(ClientDiagnostic diagnostic);
+}
 
 public interface IMirrorProvider
 {
@@ -61,6 +67,7 @@ public sealed record ClientOptions
 {
     /// <summary>Identify your consuming application, not just this library.</summary>
     public required string UserAgent { get; init; }
+
     public TimeSpan RequestTimeout { get; init; } = TimeSpan.FromSeconds(8);
 }
 

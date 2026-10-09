@@ -15,9 +15,11 @@ public sealed class RadioBrowserServersTests
         using var servers = new RadioBrowserServers(_ =>
         {
             calls++;
-            return Task.FromResult<IReadOnlyList<Uri>>((Uri[])[
+            return Task.FromResult<IReadOnlyList<Uri>>((Uri[])
+            [
                 new Uri($"https://mirror{calls}.api.radio-browser.info/"),
-                new Uri("http://insecure.api.radio-browser.info/"), new Uri("https://outside.example/")]);
+                new Uri("http://insecure.api.radio-browser.info/"), new Uri("https://outside.example/")
+            ]);
         }, clock);
         var first = await servers.GetServersAsync();
         Assert.AreEqual("mirror1.api.radio-browser.info", first.Single().Host);

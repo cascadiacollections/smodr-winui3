@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Xml.Linq;
 
 namespace smodr.Tests.Ui;
@@ -15,34 +16,42 @@ public sealed class MainWindowAccessibilityTests
         {
             var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, file));
             foreach (var element in document.Descendants().Where(element => element.Name.LocalName is
-                "Button" or "HyperlinkButton" or "ToggleSwitch" or "ComboBox" or "ListView" or "MenuFlyoutItem"))
+                         "Button" or "HyperlinkButton" or "ToggleSwitch" or "ComboBox" or "ListView"
+                         or "MenuFlyoutItem"))
             {
                 var automationName = (string?)element.Attribute("AutomationProperties.Name");
                 var content = (string?)element.Attribute("Content");
                 var text = (string?)element.Attribute("Text");
                 var descendantText = element.Descendants().Select(child => child.Name.LocalName == "TextBlock"
-                    ? (string?)child.Attribute("Text") : null).Any(IsLiteralLabel);
+                    ? (string?)child.Attribute("Text")
+                    : null).Any(IsLiteralLabel);
                 Assert.IsTrue(IsLiteralLabel(automationName)
-                    || (!string.IsNullOrWhiteSpace(content) && content[0] != '{')
-                    || IsLiteralLabel(text) || descendantText,
+                              || (!string.IsNullOrWhiteSpace(content) && content[0] != '{')
+                              || IsLiteralLabel(text) || descendantText,
                     $"{file}: {element.Name.LocalName} needs a readable content label or AutomationProperties.Name.");
             }
         }
     }
 
-    private static bool IsLiteralLabel(string? value) =>
-        !string.IsNullOrWhiteSpace(value) && value[0] != '{';
+    private static bool IsLiteralLabel(string? value)
+    {
+        return !string.IsNullOrWhiteSpace(value) && value[0] != '{';
+    }
 
     [TestMethod]
     public void AppearanceUsesNativeBackdropAccessibleChoiceAndThemedSolidSurface()
     {
         var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml"));
         Assert.IsTrue(document.Descendants().Any(element => element.Name.LocalName == "ThinDesktopAcrylicBackdrop"));
-        var choice = document.Descendants().Single(element => (string?)element.Attribute(_xaml + "Name") == "BackdropBox");
+        var choice = document.Descendants()
+            .Single(element => (string?)element.Attribute(_xaml + "Name") == "BackdropBox");
         Assert.AreEqual("Window background", (string?)choice.Attribute("AutomationProperties.Name"));
-        CollectionAssert.AreEqual(_backdropLabels, choice.Elements().Select(element => (string?)element.Attribute("Content")).ToArray());
-        var fallback = document.Descendants().Single(element => (string?)element.Attribute(_xaml + "Name") == "SolidWindowBackground");
-        Assert.AreEqual("{ThemeResource ApplicationPageBackgroundThemeBrush}", (string?)fallback.Attribute("Background"));
+        CollectionAssert.AreEqual(_backdropLabels,
+            choice.Elements().Select(element => (string?)element.Attribute("Content")).ToArray());
+        var fallback = document.Descendants()
+            .Single(element => (string?)element.Attribute(_xaml + "Name") == "SolidWindowBackground");
+        Assert.AreEqual("{ThemeResource ApplicationPageBackgroundThemeBrush}",
+            (string?)fallback.Attribute("Background"));
         Assert.AreEqual("3", (string?)fallback.Attribute("Grid.RowSpan"));
     }
 
@@ -55,18 +64,21 @@ public sealed class MainWindowAccessibilityTests
             var view = document.Descendants().Single(element => (string?)element.Attribute(_xaml + "Name") == viewName);
             Assert.IsFalse(view.Descendants().Any(element => element.Name.LocalName is "ScrollViewer" or "GridView"));
             foreach (var list in view.Descendants().Where(element => element.Name.LocalName == "ListView"
-                && element.Descendants().Any(child => child.Name.LocalName == "StationRowControl")))
+                                                                     && element.Descendants().Any(child =>
+                                                                         child.Name.LocalName == "StationRowControl")))
             {
-                Assert.AreEqual("StationList_ContainerContentChanging", (string?)list.Attribute("ContainerContentChanging"));
+                Assert.AreEqual("StationList_ContainerContentChanging",
+                    (string?)list.Attribute("ContainerContentChanging"));
                 Assert.IsFalse(string.IsNullOrWhiteSpace((string?)list.Attribute("AutomationProperties.Name")));
                 Assert.AreEqual("StationList_ItemClick", (string?)list.Attribute("ItemClick"));
-                Assert.IsTrue(int.Parse((string)list.Attribute("Grid.Row")!, System.Globalization.CultureInfo.InvariantCulture) > 0);
+                Assert.IsTrue(int.Parse((string)list.Attribute("Grid.Row")!, CultureInfo.InvariantCulture) > 0);
             }
         }
+
         var row = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "StationRowControl.xaml"));
         Assert.IsTrue(row.Descendants().Any(element => (string?)element.Attribute(_xaml + "Name") == "PlaybackLabel"));
         Assert.IsTrue(row.Descendants().Any(element => (string?)element.Attribute(_xaml + "Name") == "FavoriteButton"
-            && element.Attribute("AutomationProperties.Name") is not null));
+                                                       && element.Attribute("AutomationProperties.Name") is not null));
     }
 
     [TestMethod]
@@ -83,7 +95,10 @@ public sealed class MainWindowAccessibilityTests
         var text = list.Descendants().Single(element => element.Name.LocalName == "TextBlock");
         Assert.AreEqual("True", (string?)text.Attribute("IsTextSelectionEnabled"));
         var code = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "MainWindow.xaml.cs"));
-        StringAssert.Contains(code, "if (_closed || _licensesOpen) return;", StringComparison.Ordinal);
+        Assert.IsTrue(System.Text.RegularExpressions.Regex.IsMatch(code,
+            @"if\s*\(\s*_closed\s*\|\|\s*_licensesOpen\s*\)\s*(?:\{\s*)?return\s*;",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1)),
+            "Opening the license dialog must return early when closed or already open.");
         StringAssert.Contains(code, "WaitAsync(cancellationToken)", StringComparison.Ordinal);
     }
 
@@ -95,7 +110,7 @@ public sealed class MainWindowAccessibilityTests
         {
             var view = document.Descendants().Single(element => (string?)element.Attribute(_xaml + "Name") == viewName);
             foreach (var button in view.Descendants().Where(element => element.Name.LocalName == "Button"
-                && element.Attribute("Content") is null))
+                                                                       && element.Attribute("Content") is null))
             {
                 var accessibleName = (string?)button.Attribute("AutomationProperties.Name");
                 Assert.IsFalse(string.IsNullOrWhiteSpace(accessibleName),
@@ -108,7 +123,7 @@ public sealed class MainWindowAccessibilityTests
         Assert.IsTrue(nowPlaying.Descendants().Any(element => element.Name.LocalName == "ScrollViewer"),
             "Expanded Now Playing must scroll at high text scaling.");
         Assert.IsTrue(nowPlaying.Descendants().Any(element =>
-            (string?)element.Attribute(_xaml + "Name") == "CloseNowPlayingButton"),
+                (string?)element.Attribute(_xaml + "Name") == "CloseNowPlayingButton"),
             "Keyboard focus needs a close target when Now Playing opens.");
     }
 
@@ -140,8 +155,10 @@ public sealed class MainWindowAccessibilityTests
             (string?)element.Attribute(_xaml + "Name") == "SettingsView");
         Assert.IsTrue(settings.Descendants().Any(element => element.Name.LocalName == "ScrollViewer"));
         Assert.HasCount(11, settings.Descendants().Where(element => element.Name.LocalName == "SettingsCard"));
-        foreach (var action in settings.Descendants().Where(element => element.Name.LocalName is "ToggleSwitch" or "ComboBox"
-            || (element.Name.LocalName == "SettingsCard" && (string?)element.Attribute("IsClickEnabled") == "True")))
+        foreach (var action in settings.Descendants().Where(element =>
+                     element.Name.LocalName is "ToggleSwitch" or "ComboBox"
+                     || (element.Name.LocalName == "SettingsCard" &&
+                         (string?)element.Attribute("IsClickEnabled") == "True")))
         {
             Assert.IsFalse(string.IsNullOrWhiteSpace((string?)action.Attribute("AutomationProperties.Name")),
                 $"Settings action {action.Name.LocalName} needs an accessible name.");
@@ -168,14 +185,20 @@ public sealed class MainWindowAccessibilityTests
                 "JumpListSwitch" => "IsJumpListEnabled",
                 _ => throw new InvalidOperationException("Unexpected settings toggle")
             };
-            var busy = name == "JumpListSwitch" ? "CanEditJumpLists"
-                : name is "PrewarmSwitch" or "LoopBroadcastsSwitch" or "ResumeSleepSwitch" or "ResumeNetworkSwitch" ? "CanEditPlayback" : "CanEdit";
+            var busy = name == "JumpListSwitch"
+                ? "CanEditJumpLists"
+                : name is "PrewarmSwitch" or "LoopBroadcastsSwitch" or "ResumeSleepSwitch" or "ResumeNetworkSwitch"
+                    ? "CanEditPlayback"
+                    : "CanEdit";
             Assert.AreEqual($"{{x:Bind Settings.{busy}, Mode=OneWay}}", (string?)toggle.Attribute("IsEnabled"));
             Assert.AreEqual($"{{x:Bind Settings.{property}, Mode=OneWay}}", (string?)toggle.Attribute("IsOn"));
         }
-        var equalizer = settings.Descendants().Single(element => (string?)element.Attribute(_xaml + "Name") == "EqualizerBox");
+
+        var equalizer = settings.Descendants()
+            .Single(element => (string?)element.Attribute(_xaml + "Name") == "EqualizerBox");
         Assert.AreEqual("{x:Bind Settings.CanEditPlayback, Mode=OneWay}", (string?)equalizer.Attribute("IsEnabled"));
-        Assert.AreEqual("{x:Bind Settings.SelectedEqualizerPreset, Mode=OneWay}", (string?)equalizer.Attribute("SelectedIndex"));
+        Assert.AreEqual("{x:Bind Settings.SelectedEqualizerPreset, Mode=OneWay}",
+            (string?)equalizer.Attribute("SelectedIndex"));
         var error = settings.Descendants().Single(element => element.Name.LocalName == "InfoBar");
         Assert.AreEqual("{x:Bind Settings.HasError, Mode=OneWay}", (string?)error.Attribute("IsOpen"));
         Assert.AreEqual("{x:Bind Settings.ErrorMessage, Mode=OneWay}", (string?)error.Attribute("Message"));

@@ -4,7 +4,8 @@ using Windows.UI.StartScreen;
 namespace smodr.Services;
 
 /// <summary>
-/// Represents a jump list for the radio application, allowing users to quickly access their favorite and recent radio stations from the Windows taskbar or Start menu.
+///     Represents a jump list for the radio application, allowing users to quickly access their favorite and recent radio
+///     stations from the Windows taskbar or Start menu.
 /// </summary>
 /// <param name="preferences">The radio playback preferences.</param>
 internal sealed partial class RadioJumpList(RadioPlaybackPreferences preferences) : IDisposable
@@ -13,13 +14,38 @@ internal sealed partial class RadioJumpList(RadioPlaybackPreferences preferences
 #pragma warning disable IDE0028 // Preserve case-sensitive shell arguments.
     private readonly HashSet<string> _removedArguments = new(StringComparer.Ordinal);
 #pragma warning restore IDE0028
+    private bool _disposed;
     private Task _tail = Task.CompletedTask;
     private long _version;
-    private bool _disposed;
+
+    internal static bool IsSupported
+    {
+        get
+        {
+            try { return JumpList.IsSupported(); }
+            catch (Exception exception)
+            {
+                AppDiagnostics.Record("shell.jump-list-support", exception);
+                return false;
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            _disposed = true;
+            Interlocked.Increment(ref _version);
+        }
+
+        GC.SuppressFinalize(this);
+    }
 
     public Task UpdateAsync(IReadOnlyList<RadioStation> favorites, IReadOnlyList<RadioStation> recents)
     {
-        var desired = preferences.Current.JumpLists ? RadioQuickLaunch.Build(favorites, recents)
+        var desired = preferences.Current.JumpLists
+            ? RadioQuickLaunch.Build(favorites, recents)
             : Array.Empty<RadioQuickLaunchItem>();
         lock (_gate)
         {
@@ -67,24 +93,10 @@ internal sealed partial class RadioJumpList(RadioPlaybackPreferences preferences
                 entry.GroupName = item.Group;
                 list.Items.Add(entry);
             }
+
             await list.SaveAsync();
         }
         catch (Exception exception) { AppDiagnostics.Record("shell.jump-list", exception); }
-    }
-
-    public void Dispose()
-    {
-        lock (_gate) { _disposed = true; Interlocked.Increment(ref _version); }
-        GC.SuppressFinalize(this);
-    }
-
-    internal static bool IsSupported
-    {
-        get
-        {
-            try { return JumpList.IsSupported(); }
-            catch (Exception exception) { AppDiagnostics.Record("shell.jump-list-support", exception); return false; }
-        }
     }
 
     internal Task FlushAsync()

@@ -8,7 +8,8 @@ public sealed class StationLaunchLinkTests
     [TestMethod]
     public void AcceptsIosStationLinkAndHonorsNoAutoPlay()
     {
-        var uri = new Uri("holmdel://station?id=kexp&name=KEXP&streamURL=https%3A%2F%2Fexample.com%2Flive&artworkURL=https%3A%2F%2Fexample.com%2Fcover.png&autoPlay=0&bitrate=128");
+        var uri = new Uri(
+            "holmdel://station?id=kexp&name=KEXP&streamURL=https%3A%2F%2Fexample.com%2Flive&artworkURL=https%3A%2F%2Fexample.com%2Fcover.png&autoPlay=0&bitrate=128");
 
         Assert.IsTrue(StationLaunchLink.TryParse(uri, out var link));
         Assert.IsNotNull(link);
@@ -36,7 +37,8 @@ public sealed class StationLaunchLinkTests
     [DataRow("holmdel://settings?streamURL=https%3A%2F%2Fexample.com%2Flive")]
     [DataRow("holmdel://station?streamURL=http%3A%2F%2Fexample.com%2Flive")]
     [DataRow("holmdel://station?streamURL=https%3A%2F%2Flocalhost%2Flive")]
-    [DataRow("holmdel://station?streamURL=https%3A%2F%2Fexample.com%2Flive&streamURL=https%3A%2F%2Fother.example%2Flive")]
+    [DataRow(
+        "holmdel://station?streamURL=https%3A%2F%2Fexample.com%2Flive&streamURL=https%3A%2F%2Fother.example%2Flive")]
     [DataRow("holmdel://station?streamURL=https%3A%2F%2Fexample.com%2Flive&command=delete")]
     [DataRow("holmdel://station/other?streamURL=https%3A%2F%2Fexample.com%2Flive")]
     [DataRow("holmdel://station?streamURL=https%3A%2F%2Fexample.com%2Flive&artworkURL=file%3A%2F%2F%2Fcover.png")]

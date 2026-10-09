@@ -12,7 +12,10 @@ public sealed class IcyMetadataStreamReader(HttpClient client) : IContinuousTrac
     {
         ArgumentNullException.ThrowIfNull(streamUri);
         ArgumentNullException.ThrowIfNull(onMetadata);
-        if (!streamUri.IsAbsoluteUri || streamUri.Scheme is not ("http" or "https")) return false;
+        if (!streamUri.IsAbsoluteUri || streamUri.Scheme is not ("http" or "https"))
+        {
+            return false;
+        }
 
         using var request = new HttpRequestMessage(HttpMethod.Get, streamUri);
         request.Headers.TryAddWithoutValidation("Icy-MetaData", "1");
@@ -21,9 +24,15 @@ public sealed class IcyMetadataStreamReader(HttpClient client) : IContinuousTrac
         headerTimeout.CancelAfter(_readTimeout);
         using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead,
             headerTimeout.Token).ConfigureAwait(false);
-        if (response.StatusCode != HttpStatusCode.OK) response.EnsureSuccessStatusCode();
+        if (response.StatusCode != HttpStatusCode.OK)
+        {
+            response.EnsureSuccessStatusCode();
+        }
+
         if (!IcyMetadataProbe.TryGetInterval(response.Headers, response.Content.Headers, out var interval))
+        {
             return false;
+        }
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         var audio = new byte[4096];
@@ -35,25 +44,46 @@ public sealed class IcyMetadataStreamReader(HttpClient client) : IContinuousTrac
             {
                 var read = await ReadWithTimeoutAsync(stream,
                     audio.AsMemory(0, Math.Min(audio.Length, remaining)), cancellationToken).ConfigureAwait(false);
-                if (read == 0) return true;
+                if (read == 0)
+                {
+                    return true;
+                }
+
                 remaining -= read;
             }
+
             if (await ReadWithTimeoutAsync(stream, length, cancellationToken).ConfigureAwait(false) == 0)
+            {
                 return true;
+            }
+
             var metadataLength = length[0] * 16;
-            if (metadataLength == 0) continue;
+            if (metadataLength == 0)
+            {
+                continue;
+            }
+
             var metadata = new byte[metadataLength];
             var offset = 0;
             while (offset < metadata.Length)
             {
                 var read = await ReadWithTimeoutAsync(stream, metadata.AsMemory(offset), cancellationToken)
                     .ConfigureAwait(false);
-                if (read == 0) return true;
+                if (read == 0)
+                {
+                    return true;
+                }
+
                 offset += read;
             }
+
             var raw = IcyMetadataProbe.Decode(metadata).TrimEnd('\0').Trim();
-            if (raw.Length > 0) onMetadata(raw);
+            if (raw.Length > 0)
+            {
+                onMetadata(raw);
+            }
         }
+
         // Cancellation can arrive between the header read and the first loop iteration.
         cancellationToken.ThrowIfCancellationRequested();
         return true;

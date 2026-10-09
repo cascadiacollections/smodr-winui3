@@ -18,7 +18,7 @@ public sealed class RuntimeDiagnosticWiringTests
         var counters = new RuntimeDiagnosticCounters();
         var clock = new FakeTimeProvider();
         var restarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var recovery = new LiveRadioRecovery(_ => restarted.TrySetResult(), _ => { }, clock: clock,
+        using var recovery = new LiveRadioRecovery(_ => restarted.TrySetResult(), _ => { }, clock,
             retryBaseDelay: TimeSpan.FromSeconds(1), maxRetries: 1, diagnostics: counters);
         recovery.Begin();
         recovery.Fail();
@@ -51,13 +51,19 @@ public sealed class RuntimeDiagnosticWiringTests
         emit("StreamTitle='Artist - Retired';");
         await monitor.ShutdownAsync();
         foreach (var counter in new[]
+                 {
+                     RuntimeCounter.MetadataRejectedEmpty, RuntimeCounter.MetadataRejectedOversize,
+                     RuntimeCounter.MetadataRejectedNonSong, RuntimeCounter.MetadataRejectedDamaged,
+                     RuntimeCounter.MetadataAccepted, RuntimeCounter.MetadataDuplicate,
+                     RuntimeCounter.MetadataRetired
+                 })
         {
-            RuntimeCounter.MetadataRejectedEmpty, RuntimeCounter.MetadataRejectedOversize,
-            RuntimeCounter.MetadataRejectedNonSong, RuntimeCounter.MetadataRejectedDamaged,
-            RuntimeCounter.MetadataAccepted, RuntimeCounter.MetadataDuplicate, RuntimeCounter.MetadataRetired
-        }) AssertCount(counters, counter, 1);
+            AssertCount(counters, counter, 1);
+        }
+
         Assert.IsFalse(counters.Snapshot().Keys.Any(key => key.Contains("Artist", StringComparison.Ordinal)
-            || key.Contains("station.example", StringComparison.Ordinal)));
+                                                           || key.Contains("station.example",
+                                                               StringComparison.Ordinal)));
     }
 
     [TestMethod]
@@ -85,12 +91,23 @@ public sealed class RuntimeDiagnosticWiringTests
         using var handler = new ControlledHttpHandler(async (_, token) =>
         {
             var call = Interlocked.Increment(ref calls);
-            if (call == 1) await release.Task.WaitAsync(token);
+            if (call == 1)
+            {
+                await release.Task.WaitAsync(token);
+            }
+
             var json = call == 2
                 ? "{\"results\":[{\"artistName\":\"Artist\",\"trackName\":\"Second\",\"artworkUrl100\":\"https://is1-ssl.mzstatic.com/a/100x100bb.jpg\"}]}"
                 : "{\"results\":[]}";
-            var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
-            if (call == 3) response.Content.Headers.ContentLength = 999;
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            };
+            if (call == 3)
+            {
+                response.Content.Headers.ContentLength = 999;
+            }
+
             return response;
         });
         using var client = new HttpClient(handler);
@@ -116,19 +133,22 @@ public sealed class RuntimeDiagnosticWiringTests
     public async Task ArtworkDeadlineAndRejectedContentAreNotCountedAsTransportFailures()
     {
         var counters = new RuntimeDiagnosticCounters();
-        using var body = new ControlledHttpBody([], stalled: true);
+        using var body = new ControlledHttpBody([], true);
         var calls = 0;
         using var handler = new ControlledHttpHandler((_, _) =>
         {
             var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = Interlocked.Increment(ref calls) == 1 ? new StreamContent(body) : new ByteArrayContent([1])
+                Content = Interlocked.Increment(ref calls) == 1
+                    ? new StreamContent(body)
+                    : new ByteArrayContent([1])
             };
             response.Content.Headers.ContentType = new MediaTypeHeaderValue(calls == 1 ? "image/png" : "text/html");
             return Task.FromResult(response);
         });
         using var client = new HttpClient(handler);
-        await using var loader = new StationArtworkLoader(client, timeout: TimeSpan.FromMilliseconds(100), diagnostics: counters);
+        await using var loader =
+            new StationArtworkLoader(client, timeout: TimeSpan.FromMilliseconds(100), diagnostics: counters);
         var pending = loader.GetAsync(new Uri("https://art.example/stalled"));
         await body.ReadEntered.Task.WaitAsync(TimeSpan.FromSeconds(3));
         Assert.IsNull(await pending.WaitAsync(TimeSpan.FromSeconds(3)));
@@ -139,13 +159,18 @@ public sealed class RuntimeDiagnosticWiringTests
         AssertCount(counters, RuntimeCounter.ArtworkMemoryMiss, 4);
     }
 
-    private static void AssertCount(RuntimeDiagnosticCounters counters, RuntimeCounter counter, long expected) =>
+    private static void AssertCount(RuntimeDiagnosticCounters counters, RuntimeCounter counter, long expected)
+    {
         Assert.AreEqual(expected, counters.Snapshot()[counter.ToString()], counter.ToString());
+    }
 
     private sealed class Reader : IContinuousTrackMetadataReader
     {
-        public TaskCompletionSource<Action<string>> Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public async Task<bool> ListenAsync(Uri streamUri, Action<string> onMetadata, CancellationToken cancellationToken = default)
+        public TaskCompletionSource<Action<string>> Started { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<bool> ListenAsync(Uri streamUri, Action<string> onMetadata,
+            CancellationToken cancellationToken = default)
         {
             Started.TrySetResult(onMetadata);
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
@@ -155,7 +180,9 @@ public sealed class RuntimeDiagnosticWiringTests
 
     private sealed class Probe : ITrackMetadataProbe
     {
-        public Task<IcyProbeResult> ProbeAsync(Uri streamUri, CancellationToken cancellationToken = default) =>
+        public Task<IcyProbeResult> ProbeAsync(Uri streamUri, CancellationToken cancellationToken = default)
+        {
             throw new AssertFailedException("Continuous reader should not fall through to a probe.");
+        }
     }
 }

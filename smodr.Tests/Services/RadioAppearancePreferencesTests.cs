@@ -12,7 +12,8 @@ public sealed class RadioAppearancePreferencesTests
         using var profile = new TemporaryRadioProfile();
         var preferences = new RadioAppearancePreferences(profile.FilePath);
         Assert.AreEqual(RadioWindowBackdrop.Acrylic, preferences.Current);
-        await Task.WhenAll(preferences.SetAsync(RadioWindowBackdrop.Mica), preferences.SetAsync(RadioWindowBackdrop.Solid), preferences.SetAsync(RadioWindowBackdrop.Acrylic));
+        await Task.WhenAll(preferences.SetAsync(RadioWindowBackdrop.Mica),
+            preferences.SetAsync(RadioWindowBackdrop.Solid), preferences.SetAsync(RadioWindowBackdrop.Acrylic));
         await preferences.FlushAsync();
         Assert.AreEqual(RadioWindowBackdrop.Acrylic, new RadioAppearancePreferences(profile.FilePath).Current);
         await preferences.SetAsync(RadioWindowBackdrop.Solid);
@@ -42,7 +43,8 @@ public sealed class RadioAppearancePreferencesTests
         using var profile = new TemporaryRadioProfile();
         Directory.CreateDirectory(profile.FilePath);
         var preferences = new RadioAppearancePreferences(profile.FilePath);
-        var settings = new RadioSettingsViewModel(new RadioPrivacySettings(profile.FilePath + ".privacy"), appearance: preferences);
+        var settings = new RadioSettingsViewModel(new RadioPrivacySettings(profile.FilePath + ".privacy"),
+            appearance: preferences);
         await settings.SetBackdropAsync((int)RadioWindowBackdrop.Solid);
         Assert.IsTrue(settings.HasError);
         Assert.AreEqual((int)RadioWindowBackdrop.Acrylic, settings.SelectedBackdrop);
@@ -62,7 +64,8 @@ public sealed class RadioAppearancePreferencesTests
         using var profile = new TemporaryRadioProfile();
         await File.WriteAllTextAsync(profile.FilePath, new string('x', 64_001));
         var preferences = new RadioAppearancePreferences(profile.FilePath);
-        var settings = new RadioSettingsViewModel(new RadioPrivacySettings(profile.FilePath + ".privacy"), appearance: preferences);
+        var settings = new RadioSettingsViewModel(new RadioPrivacySettings(profile.FilePath + ".privacy"),
+            appearance: preferences);
         Assert.IsFalse(settings.CanEditAppearance);
         Assert.AreEqual((int)RadioWindowBackdrop.Solid, settings.SelectedBackdrop);
         Assert.AreEqual(64_001L, new FileInfo(profile.FilePath).Length);

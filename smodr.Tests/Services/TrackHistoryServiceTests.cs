@@ -1,3 +1,4 @@
+using System.Globalization;
 using smodr.Models;
 using smodr.Services;
 
@@ -13,13 +14,14 @@ public sealed class TrackHistoryServiceTests
         try
         {
             var history = new TrackHistoryService(file);
-            var arrival = DateTimeOffset.Parse("2026-01-01T12:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
+            var arrival = DateTimeOffset.Parse("2026-01-01T12:00:00Z", CultureInfo.InvariantCulture);
             await history.RecordAtAsync(Station("one"), new RadioTrackInfo("Song", "Artist"), arrival);
             await history.RecordAtAsync(Station("one"), new RadioTrackInfo("Song", "Artist"), arrival.AddMinutes(-1));
             Assert.AreEqual(arrival, new TrackHistoryService(file).Entries[0].HeardAt);
         }
         finally { File.Delete(file); }
     }
+
     [TestMethod]
     public async Task ConsecutiveDuplicateRefreshesTimestampAndSurvivesRestart()
     {
@@ -47,7 +49,7 @@ public sealed class TrackHistoryServiceTests
         var file = TempFile();
         try
         {
-            var history = new TrackHistoryService(file, limit: 10);
+            var history = new TrackHistoryService(file, 10);
             var station = Station("one");
             var writes = Enumerable.Range(0, 40)
                 .Select(index => history.RecordAsync(station, new RadioTrackInfo($"Song {index}", null)));
@@ -55,7 +57,7 @@ public sealed class TrackHistoryServiceTests
             await history.FlushAsync();
             Assert.HasCount(10, history.Entries);
             Assert.AreEqual("Song 39", history.Entries[0].Title);
-            Assert.HasCount(10, new TrackHistoryService(file, limit: 10).Entries);
+            Assert.HasCount(10, new TrackHistoryService(file, 10).Entries);
         }
         finally { File.Delete(file); }
     }
@@ -133,8 +135,13 @@ public sealed class TrackHistoryServiceTests
             var station = Station("one");
             var track = new RadioTrackInfo("Song", "Artist");
             var record = history.RecordAsync(station, track);
-            async Task UpdateAsync() => await history.UpdateArtworkAsync(await record,
-                new AlbumArtworkMatch(new Uri("https://is1-ssl.mzstatic.com/song.jpg"), null));
+
+            async Task UpdateAsync()
+            {
+                await history.UpdateArtworkAsync(await record,
+                    new AlbumArtworkMatch(new Uri("https://is1-ssl.mzstatic.com/song.jpg"), null));
+            }
+
             var artwork = UpdateAsync();
             await Task.WhenAll(record, artwork);
             Assert.AreEqual("https://is1-ssl.mzstatic.com/song.jpg", history.Entries[0].ArtworkUrl);
@@ -183,19 +190,28 @@ public sealed class TrackHistoryServiceTests
         finally { File.Delete(file); }
     }
 
-    private static string TempFile() => Path.Combine(Path.GetTempPath(), $"shoutkit-tracks-{Guid.NewGuid():N}.json");
-
-    private static RadioStation Station(string id) => new()
+    private static string TempFile()
     {
-        Id = id,
-        Name = "Radio One",
-        StreamUrl = "https://example.com/live"
-    };
+        return Path.Combine(Path.GetTempPath(), $"shoutkit-tracks-{Guid.NewGuid():N}.json");
+    }
+
+    private static RadioStation Station(string id)
+    {
+        return new RadioStation { Id = id, Name = "Radio One", StreamUrl = "https://example.com/live" };
+    }
 
     private sealed class FakeTimeProvider : TimeProvider
     {
         private DateTimeOffset _now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        public override DateTimeOffset GetUtcNow() => _now;
-        public void Advance(TimeSpan duration) => _now += duration;
+
+        public override DateTimeOffset GetUtcNow()
+        {
+            return _now;
+        }
+
+        public void Advance(TimeSpan duration)
+        {
+            _now += duration;
+        }
     }
 }

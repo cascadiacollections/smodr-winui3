@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using smodr.Models;
 using smodr.Services;
 using smodr.ViewModels;
@@ -13,7 +14,8 @@ public sealed class RadioMainViewModelTests
     {
         var player = new StubPlayer();
         using var viewModel = new RadioMainViewModel(player,
-            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])), new StubLibrary(), action => action());
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])), new StubLibrary(),
+            action => action());
         await player.PlayStationAsync(new RadioStation { Id = "first", StreamUrl = "https://stream.example/first" });
         player.EmitPlaybackState(MediaPlaybackState.Buffering);
         Assert.AreEqual(MediaPlaybackState.Buffering, viewModel.CurrentPlaybackState);
@@ -23,6 +25,7 @@ public sealed class RadioMainViewModelTests
         await player.PlayStationAsync(new RadioStation { Id = "second", StreamUrl = "https://stream.example/second" });
         Assert.AreEqual(MediaPlaybackState.None, viewModel.CurrentPlaybackState);
     }
+
     [TestMethod]
     public async Task OlderSearchCannotReplaceNewerResults()
     {
@@ -31,7 +34,8 @@ public sealed class RadioMainViewModelTests
         var directory = new StubDirectory((query, _) => query == "first"
             ? firstResult.Task
             : Task.FromResult<IReadOnlyList<RadioStation>>((RadioStation[])[new RadioStation { Name = "Second" }]));
-        using var viewModel = new RadioMainViewModel(new StubPlayer(), directory, new StubLibrary(), action => action());
+        using var viewModel =
+            new RadioMainViewModel(new StubPlayer(), directory, new StubLibrary(), action => action());
 
         var first = viewModel.SearchAsync("first");
         await viewModel.SearchAsync("second");
@@ -58,7 +62,8 @@ public sealed class RadioMainViewModelTests
 
             return [];
         });
-        using var viewModel = new RadioMainViewModel(new StubPlayer(), directory, new StubLibrary(), action => action());
+        using var viewModel =
+            new RadioMainViewModel(new StubPlayer(), directory, new StubLibrary(), action => action());
 
         var first = viewModel.SearchAsync("first");
         var firstToken = await firstStarted.Task;
@@ -197,7 +202,7 @@ public sealed class RadioMainViewModelTests
     {
         var library = new StubLibrary();
         using var viewModel = new RadioMainViewModel(
-            new StubPlayer(playStation: _ => throw new InvalidOperationException("private stream URL")),
+            new StubPlayer(_ => throw new InvalidOperationException("private stream URL")),
             new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
             library,
             action => action());
@@ -231,9 +236,7 @@ public sealed class RadioMainViewModelTests
             new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
             new StubLibrary(),
             action => action())
-        {
-            CurrentStation = station
-        };
+        { CurrentStation = station };
 
         await viewModel.TogglePlaybackAsync(station);
 
@@ -254,9 +257,7 @@ public sealed class RadioMainViewModelTests
             new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
             new StubLibrary(),
             action => action())
-        {
-            CurrentStation = station
-        };
+        { CurrentStation = station };
 
         await viewModel.TogglePlaybackAsync(station);
 
@@ -267,7 +268,7 @@ public sealed class RadioMainViewModelTests
     public async Task FavoriteSaveIsAwaitedAndFailureIsReported()
     {
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var library = new StubLibrary(toggleFavorite: async _ =>
+        var library = new StubLibrary(async _ =>
         {
             await release.Task;
             throw new IOException("save denied");
@@ -332,7 +333,11 @@ public sealed class RadioMainViewModelTests
         await viewModel.TogglePlaybackAsync(station);
         player.EmitUserPlaybackStarted();
         Assert.AreEqual(2, reporter.Count);
-        await viewModel.PlayStationFromLinkAsync(new RadioStation { Id = "untrusted", StreamUrl = "https://example.com/live" });
+        await viewModel.PlayStationFromLinkAsync(new RadioStation
+        {
+            Id = "untrusted",
+            StreamUrl = "https://example.com/live"
+        });
         player.EmitUserPlaybackStarted();
         viewModel.PlayPause();
         viewModel.PlayPause();
@@ -410,7 +415,7 @@ public sealed class RadioMainViewModelTests
         Assert.IsTrue(viewModel.IsPlayReportingEnabled);
 
         using var failingViewModel = new RadioMainViewModel(
-            new StubPlayer(playStation: _ => throw new InvalidOperationException()),
+            new StubPlayer(_ => throw new InvalidOperationException()),
             new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
             new StubLibrary(), action => action(), playReporter: reporter, privacySettings: privacy);
         await failingViewModel.TogglePlaybackAsync(station);
@@ -516,7 +521,8 @@ public sealed class RadioMainViewModelTests
             StreamUrl = "https://example.com/live",
             ArtworkUrl = "https://example.com/station.jpg"
         };
-        var oldResult = new TaskCompletionSource<AlbumArtworkMatch?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var oldResult =
+            new TaskCompletionSource<AlbumArtworkMatch?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var lookup = new StubArtwork(track => track.Title == "Old"
             ? oldResult.Task
             : Task.FromResult<AlbumArtworkMatch?>(new AlbumArtworkMatch(
@@ -551,13 +557,22 @@ public sealed class RadioMainViewModelTests
 
     private static async Task WaitForArtworkAsync(RadioMainViewModel viewModel, string expected)
     {
-        if (viewModel.CurrentArtworkUrl == expected) return;
+        if (viewModel.CurrentArtworkUrl == expected)
+        {
+            return;
+        }
+
         var changed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        void Handler(object? _, System.ComponentModel.PropertyChangedEventArgs args)
+
+        void Handler(object? _, PropertyChangedEventArgs args)
         {
             if (args.PropertyName == nameof(viewModel.CurrentArtworkUrl)
-                && viewModel.CurrentArtworkUrl == expected) changed.TrySetResult();
+                && viewModel.CurrentArtworkUrl == expected)
+            {
+                changed.TrySetResult();
+            }
         }
+
         viewModel.PropertyChanged += Handler;
         try { await changed.Task.WaitAsync(TimeSpan.FromSeconds(3)); }
         finally { viewModel.PropertyChanged -= Handler; }
@@ -572,9 +587,11 @@ public sealed class RadioMainViewModelTests
         var player = new StubPlayer();
         var library = new StubLibrary();
         var reporter = new StubReporter();
-        using var viewModel = new RadioMainViewModel(player, new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+        using var viewModel = new RadioMainViewModel(player,
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
             library, action => action(), playReporter: reporter, privacySettings: new StubPrivacy(true),
-            streamResolver: new StubResolver((station, _) => station.Id == "old" ? oldResult.Task : Task.FromResult(station)));
+            streamResolver: new StubResolver((station, _) =>
+                station.Id == "old" ? oldResult.Task : Task.FromResult(station)));
         var pending = viewModel.TogglePlaybackAsync(old);
         await viewModel.TogglePlaybackAsync(next);
         oldResult.SetResult(old);
@@ -593,11 +610,24 @@ public sealed class RadioMainViewModelTests
         CancellationToken captured = default;
         var player = new StubPlayer();
         var library = new StubLibrary();
-        using var viewModel = new RadioMainViewModel(player, new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
-            library, action => action(), streamResolver: new StubResolver((_, token) => { captured = token; return result.Task; }));
+        using var viewModel = new RadioMainViewModel(player,
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+            library, action => action(), streamResolver: new StubResolver((_, token) =>
+            {
+                captured = token;
+                return result.Task;
+            }));
         var station = new RadioStation { Id = "one", StreamUrl = "https://stream.example/live" };
         var pending = viewModel.TogglePlaybackAsync(station);
-        if (dispose) viewModel.Dispose(); else viewModel.Stop();
+        if (dispose)
+        {
+            viewModel.Dispose();
+        }
+        else
+        {
+            viewModel.Stop();
+        }
+
         Assert.IsTrue(captured.IsCancellationRequested);
         result.SetResult(station);
         await pending;
@@ -610,7 +640,8 @@ public sealed class RadioMainViewModelTests
     {
         var pauses = 0;
         var player = new StubPlayer(pause: () => pauses++);
-        using var viewModel = new RadioMainViewModel(player, new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+        using var viewModel = new RadioMainViewModel(player,
+            new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
             new StubLibrary(), action => action());
         var station = new RadioStation { Id = "one", StreamUrl = "https://stream.example/live" };
         await viewModel.TogglePlaybackAsync(station);
@@ -619,14 +650,19 @@ public sealed class RadioMainViewModelTests
         Assert.AreEqual(0, pauses);
     }
 
-    private sealed class StubResolver(Func<RadioStation, CancellationToken, Task<RadioStation>> resolve) : IStationStreamResolver
+    private sealed class StubResolver(Func<RadioStation, CancellationToken, Task<RadioStation>> resolve)
+        : IStationStreamResolver
     {
-        public Task<RadioStation> ResolveAsync(RadioStation station, CancellationToken cancellationToken = default) => resolve(station, cancellationToken);
+        public Task<RadioStation> ResolveAsync(RadioStation station, CancellationToken cancellationToken = default)
+        {
+            return resolve(station, cancellationToken);
+        }
     }
 
     private sealed class StubArtwork(Func<RadioTrackInfo, Task<AlbumArtworkMatch?>> resolve) : IAlbumArtworkLookup
     {
         public int Calls { get; private set; }
+
         public Task<AlbumArtworkMatch?> FindAsync(RadioTrackInfo track, CancellationToken cancellationToken = default)
         {
             Calls++;
@@ -638,26 +674,34 @@ public sealed class RadioMainViewModelTests
     {
         private readonly List<HeardTrack> _entries = [];
         public IReadOnlyList<HeardTrack> Entries => _entries;
+
         public Task<Guid> RecordAsync(RadioStation station, RadioTrackInfo track)
         {
             var id = Guid.NewGuid();
-            _entries.Insert(0, new HeardTrack
-            {
-                Id = id,
-                StationId = station.Id,
-                StationName = station.Name,
-                Title = track.Title,
-                Artist = track.Artist,
-                HeardAt = DateTimeOffset.UtcNow
-            });
+            _entries.Insert(0,
+                new HeardTrack
+                {
+                    Id = id,
+                    StationId = station.Id,
+                    StationName = station.Name,
+                    Title = track.Title,
+                    Artist = track.Artist,
+                    HeardAt = DateTimeOffset.UtcNow
+                });
             return Task.FromResult(id);
         }
+
         public Task ClearAsync()
         {
             _entries.Clear();
             return Task.CompletedTask;
         }
-        public Task FlushAsync() => Task.CompletedTask;
+
+        public Task FlushAsync()
+        {
+            return Task.CompletedTask;
+        }
+
         public Task UpdateArtworkAsync(Guid entryId, AlbumArtworkMatch artwork)
         {
             var index = _entries.FindIndex(item => item.Id == entryId);
@@ -676,6 +720,7 @@ public sealed class RadioMainViewModelTests
                     AppleMusicUrl = artwork.StoreUrl?.AbsoluteUri ?? string.Empty
                 };
             }
+
             return Task.CompletedTask;
         }
     }
@@ -683,6 +728,7 @@ public sealed class RadioMainViewModelTests
     private sealed class StubReporter : IStationPlayReporter
     {
         public int Count { get; private set; }
+
         public Task ReportPlayAsync(string stationId, CancellationToken cancellationToken = default)
         {
             Count++;
@@ -695,12 +741,18 @@ public sealed class RadioMainViewModelTests
         public RadioPrivacyChoices Current => new(IsPlayReportingEnabled, IsAlbumArtworkEnabled);
         public bool IsPlayReportingEnabled { get; private set; } = enabled;
         public bool IsAlbumArtworkEnabled { get; private set; } = true;
+
         public Task SetPlayReportingEnabledAsync(bool value)
         {
             IsPlayReportingEnabled = value;
             return Task.CompletedTask;
         }
-        public Task FlushAsync() => Task.CompletedTask;
+
+        public Task FlushAsync()
+        {
+            return Task.CompletedTask;
+        }
+
         public Task SetAlbumArtworkEnabledAsync(bool value)
         {
             IsAlbumArtworkEnabled = value;
@@ -713,16 +765,22 @@ public sealed class RadioMainViewModelTests
         Func<CancellationToken, Task<IReadOnlyList<RadioStation>>>? popular = null) : IRadioDirectoryService
     {
         public Task<IReadOnlyList<RadioStation>> GetPopularStationsAsync(
-            int limit = 50, CancellationToken cancellationToken = default) =>
-            popular?.Invoke(cancellationToken) ?? Task.FromResult<IReadOnlyList<RadioStation>>([]);
+            int limit = 50, CancellationToken cancellationToken = default)
+        {
+            return popular?.Invoke(cancellationToken) ?? Task.FromResult<IReadOnlyList<RadioStation>>([]);
+        }
 
         public Task<IReadOnlyList<RadioStation>> SearchAsync(
-            string query, int limit = 50, CancellationToken cancellationToken = default) =>
-            search(query, cancellationToken);
+            string query, int limit = 50, CancellationToken cancellationToken = default)
+        {
+            return search(query, cancellationToken);
+        }
 
         public Task<IReadOnlyList<RadioStation>> SearchGenreAsync(
-            string genre, int limit = 50, CancellationToken cancellationToken = default) =>
-            search(genre, cancellationToken);
+            string genre, int limit = 50, CancellationToken cancellationToken = default)
+        {
+            return search(genre, cancellationToken);
+        }
     }
 
     private sealed class StubLibrary(
@@ -732,32 +790,68 @@ public sealed class RadioMainViewModelTests
         public int RecentSaves { get; private set; }
         public IReadOnlyList<RadioStation> Favorites => [];
         public IReadOnlyList<RadioStation> Recents => [];
-        public bool IsFavorite(RadioStation station) => false;
-        public Task ToggleFavoriteAsync(RadioStation station) =>
-            toggleFavorite?.Invoke(station) ?? Task.CompletedTask;
-        public Task<int> RemoveFavoriteAsync(RadioStation station) => Task.FromResult(-1);
-        public Task RestoreFavoriteAsync(RadioStation station, int index) => Task.CompletedTask;
-        public Task ReorderFavoritesAsync(IReadOnlyList<RadioStation> order) => Task.CompletedTask;
+
+        public bool IsFavorite(RadioStation station)
+        {
+            return false;
+        }
+
+        public Task ToggleFavoriteAsync(RadioStation station)
+        {
+            return toggleFavorite?.Invoke(station) ?? Task.CompletedTask;
+        }
+
+        public Task<int> RemoveFavoriteAsync(RadioStation station)
+        {
+            return Task.FromResult(-1);
+        }
+
+        public Task RestoreFavoriteAsync(RadioStation station, int index)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task ReorderFavoritesAsync(IReadOnlyList<RadioStation> order)
+        {
+            return Task.CompletedTask;
+        }
+
         public Task LogRecentAsync(RadioStation station)
         {
             RecentSaves++;
             return logRecent?.Invoke(station) ?? Task.CompletedTask;
         }
-        public Task ClearRecentsAsync() => Task.CompletedTask;
-        public Task FlushAsync() => Task.CompletedTask;
+
+        public Task ClearRecentsAsync()
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task FlushAsync()
+        {
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class StubCache(IReadOnlyList<RadioStation> stations) : IRadioDirectorySnapshotCache
     {
         public int StoreCalls { get; private set; }
-        public Task<IReadOnlyList<RadioStation>?> GetAsync(string key, TimeSpan maxAge) =>
-            Task.FromResult<IReadOnlyList<RadioStation>?>(stations.Count == 0 ? null : stations);
+
+        public Task<IReadOnlyList<RadioStation>?> GetAsync(string key, TimeSpan maxAge)
+        {
+            return Task.FromResult<IReadOnlyList<RadioStation>?>(stations.Count == 0 ? null : stations);
+        }
+
         public Task StoreAsync(string key, IReadOnlyList<RadioStation> values)
         {
             StoreCalls++;
             return Task.CompletedTask;
         }
-        public Task FlushAsync() => Task.CompletedTask;
+
+        public Task FlushAsync()
+        {
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class StubPlayer(
@@ -767,27 +861,27 @@ public sealed class RadioMainViewModelTests
         bool playbackRequested = false,
         Action? pause = null) : IRadioPlayer
     {
+        public Uri? LastArtworkUrl { get; private set; }
         public RadioStation? CurrentStation { get; private set; }
         public RadioTrackInfo? CurrentTrack { get; private set; }
-        public Uri? LastArtworkUrl { get; private set; }
         public bool IsPlaybackRequested => playbackRequested;
         public event EventHandler<RadioStation?>? StationChanged;
         public event EventHandler<RadioTrackUpdate?>? TrackChanged;
         public event EventHandler? UserPlaybackStarted;
-        public void EmitUserPlaybackStarted() => UserPlaybackStarted?.Invoke(this, EventArgs.Empty);
-        public void EmitTrack(RadioTrackUpdate update)
+
+        public void SetNowPlayingArtwork(RadioStation station, Uri? artworkUrl)
         {
-            if (ReferenceEquals(CurrentStation, update.Station)) CurrentTrack = update.Track;
-            TrackChanged?.Invoke(this, update);
+            LastArtworkUrl = artworkUrl;
         }
-        public void SetNowPlayingArtwork(RadioStation station, Uri? artworkUrl) => LastArtworkUrl = artworkUrl;
+
         public event EventHandler<MediaPlaybackState>? PlaybackStateChanged;
-        public void EmitPlaybackState(MediaPlaybackState state) => PlaybackStateChanged?.Invoke(this, state);
+
         public event EventHandler<string>? PlaybackFailed
         {
             add { }
             remove { }
         }
+
         public Task PlayStationAsync(RadioStation station)
         {
             var operation = playStation?.Invoke(station) ?? Task.CompletedTask;
@@ -797,20 +891,43 @@ public sealed class RadioMainViewModelTests
             StationChanged?.Invoke(this, station);
             return operation;
         }
+
         public void Play()
         {
             play?.Invoke();
             playbackRequested = true;
         }
+
         public void Pause()
         {
             pause?.Invoke();
             playbackRequested = false;
         }
+
         public void StopStation()
         {
             stopStation?.Invoke();
             CurrentStation = null;
+        }
+
+        public void EmitUserPlaybackStarted()
+        {
+            UserPlaybackStarted?.Invoke(this, EventArgs.Empty);
+        }
+
+        public void EmitTrack(RadioTrackUpdate update)
+        {
+            if (ReferenceEquals(CurrentStation, update.Station))
+            {
+                CurrentTrack = update.Track;
+            }
+
+            TrackChanged?.Invoke(this, update);
+        }
+
+        public void EmitPlaybackState(MediaPlaybackState state)
+        {
+            PlaybackStateChanged?.Invoke(this, state);
         }
     }
 }

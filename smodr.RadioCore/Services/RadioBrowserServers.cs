@@ -13,10 +13,15 @@ public sealed class RadioBrowserServers(
 {
     private readonly DnsMirrorProvider _provider = new(discover, clock);
     private int _disposed;
+
+    public void Dispose()
+    {
+        Interlocked.Exchange(ref _disposed, 1);
+    }
+
     public Task<IReadOnlyList<Uri>> GetServersAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         return _provider.GetServersAsync(cancellationToken);
     }
-    public void Dispose() => Interlocked.Exchange(ref _disposed, 1);
 }

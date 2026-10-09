@@ -1,16 +1,31 @@
 namespace smodr.Services;
 
 /// <summary>Optional, bounded artwork transport. The deadline includes response-body reads and queue time.</summary>
-public sealed class StationArtworkLoader(HttpClient client, StationArtworkDiskCache? diskCache = null,
-    TimeSpan? timeout = null, RuntimeDiagnosticCounters? diagnostics = null) : IDisposable, IAsyncDisposable
+public sealed class StationArtworkLoader(
+    HttpClient client,
+    StationArtworkDiskCache? diskCache = null,
+    TimeSpan? timeout = null,
+    RuntimeDiagnosticCounters? diagnostics = null) : IDisposable, IAsyncDisposable
 {
-    private readonly RuntimeDiagnosticCounters _diagnostics = diagnostics ?? RuntimeDiagnostics.Counters;
     public const int MaxArtworkBytes = 1_000_000;
+    private readonly BackgroundWorkScope _background = new();
     private readonly ArtworkMemoryCache<byte[]> _cache = new(48, 8 * 1024 * 1024, diagnostics: diagnostics);
+    private readonly RuntimeDiagnosticCounters _diagnostics = diagnostics ?? RuntimeDiagnostics.Counters;
     private readonly SemaphoreSlim _downloads = new(4);
     private readonly Lock _gate = new();
-    private readonly BackgroundWorkScope _background = new();
     private Task? _shutdown;
+
+    public async ValueTask DisposeAsync()
+    {
+        await ShutdownAsync().ConfigureAwait(false);
+        GC.SuppressFinalize(this);
+    }
+
+    public void Dispose()
+    {
+        _ = ShutdownAsync();
+        GC.SuppressFinalize(this);
+    }
 
     public Task<byte[]?> GetAsync(Uri uri, CancellationToken cancellationToken = default)
     {
@@ -25,8 +40,16 @@ public sealed class StationArtworkLoader(HttpClient client, StationArtworkDiskCa
     private async Task<byte[]?> GetCoreAsync(Uri uri, CancellationToken cancellationToken, CancellationToken lifetime)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (!IsSafe(uri)) return null;
-        if (_cache.TryGet(uri.AbsoluteUri, out var cached)) return cached;
+        if (!IsSafe(uri))
+        {
+            return null;
+        }
+
+        if (_cache.TryGet(uri.AbsoluteUri, out var cached))
+        {
+            return cached;
+        }
+
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime);
         deadline.CancelAfter(timeout ?? TimeSpan.FromSeconds(8));
         var token = deadline.Token;
@@ -35,8 +58,13 @@ public sealed class StationArtworkLoader(HttpClient client, StationArtworkDiskCa
             if (diskCache is not null)
             {
                 var saved = await Task.Run(() => diskCache.TryReadAsync(uri, token), token).ConfigureAwait(false);
-                if (saved is not null) { _cache.Put(uri.AbsoluteUri, saved, saved.Length); return saved; }
+                if (saved is not null)
+                {
+                    _cache.Put(uri.AbsoluteUri, saved, saved.Length);
+                    return saved;
+                }
             }
+
             await _downloads.WaitAsync(token).ConfigureAwait(false);
             try
             {
@@ -45,24 +73,47 @@ public sealed class StationArtworkLoader(HttpClient client, StationArtworkDiskCa
                 lifetime.ThrowIfCancellationRequested();
                 cancellationToken.ThrowIfCancellationRequested();
                 token.ThrowIfCancellationRequested();
-                if (_cache.TryGet(uri.AbsoluteUri, out cached)) return cached;
+                if (_cache.TryGet(uri.AbsoluteUri, out cached))
+                {
+                    return cached;
+                }
+
                 using var response = await GetResponseAsync(uri, token).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > MaxArtworkBytes
-                    || response.Content.Headers.ContentType?.MediaType is not ("image/png" or "image/jpeg" or "image/gif" or "image/webp")) return RejectResponse();
+                                                  || response.Content.Headers.ContentType?.MediaType is not ("image/png"
+                                                      or "image/jpeg" or "image/gif" or "image/webp"))
+                {
+                    return RejectResponse();
+                }
+
                 await using var source = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
                 using var buffer = new MemoryStream();
                 var chunk = new byte[16_384];
                 int read;
                 while ((read = await source.ReadAsync(chunk, token).ConfigureAwait(false)) > 0)
                 {
-                    if (buffer.Length + read > MaxArtworkBytes) return RejectResponse();
+                    if (buffer.Length + read > MaxArtworkBytes)
+                    {
+                        return RejectResponse();
+                    }
+
                     await buffer.WriteAsync(chunk.AsMemory(0, read), token).ConfigureAwait(false);
                 }
-                if (buffer.Length == 0 || response.Content.Headers.ContentLength is { } length && length != buffer.Length) return RejectResponse();
+
+                if (buffer.Length == 0 ||
+                    (response.Content.Headers.ContentLength is { } length && length != buffer.Length))
+                {
+                    return RejectResponse();
+                }
+
                 token.ThrowIfCancellationRequested();
                 var bytes = buffer.ToArray();
                 _cache.Put(uri.AbsoluteUri, bytes, bytes.Length);
-                if (diskCache is not null) await Task.Run(() => diskCache.StoreAsync(uri, bytes, token), token).ConfigureAwait(false);
+                if (diskCache is not null)
+                {
+                    await Task.Run(() => diskCache.StoreAsync(uri, bytes, token), token).ConfigureAwait(false);
+                }
+
                 return bytes;
             }
             finally { _downloads.Release(); }
@@ -70,10 +121,15 @@ public sealed class StationArtworkLoader(HttpClient client, StationArtworkDiskCa
         catch (OperationCanceledException)
         {
             _diagnostics.Increment(RuntimeCounter.ArtworkTransportCanceled);
-            if (cancellationToken.IsCancellationRequested) throw;
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+
             return null;
         }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is HttpRequestException or IOException
+                                              or UnauthorizedAccessException)
         {
             _diagnostics.Increment(RuntimeCounter.ArtworkTransportFailed);
             return null;
@@ -88,7 +144,10 @@ public sealed class StationArtworkLoader(HttpClient client, StationArtworkDiskCa
 
     public Task ShutdownAsync()
     {
-        lock (_gate) return _shutdown ??= DrainAndReleaseAsync();
+        lock (_gate)
+        {
+            return _shutdown ??= DrainAndReleaseAsync();
+        }
     }
 
     private async Task DrainAndReleaseAsync()
@@ -97,19 +156,29 @@ public sealed class StationArtworkLoader(HttpClient client, StationArtworkDiskCa
         _downloads.Dispose();
     }
 
-    public void Dispose() { _ = ShutdownAsync(); GC.SuppressFinalize(this); }
-    public async ValueTask DisposeAsync() { await ShutdownAsync().ConfigureAwait(false); GC.SuppressFinalize(this); }
-
-    private static bool IsSafe(Uri uri) => uri.IsAbsoluteUri && uri.Scheme is "http" or "https" && uri.UserInfo.Length == 0 && !uri.IsLoopback;
+    private static bool IsSafe(Uri uri)
+    {
+        return uri.IsAbsoluteUri && uri.Scheme is "http" or "https" && uri.UserInfo.Length == 0 && !uri.IsLoopback;
+    }
 
     private async Task<HttpResponseMessage> GetResponseAsync(Uri uri, CancellationToken token)
     {
         for (var redirects = 0; ; redirects++)
         {
-            var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
-            if ((int)response.StatusCode is not (301 or 302 or 303 or 307 or 308) || redirects == 3) return response;
+            var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, token)
+                .ConfigureAwait(false);
+            if ((int)response.StatusCode is not (301 or 302 or 303 or 307 or 308) || redirects == 3)
+            {
+                return response;
+            }
+
             if (response.Headers.Location is not { } location || !Uri.TryCreate(uri, location, out var next)
-                || !IsSafe(next) || (uri.Scheme == "https" && next.Scheme != "https")) return response;
+                                                              || !IsSafe(next) || (uri.Scheme == "https" &&
+                                                                  next.Scheme != "https"))
+            {
+                return response;
+            }
+
             response.Dispose();
             uri = next;
         }

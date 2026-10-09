@@ -135,7 +135,10 @@ public sealed class MetadataOrchestrationTests
         Assert.AreEqual("Song", scenario.ReloadHistory()[0].Title);
     }
 
-    private static AlbumArtworkMatch Match(string name) => new(new Uri($"https://art.example/{name}.jpg"), null);
+    private static AlbumArtworkMatch Match(string name)
+    {
+        return new AlbumArtworkMatch(new Uri($"https://art.example/{name}.jpg"), null);
+    }
 
     [TestMethod]
     public async Task QueuedArtworkFromEarlierOccurrenceCannotReplaceSameSongAfterInterveningTrack()
@@ -151,7 +154,8 @@ public sealed class MetadataOrchestrationTests
         queuedArtwork();
         Assert.AreEqual(scenario.Player.CurrentStation!.ArtworkUrl, scenario.ViewModel.CurrentArtworkUrl);
         repeated.Result.SetResult(Match("current-a"));
-        await scenario.UntilAsync(() => scenario.ViewModel.CurrentArtworkUrl == Match("current-a").ArtworkUrl.AbsoluteUri);
+        await scenario.UntilAsync(() =>
+            scenario.ViewModel.CurrentArtworkUrl == Match("current-a").ArtworkUrl.AbsoluteUri);
         middle.Result.SetResult(Match("late-b"));
         await scenario.ViewModel.ShutdownAsync();
         scenario.Drain();
@@ -167,7 +171,7 @@ public sealed class MetadataOrchestrationTests
     [TestMethod]
     public async Task ShutdownWaitsForAcceptedHistoryRecordBeforeFlushAndIgnoresQueuedUiRefresh()
     {
-        await using var scenario = new Scenario(delayHistory: true);
+        await using var scenario = new Scenario(true);
         var session = await scenario.SelectAsync("first");
         await scenario.EmitAsync(session, "Accepted");
         await scenario.History.Started.Task.WaitAsync(TimeSpan.FromSeconds(3));
@@ -182,32 +186,51 @@ public sealed class MetadataOrchestrationTests
 
     private sealed class Scenario : IAsyncDisposable
     {
+        private readonly Catalog _catalog = new();
         private readonly DirectoryInfo _directory = Directory.CreateTempSubdirectory("shoutkit-metadata-scenario-");
         private readonly ConcurrentQueue<Action> _dispatch = new();
         private readonly Channel<bool> _posted = Channel.CreateUnbounded<bool>();
-        private readonly Catalog _catalog = new();
-        public Reader Reader { get; } = new();
-        public Player Player { get; }
-        public RadioPrivacySettings Privacy { get; }
-        public RadioMainViewModel ViewModel { get; }
-        public DeferredHistory History { get; }
 
         public Scenario(bool delayHistory = false)
         {
             Player = new Player(new IcyTrackMonitor(new Probe(), continuousReader: Reader));
             Privacy = new RadioPrivacySettings(Path.Combine(_directory.FullName, "privacy.json"));
             History = new DeferredHistory(new TrackHistoryService(Path.Combine(_directory.FullName, "history.json")));
-            if (!delayHistory) History.Release.TrySetResult();
+            if (!delayHistory)
+            {
+                History.Release.TrySetResult();
+            }
+
             ViewModel = new RadioMainViewModel(Player, new DirectoryStub(),
                 new RadioLibraryService(Path.Combine(_directory.FullName, "library.json")),
-                action => { _dispatch.Enqueue(action); _posted.Writer.TryWrite(true); },
+                action =>
+                {
+                    _dispatch.Enqueue(action);
+                    _posted.Writer.TryWrite(true);
+                },
                 privacySettings: Privacy,
                 trackHistory: History,
                 albumArtworkLookup: _catalog, canPrefetch: () => false);
         }
 
-        public IReadOnlyList<HeardTrack> ReloadHistory() =>
-            new TrackHistoryService(Path.Combine(_directory.FullName, "history.json")).Entries;
+        public Reader Reader { get; } = new();
+        public Player Player { get; }
+        public RadioPrivacySettings Privacy { get; }
+        public RadioMainViewModel ViewModel { get; }
+        public DeferredHistory History { get; }
+
+        public async ValueTask DisposeAsync()
+        {
+            History.Release.TrySetResult();
+            await ViewModel.ShutdownAsync();
+            await Privacy.FlushAsync();
+            _directory.Delete(true);
+        }
+
+        public IReadOnlyList<HeardTrack> ReloadHistory()
+        {
+            return new TrackHistoryService(Path.Combine(_directory.FullName, "history.json")).Entries;
+        }
 
         public async Task<Action<string>> SelectAsync(string id)
         {
@@ -229,15 +252,29 @@ public sealed class MetadataOrchestrationTests
             return await _catalog.Requests.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(3));
         }
 
-        public void Drain() { while (_dispatch.TryDequeue(out var action)) action(); }
-        public Task<Request> TakeArtworkAsync() => _catalog.Requests.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(3));
+        public void Drain()
+        {
+            while (_dispatch.TryDequeue(out var action))
+            {
+                action();
+            }
+        }
+
+        public Task<Request> TakeArtworkAsync()
+        {
+            return _catalog.Requests.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(3));
+        }
 
         public async Task<Action> TakePostedAsync()
         {
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
             while (true)
             {
-                if (_dispatch.TryDequeue(out var action)) return action;
+                if (_dispatch.TryDequeue(out var action))
+                {
+                    return action;
+                }
+
                 await _posted.Reader.ReadAsync(deadline.Token);
             }
         }
@@ -248,17 +285,13 @@ public sealed class MetadataOrchestrationTests
             while (true)
             {
                 Drain();
-                if (condition()) return;
+                if (condition())
+                {
+                    return;
+                }
+
                 await _posted.Reader.ReadAsync(deadline.Token);
             }
-        }
-
-        public async ValueTask DisposeAsync()
-        {
-            History.Release.TrySetResult();
-            await ViewModel.ShutdownAsync();
-            await Privacy.FlushAsync();
-            _directory.Delete(recursive: true);
         }
     }
 
@@ -267,16 +300,29 @@ public sealed class MetadataOrchestrationTests
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public IReadOnlyList<HeardTrack> Entries => inner.Entries;
+
         public async Task<Guid> RecordAsync(RadioStation station, RadioTrackInfo track)
         {
             Started.TrySetResult();
             await Release.Task;
             return await inner.RecordAsync(station, track);
         }
-        public Task UpdateArtworkAsync(Guid entryId, AlbumArtworkMatch artwork) => inner.UpdateArtworkAsync(entryId, artwork);
-        public Task ClearAsync() => inner.ClearAsync();
+
+        public Task UpdateArtworkAsync(Guid entryId, AlbumArtworkMatch artwork)
+        {
+            return inner.UpdateArtworkAsync(entryId, artwork);
+        }
+
+        public Task ClearAsync()
+        {
+            return inner.ClearAsync();
+        }
+
         // This flush cannot see the admission blocked above: the view model must drain first.
-        public Task FlushAsync() => inner.FlushAsync();
+        public Task FlushAsync()
+        {
+            return inner.FlushAsync();
+        }
     }
 
     private sealed record Request(TaskCompletionSource<AlbumArtworkMatch?> Result);
@@ -285,17 +331,25 @@ public sealed class MetadataOrchestrationTests
     {
         private readonly ConcurrentBag<Request> _pending = [];
         public Channel<Request> Requests { get; } = Channel.CreateUnbounded<Request>();
+
         public Task<AlbumArtworkMatch?> FindAsync(RadioTrackInfo track, CancellationToken cancellationToken = default)
         {
             // Deliberately uncooperative: exercises ownership checks after a provider returns late.
-            var request = new Request(new TaskCompletionSource<AlbumArtworkMatch?>(TaskCreationOptions.RunContinuationsAsynchronously));
+            var request =
+                new Request(
+                    new TaskCompletionSource<AlbumArtworkMatch?>(TaskCreationOptions.RunContinuationsAsynchronously));
             _pending.Add(request);
             Requests.Writer.TryWrite(request);
             return request.Result.Task;
         }
+
         public ValueTask DisposeAsync()
         {
-            foreach (var request in _pending) request.Result.TrySetResult(null);
+            foreach (var request in _pending)
+            {
+                request.Result.TrySetResult(null);
+            }
+
             return ValueTask.CompletedTask;
         }
     }
@@ -303,7 +357,9 @@ public sealed class MetadataOrchestrationTests
     private sealed class Reader : IContinuousTrackMetadataReader
     {
         public Channel<Action<string>> Sessions { get; } = Channel.CreateUnbounded<Action<string>>();
-        public async Task<bool> ListenAsync(Uri streamUri, Action<string> onMetadata, CancellationToken cancellationToken = default)
+
+        public async Task<bool> ListenAsync(Uri streamUri, Action<string> onMetadata,
+            CancellationToken cancellationToken = default)
         {
             Sessions.Writer.TryWrite(onMetadata);
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
@@ -313,42 +369,74 @@ public sealed class MetadataOrchestrationTests
 
     private sealed class Probe : ITrackMetadataProbe
     {
-        public Task<IcyProbeResult> ProbeAsync(Uri streamUri, CancellationToken cancellationToken = default) =>
-            Task.FromResult(new IcyProbeResult(false, null));
+        public Task<IcyProbeResult> ProbeAsync(Uri streamUri, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new IcyProbeResult(false, null));
+        }
     }
 
     private sealed class DirectoryStub : IRadioDirectoryService
     {
-        public Task<IReadOnlyList<RadioStation>> GetPopularStationsAsync(int limit = 50, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<RadioStation>>((RadioStation[])[]);
-        public Task<IReadOnlyList<RadioStation>> SearchAsync(string query, int limit = 50, CancellationToken cancellationToken = default) => GetPopularStationsAsync(limit, cancellationToken);
-        public Task<IReadOnlyList<RadioStation>> SearchGenreAsync(string genre, int limit = 50, CancellationToken cancellationToken = default) => GetPopularStationsAsync(limit, cancellationToken);
+        public Task<IReadOnlyList<RadioStation>> GetPopularStationsAsync(int limit = 50,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<RadioStation>>((RadioStation[])[]);
+        }
+
+        public Task<IReadOnlyList<RadioStation>> SearchAsync(string query, int limit = 50,
+            CancellationToken cancellationToken = default)
+        {
+            return GetPopularStationsAsync(limit, cancellationToken);
+        }
+
+        public Task<IReadOnlyList<RadioStation>> SearchGenreAsync(string genre, int limit = 50,
+            CancellationToken cancellationToken = default)
+        {
+            return GetPopularStationsAsync(limit, cancellationToken);
+        }
     }
 
     private sealed class Player : IRadioPlayer, IAsyncDisposable
     {
         private readonly IcyTrackMonitor _monitor;
+
         public Player(IcyTrackMonitor monitor)
         {
             _monitor = monitor;
-            monitor.TrackChanged += (_, update) => { CurrentTrack = update.Track; TrackChanged?.Invoke(this, update); };
+            monitor.TrackChanged += (_, update) =>
+            {
+                CurrentTrack = update.Track;
+                TrackChanged?.Invoke(this, update);
+            };
             monitor.TrackInvalidated += (_, station) =>
             {
-                if (!ReferenceEquals(CurrentStation, station)) return;
+                if (!ReferenceEquals(CurrentStation, station))
+                {
+                    return;
+                }
+
                 CurrentTrack = null;
                 TrackChanged?.Invoke(this, null);
             };
         }
-        public RadioStation? CurrentStation { get; private set; }
-        public RadioTrackInfo? CurrentTrack { get; private set; }
+
         public Uri? Artwork { get; private set; }
         public bool IsPlaying => IsPlaybackRequested;
+
+        public async ValueTask DisposeAsync()
+        {
+            await _monitor.ShutdownAsync();
+        }
+
+        public RadioStation? CurrentStation { get; private set; }
+        public RadioTrackInfo? CurrentTrack { get; private set; }
         public bool IsPlaybackRequested { get; private set; }
         public event EventHandler<RadioStation?>? StationChanged;
         public event EventHandler<RadioTrackUpdate?>? TrackChanged;
         public event EventHandler<MediaPlaybackState>? PlaybackStateChanged;
         public event EventHandler<string>? PlaybackFailed { add { } remove { } }
         public event EventHandler? UserPlaybackStarted { add { } remove { } }
+
         public Task PlayStationAsync(RadioStation station)
         {
             _monitor.Stop();
@@ -358,23 +446,42 @@ public sealed class MetadataOrchestrationTests
             Play();
             return Task.CompletedTask;
         }
+
         public void Play()
         {
             IsPlaybackRequested = true;
-            if (CurrentStation is { } station) _monitor.Start(station);
+            if (CurrentStation is { } station)
+            {
+                _monitor.Start(station);
+            }
+
             PlaybackStateChanged?.Invoke(this, MediaPlaybackState.Playing);
         }
-        public void Pause() { _monitor.Stop(); IsPlaybackRequested = false; }
+
+        public void Pause()
+        {
+            _monitor.Stop();
+            IsPlaybackRequested = false;
+        }
+
+        public void StopStation()
+        {
+            Pause();
+            CurrentStation = null;
+        }
+
+        public void SetNowPlayingArtwork(RadioStation station, Uri? artworkUrl)
+        {
+            if (ReferenceEquals(CurrentStation, station))
+            {
+                Artwork = artworkUrl;
+            }
+        }
+
         public void EmitTrack(RadioTrackInfo? track)
         {
             CurrentTrack = track;
             TrackChanged?.Invoke(this, track is null ? null : new RadioTrackUpdate(CurrentStation!, track));
         }
-        public void StopStation() { Pause(); CurrentStation = null; }
-        public void SetNowPlayingArtwork(RadioStation station, Uri? artworkUrl)
-        {
-            if (ReferenceEquals(CurrentStation, station)) Artwork = artworkUrl;
-        }
-        public async ValueTask DisposeAsync() => await _monitor.ShutdownAsync();
     }
 }

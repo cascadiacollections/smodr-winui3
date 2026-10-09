@@ -11,7 +11,12 @@ public sealed class BackgroundWorkScopeTests
         await using var scope = new BackgroundWorkScope();
         var cleanup = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         CancellationToken captured = default;
-        var operation = scope.RunAsync(async token => { captured = token; await cleanup.Task; return 42; });
+        var operation = scope.RunAsync(async token =>
+        {
+            captured = token;
+            await cleanup.Task;
+            return 42;
+        });
         var stopping = scope.StopAsync();
         Assert.IsTrue(captured.IsCancellationRequested);
         Assert.IsFalse(stopping.IsCompleted);
@@ -50,7 +55,9 @@ public sealed class BackgroundWorkScopeTests
                         finally { Interlocked.Increment(ref finished); }
                     });
                 }
-                catch (Exception exception) when (exception is ObjectDisposedException or OperationCanceledException) { }
+                catch (Exception exception) when (exception is ObjectDisposedException or OperationCanceledException)
+                {
+                }
             })).ToArray();
             await scope.StopAsync().WaitAsync(TimeSpan.FromSeconds(3));
             var afterDrain = Volatile.Read(ref finished);

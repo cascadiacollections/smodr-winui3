@@ -45,16 +45,24 @@ public sealed class RadioAudioEngineCoordinatorTests
         first.Play();
         first.EmitCompleted();
         first.EmitFailed();
-        coordinator.Replace(second, disposePrevious: false);
-        coordinator.Replace(first, disposePrevious: false);
-        while (queued.TryDequeue(out var action)) action();
+        coordinator.Replace(second, false);
+        coordinator.Replace(first, false);
+        while (queued.TryDequeue(out var action))
+        {
+            action();
+        }
+
         Assert.AreEqual(0, changes);
         Assert.AreEqual(0, completed);
         Assert.AreEqual(0, failed);
         first.Play();
         first.EmitCompleted();
         first.EmitFailed();
-        while (queued.TryDequeue(out var action)) action();
+        while (queued.TryDequeue(out var action))
+        {
+            action();
+        }
+
         Assert.AreEqual(1, changes);
         Assert.AreEqual(1, completed);
         Assert.AreEqual(1, failed);
@@ -92,7 +100,7 @@ public sealed class RadioAudioEngineCoordinatorTests
         var failures = 0;
         coordinator.Failed += (_, _) => failures++;
         coordinator.Replace(bridge);
-        coordinator.Replace(graph, disposePrevious: false);
+        coordinator.Replace(graph, false);
         Assert.AreEqual(0, bridge.Disposals);
         bridge.EmitFailed();
         Assert.AreEqual(0, failures);
@@ -115,24 +123,58 @@ public sealed class RadioAudioEngineCoordinatorTests
 
     private sealed class FakeEngine(RadioAudioEngineKind kind) : IRadioAudioEngine
     {
-        public RadioAudioEngineKind Kind => kind;
-        public RadioEqualizerPreset Preset => RadioEqualizerPreset.Off;
-        public MediaPlaybackState State { get; private set; }
-        public TimeSpan Duration => TimeSpan.FromSeconds(120);
-        public TimeSpan Position => TimeSpan.Zero;
         public double Volume { get; private set; }
         public bool RejectVolume { get; init; }
         public int Plays { get; private set; }
         public int Pauses { get; private set; }
         public int Disposals { get; private set; }
+        public RadioAudioEngineKind Kind => kind;
+        public RadioEqualizerPreset Preset => RadioEqualizerPreset.Off;
+        public MediaPlaybackState State { get; private set; }
+        public TimeSpan Duration => TimeSpan.FromSeconds(120);
+        public TimeSpan Position => TimeSpan.Zero;
         public event EventHandler<MediaPlaybackState>? StateChanged;
         public event EventHandler? Completed;
         public event EventHandler? Failed;
-        public void Play() { Plays++; State = MediaPlaybackState.Playing; StateChanged?.Invoke(this, State); }
-        public void Pause() { Pauses++; State = MediaPlaybackState.Paused; StateChanged?.Invoke(this, State); }
-        public void SetVolume(double volume) { if (RejectVolume) throw new InvalidOperationException("Synthetic failure"); Volume = volume; }
-        public void EmitCompleted() => Completed?.Invoke(this, EventArgs.Empty);
-        public void EmitFailed() => Failed?.Invoke(this, EventArgs.Empty);
-        public void Dispose() { Disposals++; GC.SuppressFinalize(this); }
+
+        public void Play()
+        {
+            Plays++;
+            State = MediaPlaybackState.Playing;
+            StateChanged?.Invoke(this, State);
+        }
+
+        public void Pause()
+        {
+            Pauses++;
+            State = MediaPlaybackState.Paused;
+            StateChanged?.Invoke(this, State);
+        }
+
+        public void SetVolume(double volume)
+        {
+            if (RejectVolume)
+            {
+                throw new InvalidOperationException("Synthetic failure");
+            }
+
+            Volume = volume;
+        }
+
+        public void Dispose()
+        {
+            Disposals++;
+            GC.SuppressFinalize(this);
+        }
+
+        public void EmitCompleted()
+        {
+            Completed?.Invoke(this, EventArgs.Empty);
+        }
+
+        public void EmitFailed()
+        {
+            Failed?.Invoke(this, EventArgs.Empty);
+        }
     }
 }

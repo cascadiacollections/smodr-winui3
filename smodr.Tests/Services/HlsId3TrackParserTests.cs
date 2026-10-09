@@ -38,8 +38,12 @@ public sealed class HlsId3TrackParserTests
     }
 
     private static byte[] Cue(byte version, params (string Id, string Text)[] frames)
-        => CuePayloads(version, [.. frames.Select(frame => (frame.Id,
-            (byte[])[3, .. Encoding.UTF8.GetBytes(frame.Text)]))]);
+    {
+        return CuePayloads(version, [
+            .. frames.Select(frame => (frame.Id,
+                (byte[])[3, .. Encoding.UTF8.GetBytes(frame.Text)]))
+        ]);
+    }
 
     [TestMethod]
     [DataRow((byte)0)]
@@ -56,7 +60,7 @@ public sealed class HlsId3TrackParserTests
             _ => Encoding.UTF8
         };
         var preamble = encoding == 1 ? codec.GetPreamble() : [];
-        var artist = new byte[] { encoding }.Concat(preamble).Concat(codec.GetBytes("Hüsker Dü")).ToArray();
+        var artist = new[] { encoding }.Concat(preamble).Concat(codec.GetBytes("Hüsker Dü")).ToArray();
         var cue = CuePayloads(4, ("TIT2", [3, .. Encoding.UTF8.GetBytes("Ice Cold Ice")]), ("TPE1", artist));
         Assert.AreEqual("Hüsker Dü", HlsId3TrackParser.Parse(cue, "KEXP")?.Artist);
     }
@@ -85,8 +89,15 @@ public sealed class HlsId3TrackParserTests
         {
             body.AddRange(Encoding.ASCII.GetBytes(id));
             var size = new byte[4];
-            if (version == 4) WriteSynchsafe(size, payload.Length);
-            else BinaryPrimitives.WriteInt32BigEndian(size, payload.Length);
+            if (version == 4)
+            {
+                WriteSynchsafe(size, payload.Length);
+            }
+            else
+            {
+                BinaryPrimitives.WriteInt32BigEndian(size, payload.Length);
+            }
+
             body.AddRange(size);
             body.Add(0);
             body.Add(0);

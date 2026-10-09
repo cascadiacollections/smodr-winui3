@@ -1,38 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <UserControl x:Class="smodr.StationRowControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="using:smodr"
-             xmlns:models="using:smodr.Models">
+             xmlns:local="using:smodr">
     <Grid x:Name="RowRoot" Padding="10" ColumnSpacing="12" MinHeight="68">
         <Grid.ContextFlyout>
             <MenuFlyout>
-                <MenuFlyoutItem Text="Toggle Favorite" Click="FavoriteMenuItem_Click"/>
-                <MenuFlyoutItem x:Name="MoveUpItem" Text="Move up" Tag="-1" Click="MoveMenuItem_Click" Visibility="Collapsed">
-                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE70E;"/></MenuFlyoutItem.Icon>
+                <MenuFlyoutItem Text="Toggle Favorite" Click="FavoriteMenuItem_Click" />
+                <MenuFlyoutItem x:Name="MoveUpItem" Text="Move up" Tag="-1" Click="MoveMenuItem_Click"
+                                Visibility="Collapsed">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE70E;" />
+                    </MenuFlyoutItem.Icon>
                 </MenuFlyoutItem>
-                <MenuFlyoutItem x:Name="MoveDownItem" Text="Move down" Tag="1" Click="MoveMenuItem_Click" Visibility="Collapsed">
-                    <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE70D;"/></MenuFlyoutItem.Icon>
+                <MenuFlyoutItem x:Name="MoveDownItem" Text="Move down" Tag="1" Click="MoveMenuItem_Click"
+                                Visibility="Collapsed">
+                    <MenuFlyoutItem.Icon>
+                        <FontIcon Glyph="&#xE70D;" />
+                    </MenuFlyoutItem.Icon>
                 </MenuFlyoutItem>
             </MenuFlyout>
         </Grid.ContextFlyout>
-        <Grid.ColumnDefinitions><ColumnDefinition Width="52"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
-        <Border Width="52" Height="52" CornerRadius="12" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
-            <local:StationArtworkControl ArtworkUrl="{x:Bind Station.ArtworkUrl, Mode=OneWay}" ImageStretch="Uniform"/>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="52" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="44" />
+        </Grid.ColumnDefinitions>
+        <Border Width="52" Height="52" CornerRadius="12"
+                Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+            <local:StationArtworkControl ArtworkUrl="{x:Bind Station.ArtworkUrl, Mode=OneWay}" ImageStretch="Uniform" />
         </Border>
         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-            <TextBlock Text="{x:Bind Station.Name, Mode=OneWay}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{x:Bind Station.Name, Mode=OneWay}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
             <TextBlock Text="{x:Bind Station.Details, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
-            <TextBlock x:Name="PlaybackLabel" Style="{ThemeResource CaptionTextBlockStyle}" Visibility="Collapsed"/>
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+            <TextBlock x:Name="PlaybackLabel" Style="{ThemeResource CaptionTextBlockStyle}" Visibility="Collapsed" />
         </StackPanel>
         <Button x:Name="FavoriteButton" Grid.Column="2" VerticalAlignment="Center" Click="FavoriteMenuItem_Click"
                 AutomationProperties.Name="Toggle station favorite" ToolTipService.ToolTip="Toggle favorite">
-            <FontIcon x:Name="FavoriteIcon" Glyph="&#xEB51;" FontSize="16"/>
+            <FontIcon x:Name="FavoriteIcon" Glyph="&#xEB51;" FontSize="16" />
         </Button>
         <Border Grid.Column="3" Width="40" Height="40" CornerRadius="20"
                 Background="{ThemeResource SubtleFillColorSecondaryBrush}" VerticalAlignment="Center">
-            <FontIcon x:Name="PlaybackIcon" Glyph="&#xE768;" FontSize="14"/>
+            <FontIcon x:Name="PlaybackIcon" Glyph="&#xE768;" FontSize="14" />
         </Border>
     </Grid>
 </UserControl>

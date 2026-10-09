@@ -1,35 +1,32 @@
 namespace smodr.Services;
 
 /// <summary>
-/// Bounds a live stream's buffering and reconnect attempts. It never touches the
-/// media engine; callbacks are dispatched by the owner to the player's thread.
+///     Bounds a live stream's buffering and reconnect attempts. It never touches the
+///     media engine; callbacks are dispatched by the owner to the player's thread.
 /// </summary>
 internal sealed class LiveRadioRecovery : IDisposable
 {
-    private readonly Lock _gate = new();
-    private readonly Action<long> _restart;
-    private readonly Action<long> _exhausted;
     private readonly Action<long>? _beforeRetry;
     private readonly TimeProvider _clock;
-    private readonly TimeSpan _stallTimeout;
+    private readonly RuntimeDiagnosticCounters _diagnostics;
+    private readonly Action<long> _exhausted;
+    private readonly Lock _gate = new();
+    private readonly int _maxRetries;
+    private readonly Action<long> _restart;
     private readonly TimeSpan _resumeTimeout;
     private readonly TimeSpan _retryBaseDelay;
     private readonly TimeSpan _stablePlaybackWindow;
-    private long _playingAt;
+    private readonly TimeSpan _stallTimeout;
+    private int _attempts;
+    private bool _disposed;
+    private long _epoch;
     private bool _playing;
-    private readonly int _maxRetries;
-    private readonly RuntimeDiagnosticCounters _diagnostics;
+    private long _playingAt;
+    private bool _reconnecting;
+    private bool _requested;
     private CancellationTokenSource? _timer;
     private TimerKind _timerKind;
-    private long _epoch;
-    private int _attempts;
-    private bool _requested;
     private bool _waitingForRetry;
-    private bool _reconnecting;
-    private bool _disposed;
-
-    private enum TimerKind { None, Stall, Resume, Retry }
-    private readonly record struct FailureDecision(long? ExhaustedEpoch, long? RetryEpoch, TimeSpan RetryDelay);
 
     public LiveRadioRecovery(
         Action<long> restart,
@@ -82,6 +79,22 @@ internal sealed class LiveRadioRecovery : IDisposable
             {
                 return !_disposed && _requested && _reconnecting;
             }
+        }
+    }
+
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _requested = false;
+            _epoch++;
+            CancelTimerLocked();
         }
     }
 
@@ -188,6 +201,7 @@ internal sealed class LiveRadioRecovery : IDisposable
             {
                 return;
             }
+
             decision = FailLocked();
         }
 
@@ -265,26 +279,11 @@ internal sealed class LiveRadioRecovery : IDisposable
             {
                 return;
             }
+
             _epoch++;
             _requested = false;
             _waitingForRetry = false;
             _reconnecting = false;
-            CancelTimerLocked();
-        }
-    }
-
-    public void Dispose()
-    {
-        lock (_gate)
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            _disposed = true;
-            _requested = false;
-            _epoch++;
             CancelTimerLocked();
         }
     }
@@ -349,4 +348,8 @@ internal sealed class LiveRadioRecovery : IDisposable
             cancellation.Dispose();
         }
     }
+
+    private enum TimerKind { None, Stall, Resume, Retry }
+
+    private readonly record struct FailureDecision(long? ExhaustedEpoch, long? RetryEpoch, TimeSpan RetryDelay);
 }

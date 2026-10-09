@@ -8,8 +8,8 @@ public sealed class StationArtworkDiskCache(string directory, TimeProvider? cloc
 {
     private const int MaxArtworkBytes = 1_000_000;
     private const int MaxFiles = 48;
-    private readonly string _directory = ResolveDirectory(directory);
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
+    private readonly string _directory = ResolveDirectory(directory);
 
     private static string ResolveDirectory(string directory)
     {
@@ -23,13 +23,10 @@ public sealed class StationArtworkDiskCache(string directory, TimeProvider? cloc
         try
         {
             var file = new FileInfo(path);
-            if (!file.Exists || file.Length is <= 0 or > MaxArtworkBytes
-                || _clock.GetUtcNow() - file.LastWriteTimeUtc > TimeSpan.FromDays(30))
-            {
-                return null;
-            }
-
-            return await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
+            return !file.Exists || file.Length is <= 0 or > MaxArtworkBytes
+                                || _clock.GetUtcNow() - file.LastWriteTimeUtc > TimeSpan.FromDays(30)
+                ? null
+                : await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -39,7 +36,11 @@ public sealed class StationArtworkDiskCache(string directory, TimeProvider? cloc
 
     public async Task StoreAsync(Uri uri, byte[] bytes, CancellationToken cancellationToken = default)
     {
-        if (bytes.Length is <= 0 or > MaxArtworkBytes) return;
+        if (bytes.Length is <= 0 or > MaxArtworkBytes)
+        {
+            return;
+        }
+
         try
         {
             Directory.CreateDirectory(_directory);
@@ -52,7 +53,10 @@ public sealed class StationArtworkDiskCache(string directory, TimeProvider? cloc
             }
             finally
             {
-                if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+                if (File.Exists(temporaryPath))
+                {
+                    File.Delete(temporaryPath);
+                }
             }
 
             await Task.Run(Prune, cancellationToken).ConfigureAwait(false);

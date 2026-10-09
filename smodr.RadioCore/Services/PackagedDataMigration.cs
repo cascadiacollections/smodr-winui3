@@ -18,7 +18,10 @@ public static class PackagedDataMigration
         ArgumentException.ThrowIfNullOrWhiteSpace(legacyDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(packageDirectory);
         if (Path.GetFullPath(legacyDirectory).Equals(Path.GetFullPath(packageDirectory),
-            StringComparison.OrdinalIgnoreCase)) return;
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
 
         Directory.CreateDirectory(packageDirectory);
         foreach (var (name, maxBytes) in _files)
@@ -30,7 +33,11 @@ public static class PackagedDataMigration
             {
                 var file = new FileInfo(source);
                 if (!file.Exists || file.Length is <= 0 || file.Length > maxBytes
-                    || File.Exists(destination)) continue;
+                    || File.Exists(destination))
+                {
+                    continue;
+                }
+
                 // Copy, then atomically publish. Never replace data already written by
                 // a packaged launch, and never modify the original unpackaged file.
                 using (var input = File.OpenRead(source))
@@ -39,10 +46,18 @@ public static class PackagedDataMigration
                     input.CopyTo(output);
                     output.Flush(true);
                 }
-                if (new FileInfo(temporary).Length > maxBytes) continue;
-                File.Move(temporary, destination, overwrite: false);
+
+                if (new FileInfo(temporary).Length > maxBytes)
+                {
+                    continue;
+                }
+
+                File.Move(temporary, destination, false);
             }
-            catch (IOException) { /* Existing destination or inaccessible source: leave both intact. */ }
+            catch (IOException)
+            {
+                /* Existing destination or inaccessible source: leave both intact. */
+            }
             catch (UnauthorizedAccessException) { }
             finally
             {

@@ -1,12 +1,12 @@
 using System.Diagnostics;
+using Microsoft.UI.Dispatching;
+using smodr.Models;
 using Windows.Foundation.Collections;
 using Windows.Media;
 using Windows.Media.Core;
 using Windows.Media.Devices;
 using Windows.Media.Playback;
 using Windows.Storage.Streams;
-using Microsoft.UI.Dispatching;
-using smodr.Models;
 
 namespace smodr.Services;
 

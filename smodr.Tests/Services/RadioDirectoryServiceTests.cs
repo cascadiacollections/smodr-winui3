@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using smodr.Services;
 
@@ -20,15 +21,15 @@ public sealed class RadioDirectoryServiceTests
                 : new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = new StringContent("""
-                        [
-                          {"stationuuid":"one","name":"Jazz FM","url_resolved":"https://example.com/live"},
-                          {"stationuuid":"one","name":"Duplicate","url_resolved":"https://example.com/other"},
-                          {"stationuuid":"bad","name":"Bad","url_resolved":"file:///local"}
-                        ]
-                        """)
+                                                [
+                                                  {"stationuuid":"one","name":"Jazz FM","url_resolved":"https://example.com/live"},
+                                                  {"stationuuid":"one","name":"Duplicate","url_resolved":"https://example.com/other"},
+                                                  {"stationuuid":"bad","name":"Bad","url_resolved":"file:///local"}
+                                                ]
+                                                """)
                 };
         });
-        using var client = new HttpClient(handler, disposeHandler: false);
+        using var client = new HttpClient(handler, false);
         var service = new RadioDirectoryService(client,
             (Uri[])[new Uri("https://first.example/"), new Uri("https://second.example/")]);
 
@@ -45,11 +46,10 @@ public sealed class RadioDirectoryServiceTests
     public async Task AllServersFailWithFriendlyError()
     {
         using var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
-        using var client = new HttpClient(handler, disposeHandler: false);
+        using var client = new HttpClient(handler, false);
         var service = new RadioDirectoryService(client, (Uri[])[new Uri("https://first.example/")]);
 
-        await Assert.ThrowsExactlyAsync<RadioDirectoryUnavailableException>(
-            () => service.GetPopularStationsAsync());
+        await Assert.ThrowsExactlyAsync<RadioDirectoryUnavailableException>(() => service.GetPopularStationsAsync());
     }
 
     [TestMethod]
@@ -66,7 +66,7 @@ public sealed class RadioDirectoryServiceTests
                     : "[]")
             };
         });
-        using var client = new HttpClient(handler, disposeHandler: false);
+        using var client = new HttpClient(handler, false);
         var service = new RadioDirectoryService(client,
             (Uri[])[new Uri("https://first.example/"), new Uri("https://second.example/")]);
 
@@ -85,10 +85,13 @@ public sealed class RadioDirectoryServiceTests
             hosts.Add(request.RequestUri!.Host);
             var content = new StringContent("[]");
             if (request.RequestUri.Host == "first.example")
+            {
                 content.Headers.ContentLength = 3 * 1024 * 1024;
+            }
+
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
         });
-        using var client = new HttpClient(handler, disposeHandler: false);
+        using var client = new HttpClient(handler, false);
         var service = new RadioDirectoryService(client,
             (Uri[])[new Uri("https://first.example/"), new Uri("https://second.example/")]);
 
@@ -104,11 +107,16 @@ public sealed class RadioDirectoryServiceTests
         {
             hosts.Add(request.RequestUri!.Host);
             var content = new StringContent(request.RequestUri.Host == "first.example"
-                ? $"[{new string(' ', 2 * 1024 * 1024)}]" : "[]");
-            if (request.RequestUri.Host == "first.example") content.Headers.ContentLength = 2;
+                ? $"[{new string(' ', 2 * 1024 * 1024)}]"
+                : "[]");
+            if (request.RequestUri.Host == "first.example")
+            {
+                content.Headers.ContentLength = 2;
+            }
+
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
         });
-        using var client = new HttpClient(handler, disposeHandler: false);
+        using var client = new HttpClient(handler, false);
         var service = new RadioDirectoryService(client,
             (Uri[])[new Uri("https://first.example/"), new Uri("https://second.example/")]);
 
@@ -126,10 +134,11 @@ public sealed class RadioDirectoryServiceTests
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(request.RequestUri.Host == "first.example"
-                    ? $"[{string.Join(',', Enumerable.Repeat("{}", 1_001))}]" : "[]")
+                    ? $"[{string.Join(',', Enumerable.Repeat("{}", 1_001))}]"
+                    : "[]")
             };
         });
-        using var client = new HttpClient(handler, disposeHandler: false);
+        using var client = new HttpClient(handler, false);
         var service = new RadioDirectoryService(client,
             (Uri[])[new Uri("https://first.example/"), new Uri("https://second.example/")]);
 
@@ -146,7 +155,7 @@ public sealed class RadioDirectoryServiceTests
         {
             Content = new StringContent($"[{string.Join(',', entries)}]")
         });
-        using var client = new HttpClient(handler, disposeHandler: false);
+        using var client = new HttpClient(handler, false);
         var service = new RadioDirectoryService(client, (Uri[])[new Uri("https://first.example/")]);
 
         var stations = await service.GetPopularStationsAsync(100);
@@ -166,12 +175,12 @@ public sealed class RadioDirectoryServiceTests
             requests++;
             cancellation.Cancel();
         });
-        using var client = new HttpClient(handler, disposeHandler: false);
+        using var client = new HttpClient(handler, false);
         var service = new RadioDirectoryService(client,
             (Uri[])[new Uri("https://first.example/"), new Uri("https://second.example/")]);
 
-        await Assert.ThrowsAsync<OperationCanceledException>(
-            () => service.GetPopularStationsAsync(cancellationToken: cancellation.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            service.GetPopularStationsAsync(cancellationToken: cancellation.Token));
 
         Assert.AreEqual(1, requests);
     }
@@ -185,7 +194,7 @@ public sealed class RadioDirectoryServiceTests
             requests.Add(request.RequestUri!);
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
         });
-        using var client = new HttpClient(handler, disposeHandler: false);
+        using var client = new HttpClient(handler, false);
         var service = new RadioDirectoryService(client, (Uri[])[new Uri("https://first.example/")]);
 
         await service.GetPopularStationsAsync();
@@ -205,10 +214,11 @@ public sealed class RadioDirectoryServiceTests
         {
             requests.Add(request.RequestUri!);
             return new HttpResponseMessage(request.RequestUri!.Host == "first.example"
-                ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.OK)
+                ? HttpStatusCode.ServiceUnavailable
+                : HttpStatusCode.OK)
             { Content = new StringContent("""{"ok":"true"}""") };
         });
-        using var client = new HttpClient(handler, disposeHandler: false);
+        using var client = new HttpClient(handler, false);
         var service = new RadioDirectoryService(client,
             (Uri[])[new Uri("https://first.example/"), new Uri("https://second.example/")]);
 
@@ -229,25 +239,28 @@ public sealed class RadioDirectoryServiceTests
         using var handler = new StubHandler(request =>
         {
             var body = request.RequestUri!.AbsolutePath.Contains("/url/", StringComparison.Ordinal)
-                ? (++reports == 1 ? """{"ok":false}""" : """{"ok":true}""")
+                ? ++reports == 1 ? """{"ok":false}""" : """{"ok":true}"""
                 : """[{"stationuuid":"one","name":"Example","url_resolved":"https://example.com/live","countrycode":"US","country":"Wrong legacy name"}]""";
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) };
         });
         using var client = new HttpClient(handler);
-        var service = new RadioDirectoryService(client, (Uri[])[new Uri("https://first.example/"), new Uri("https://second.example/")]);
+        var service = new RadioDirectoryService(client,
+            (Uri[])[new Uri("https://first.example/"), new Uri("https://second.example/")]);
         await service.ReportPlayAsync("bdb9fa3b-5672-4e0e-9b75-dcb19295c483");
         Assert.AreEqual(2, reports);
         var station = (await service.GetPopularStationsAsync()).Single();
         Assert.AreEqual("US", station.CountryCode);
         Assert.AreEqual(string.Empty, station.Country);
-        Assert.AreEqual(new System.Globalization.RegionInfo("US").DisplayName, station.CountryDisplayName);
+        Assert.AreEqual(new RegionInfo("US").DisplayName, station.CountryDisplayName);
     }
 
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request, CancellationToken cancellationToken) =>
-            Task.FromResult(respond(request));
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(respond(request));
+        }
     }
 
     private sealed class CancellationHandler(Action onRequest) : HttpMessageHandler

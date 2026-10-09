@@ -9,8 +9,10 @@ public sealed class RadioQuickLaunchTests
     [TestMethod]
     public void PrioritizesFavoritesDeduplicatesAndBoundsShellItems()
     {
-        RadioStation[] favorites = [new() { Id = "station one", Name = "Favorite", StreamUrl = "https://private.example/key" }];
-        var recents = Enumerable.Range(0, 12).Select(index => new RadioStation { Id = "station" + index, Name = "Recent" + index }).ToArray();
+        RadioStation[] favorites =
+            [new() { Id = "station one", Name = "Favorite", StreamUrl = "https://private.example/key" }];
+        var recents = Enumerable.Range(0, 12)
+            .Select(index => new RadioStation { Id = "station" + index, Name = "Recent" + index }).ToArray();
         var items = RadioQuickLaunch.Build(favorites, (RadioStation[])[favorites[0], .. recents]);
         Assert.HasCount(8, items);
         Assert.AreEqual("Favorites", items[0].Group);
@@ -24,7 +26,10 @@ public sealed class RadioQuickLaunchTests
     [DataRow("--station-id=hello --other")]
     [DataRow("--station-id=bad%0Avalue")]
     [DataRow("--url=https://example.com")]
-    public void RejectsMalformedArguments(string arguments) => Assert.IsFalse(RadioQuickLaunch.TryParse(arguments, out _));
+    public void RejectsMalformedArguments(string arguments)
+    {
+        Assert.IsFalse(RadioQuickLaunch.TryParse(arguments, out _));
+    }
 
     [TestMethod]
     public void ParsesOnlyExactExecutablePrefixAndBoundedSafeStationIdentity()
@@ -34,6 +39,7 @@ public sealed class RadioQuickLaunchTests
         Assert.AreEqual("shoutcast:12", id);
         Assert.IsFalse(RadioQuickLaunch.TryParse("\"other.exe\" --station-id=one", out _, "smodr.exe"));
         Assert.IsFalse(RadioQuickLaunch.TryParse("--station-id=" + new string('x', 257), out _));
-        Assert.HasCount(0, RadioQuickLaunch.Build((RadioStation[])[new RadioStation { Id = "one", Name = "Bad\nName" }], []));
+        Assert.HasCount(0,
+            RadioQuickLaunch.Build((RadioStation[])[new RadioStation { Id = "one", Name = "Bad\nName" }], []));
     }
 }

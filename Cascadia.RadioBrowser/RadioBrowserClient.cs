@@ -95,14 +95,11 @@ public sealed class RadioBrowserClient
     public Task<IReadOnlyList<Station>> GetByUrlAsync(Uri streamUrl, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(streamUrl);
-        if (!streamUrl.IsAbsoluteUri || streamUrl.Scheme is not ("http" or "https") || streamUrl.UserInfo.Length != 0)
-        {
-            throw new ArgumentException("An absolute HTTP(S) stream URL without credentials is required.",
-                nameof(streamUrl));
-        }
-
-        return ReadStationsAsync($"json/stations/byurl?url={Uri.EscapeDataString(streamUrl.AbsoluteUri)}", 100,
-            cancellationToken);
+        return !streamUrl.IsAbsoluteUri || streamUrl.Scheme is not ("http" or "https") || streamUrl.UserInfo.Length != 0
+            ? throw new ArgumentException("An absolute HTTP(S) stream URL without credentials is required.",
+                nameof(streamUrl))
+            : ReadStationsAsync($"json/stations/byurl?url={Uri.EscapeDataString(streamUrl.AbsoluteUri)}", 100,
+                cancellationToken);
     }
 
     public async Task<IReadOnlyList<DirectoryValue>> GetValuesAsync(DirectoryFacet facet,
@@ -120,12 +117,9 @@ public sealed class RadioBrowserClient
         {
             var values = JsonSerializer.Deserialize(bytes.Span, RadioBrowserJsonContext.Default.DirectoryValueArray)
                          ?? throw new JsonException();
-            if (values.Length > MaxRows)
-            {
-                throw new InvalidDataException("Too many directory values.");
-            }
-
-            return (IReadOnlyList<DirectoryValue>)Array.AsReadOnly(values);
+            return values.Length > MaxRows
+                ? throw new InvalidDataException("Too many directory values.")
+                : (IReadOnlyList<DirectoryValue>)Array.AsReadOnly(values);
         }, cancellationToken).ConfigureAwait(false);
     }
 
@@ -252,12 +246,9 @@ public sealed class RadioBrowserClient
             await buffer.WriteAsync(chunk.AsMemory(0, read), timeout.Token).ConfigureAwait(false);
         }
 
-        if (response.Content.Headers.ContentLength is long length && buffer.Length != length)
-        {
-            throw new InvalidDataException("Response length mismatch.");
-        }
-
-        return buffer.ToArray();
+        return response.Content.Headers.ContentLength is long length && buffer.Length != length
+            ? throw new InvalidDataException("Response length mismatch.")
+            : (ReadOnlyMemory<byte>)buffer.ToArray();
     }
 
     private void Diagnose(ClientDiagnostic diagnostic)

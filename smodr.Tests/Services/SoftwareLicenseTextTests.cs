@@ -8,8 +8,10 @@ public sealed class SoftwareLicenseTextTests
     [TestMethod]
     [DataRow("")]
     [DataRow("Short notice\r\nSecond line")]
-    public void SmallNoticesArePreserved(string text) =>
+    public void SmallNoticesArePreserved(string text)
+    {
         Assert.AreEqual(text, string.Concat(SoftwareLicenseText.Split(text)));
+    }
 
     [TestMethod]
     [DataRow("\r\n")]

@@ -3,13 +3,13 @@ namespace smodr.Services;
 /// <summary>A one-shot wall-clock timer independent of the current station.</summary>
 public sealed class PlaybackSleepTimer : IDisposable
 {
-    private readonly Lock _gate = new();
     private readonly TimeProvider _clock;
     private readonly Func<TimeSpan, CancellationToken, Task> _delay;
+    private readonly Lock _gate = new();
     private CancellationTokenSource? _cancellation;
+    private bool _disposed;
     private DateTimeOffset? _endsAt;
     private long _generation;
-    private bool _disposed;
 
     public PlaybackSleepTimer(TimeProvider? clock = null,
         Func<TimeSpan, CancellationToken, Task>? delay = null)
@@ -18,11 +18,15 @@ public sealed class PlaybackSleepTimer : IDisposable
         _delay = delay ?? ((duration, token) => Task.Delay(duration, _clock, token));
     }
 
-    public event EventHandler? Elapsed;
-
     public DateTimeOffset? EndsAt
     {
-        get { lock (_gate) return _endsAt; }
+        get
+        {
+            lock (_gate)
+            {
+                return _endsAt;
+            }
+        }
     }
 
     public TimeSpan? Remaining
@@ -30,14 +34,40 @@ public sealed class PlaybackSleepTimer : IDisposable
         get
         {
             lock (_gate)
+            {
                 return _endsAt is { } end ? TimeSpan.FromTicks(Math.Max(0, (end - _clock.GetUtcNow()).Ticks)) : null;
+            }
         }
     }
+
+    public void Dispose()
+    {
+        CancellationTokenSource? previous;
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            previous = _cancellation;
+            _cancellation = null;
+            _endsAt = null;
+            ++_generation;
+        }
+
+        CancelPrevious(previous);
+    }
+
+    public event EventHandler? Elapsed;
 
     public void Start(TimeSpan duration)
     {
         if (duration <= TimeSpan.Zero || duration > TimeSpan.FromHours(24))
+        {
             throw new ArgumentOutOfRangeException(nameof(duration));
+        }
 
         CancellationTokenSource? previous;
         CancellationTokenSource current;
@@ -61,23 +91,11 @@ public sealed class PlaybackSleepTimer : IDisposable
         CancellationTokenSource? previous;
         lock (_gate)
         {
-            if (_disposed) return;
-            previous = _cancellation;
-            _cancellation = null;
-            _endsAt = null;
-            ++_generation;
-        }
+            if (_disposed)
+            {
+                return;
+            }
 
-        CancelPrevious(previous);
-    }
-
-    public void Dispose()
-    {
-        CancellationTokenSource? previous;
-        lock (_gate)
-        {
-            if (_disposed) return;
-            _disposed = true;
             previous = _cancellation;
             _cancellation = null;
             _endsAt = null;
@@ -133,6 +151,9 @@ public sealed class PlaybackSleepTimer : IDisposable
     private static void CancelPrevious(CancellationTokenSource? cancellation)
     {
         try { cancellation?.Cancel(); }
-        catch (ObjectDisposedException) { /* The previous timer just completed. */ }
+        catch (ObjectDisposedException)
+        {
+            /* The previous timer just completed. */
+        }
     }
 }

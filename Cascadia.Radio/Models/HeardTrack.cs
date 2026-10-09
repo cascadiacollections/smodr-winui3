@@ -14,12 +14,13 @@ public sealed class HeardTrack
     public string StationArtworkUrl { get; init; } = string.Empty;
     public string AppleMusicUrl { get; init; } = string.Empty;
 
-    [JsonIgnore]
-    public string Display => string.IsNullOrWhiteSpace(Artist) ? Title : $"{Artist} — {Title}";
+    [JsonIgnore] public string Display => string.IsNullOrWhiteSpace(Artist) ? Title : $"{Artist} — {Title}";
 
-    [JsonIgnore]
-    public string Details => $"{StationName} · {HeardAt.ToLocalTime():g}";
+    [JsonIgnore] public string Details => $"{StationName} · {HeardAt.ToLocalTime():g}";
 
     /// <summary>List containers announce ToString() to screen readers.</summary>
-    public override string ToString() => $"{Display}, {Details}";
+    public override string ToString()
+    {
+        return $"{Display}, {Details}";
+    }
 }

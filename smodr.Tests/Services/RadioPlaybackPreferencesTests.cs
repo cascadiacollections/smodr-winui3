@@ -16,7 +16,8 @@ public sealed class RadioPlaybackPreferencesTests
         Assert.IsFalse(preferences.IsReadOnly);
         Assert.IsFalse(preferences.Current.ResumeAfterSleep);
         Assert.IsTrue(preferences.Current.ResumeAfterNetworkLoss);
-        var settings = new RadioSettingsViewModel(new RadioPrivacySettings(profile.FilePath + ".privacy"), playback: preferences);
+        var settings = new RadioSettingsViewModel(new RadioPrivacySettings(profile.FilePath + ".privacy"),
+            playback: preferences);
         await settings.SetResumeAfterSleepEnabledAsync(true);
         await settings.SetResumeAfterNetworkLossEnabledAsync(false);
         await settings.FlushAsync();
@@ -126,7 +127,8 @@ public sealed class RadioPlaybackPreferencesTests
         {
             var bands = RadioEqualizerProfiles.Bands(preset);
             Assert.HasCount(4, bands);
-            Assert.IsTrue(bands.All(band => band.Frequency is > 0 and < 20000 && double.IsFinite(band.Gain) && band.Gain > 0));
+            Assert.IsTrue(bands.All(band =>
+                band.Frequency is > 0 and < 20000 && double.IsFinite(band.Gain) && band.Gain > 0));
             Assert.IsTrue(bands.Max(band => band.Gain) * RadioEqualizerProfiles.Headroom(preset) <= 1.000001);
         }
     }
@@ -137,7 +139,8 @@ public sealed class RadioPlaybackPreferencesTests
         using var profile = new TemporaryRadioProfile();
         await File.WriteAllBytesAsync(profile.FilePath, new byte[64_001]);
         var preferences = new RadioPlaybackPreferences(profile.FilePath);
-        var settings = new RadioSettingsViewModel(new RadioPrivacySettings(profile.FilePath + ".privacy"), playback: preferences);
+        var settings = new RadioSettingsViewModel(new RadioPrivacySettings(profile.FilePath + ".privacy"),
+            playback: preferences);
         Assert.IsTrue(preferences.IsReadOnly);
         Assert.IsFalse(settings.CanEditPlayback);
         Assert.IsTrue(settings.CanEdit);
@@ -152,26 +155,44 @@ public sealed class RadioPlaybackPreferencesTests
     [DataRow(true, false, 180, false)]
     [DataRow(true, true, 0, false)]
     [DataRow(true, true, 180, true)]
-    public void LoopRequiresOptInRequestedPlaybackAndKnownDuration(bool enabled, bool requested, int duration, bool expected) =>
-        Assert.AreEqual(expected, FinishedBroadcastPolicy.ShouldLoop(enabled, requested, TimeSpan.FromSeconds(duration)));
+    public void LoopRequiresOptInRequestedPlaybackAndKnownDuration(bool enabled, bool requested, int duration,
+        bool expected)
+    {
+        Assert.AreEqual(expected,
+            FinishedBroadcastPolicy.ShouldLoop(enabled, requested, TimeSpan.FromSeconds(duration)));
+    }
 
     [TestMethod]
-    public void UnknownInfiniteDurationDoesNotLoop() =>
+    public void UnknownInfiniteDurationDoesNotLoop()
+    {
         Assert.IsFalse(FinishedBroadcastPolicy.ShouldLoop(true, true, TimeSpan.MaxValue));
+    }
 }
 
 internal sealed class TemporaryRadioProfile : IDisposable
 {
-    private readonly string _root = Path.Combine(Path.GetTempPath(), "shoutkit-options-" + Guid.NewGuid().ToString("N"));
+    private readonly string _root =
+        Path.Combine(Path.GetTempPath(), "shoutkit-options-" + Guid.NewGuid().ToString("N"));
+
+    public TemporaryRadioProfile()
+    {
+        Directory.CreateDirectory(_root);
+    }
+
     public string FilePath => Path.Combine(_root, "settings.json");
-    public TemporaryRadioProfile() => Directory.CreateDirectory(_root);
+
     public void Dispose()
     {
         var fullPath = Path.GetFullPath(_root);
-        if (!Path.GetDirectoryName(fullPath)!.Equals(Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
+        if (!Path.GetDirectoryName(fullPath)!.Equals(
+                Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar),
+                StringComparison.OrdinalIgnoreCase)
             || !Path.GetFileName(fullPath).StartsWith("shoutkit-options-", StringComparison.Ordinal))
+        {
             throw new InvalidOperationException("Unexpected test profile path.");
-        Directory.Delete(fullPath, recursive: true);
+        }
+
+        Directory.Delete(fullPath, true);
         GC.SuppressFinalize(this);
     }
 }

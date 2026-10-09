@@ -4,12 +4,15 @@ using Microsoft.UI.Xaml.Data;
 namespace smodr.Converters;
 
 /// <summary>
-/// A value converter that converts a boolean value to a Visibility value. If the input boolean is true, it returns Visibility.Visible; if false, it returns Visibility.Collapsed. An optional parameter can be provided to invert the boolean logic.
+///     A value converter that converts a boolean value to a Visibility value. If the input boolean is true, it returns
+///     Visibility.Visible; if false, it returns Visibility.Collapsed. An optional parameter can be provided to invert the
+///     boolean logic.
 /// </summary>
 public partial class BoolToVisibilityConverter : IValueConverter
 {
     /// <summary>
-    /// Converts a boolean value to a Visibility value. If the input boolean is true, it returns Visibility.Visible; if false, it returns Visibility.Collapsed. An optional parameter can be provided to invert the boolean logic.
+    ///     Converts a boolean value to a Visibility value. If the input boolean is true, it returns Visibility.Visible; if
+    ///     false, it returns Visibility.Collapsed. An optional parameter can be provided to invert the boolean logic.
     /// </summary>
     /// <param name="value">The boolean value to convert.</param>
     /// <param name="targetType">The type of the binding target property.</param>
@@ -28,7 +31,8 @@ public partial class BoolToVisibilityConverter : IValueConverter
     }
 
     /// <summary>
-    /// Converts a Visibility value back to a boolean value. If the input Visibility is Visibility.Visible, it returns true; if Visibility.Collapsed, it returns false. An optional parameter can be provided to invert the boolean logic.
+    ///     Converts a Visibility value back to a boolean value. If the input Visibility is Visibility.Visible, it returns
+    ///     true; if Visibility.Collapsed, it returns false. An optional parameter can be provided to invert the boolean logic.
     /// </summary>
     /// <param name="value">The Visibility value to convert.</param>
     /// <param name="targetType">The type of the binding target property.</param>
