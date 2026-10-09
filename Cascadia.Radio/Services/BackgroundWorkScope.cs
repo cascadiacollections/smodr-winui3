@@ -8,10 +8,26 @@ public sealed class BackgroundWorkScope : IDisposable, IAsyncDisposable
     private readonly HashSet<Task> _pending = [];
     private TaskCompletionSource? _stopping;
 
+    public async ValueTask DisposeAsync()
+    {
+        await StopAsync().ConfigureAwait(false);
+        GC.SuppressFinalize(this);
+    }
+
+    public void Dispose()
+    {
+        _ = StopAsync();
+        GC.SuppressFinalize(this);
+    }
+
     public Task RunAsync(Func<CancellationToken, Task> operation)
     {
         ArgumentNullException.ThrowIfNull(operation);
-        return RunAsync<object?>(async token => { await operation(token).ConfigureAwait(false); return null; });
+        return RunAsync<object?>(async token =>
+        {
+            await operation(token).ConfigureAwait(false);
+            return null;
+        });
     }
 
     public Task<T> RunAsync<T>(Func<CancellationToken, Task<T>> operation)
@@ -25,6 +41,7 @@ public sealed class BackgroundWorkScope : IDisposable, IAsyncDisposable
             token = _lifetime.Token;
             _pending.Add(completion.Task);
         }
+
         _ = ExecuteAsync(operation, completion, token);
         return completion.Task;
     }
@@ -40,7 +57,13 @@ public sealed class BackgroundWorkScope : IDisposable, IAsyncDisposable
             completion.TrySetException(exception);
             _ = completion.Task.Exception; // Observe fire-and-forget faults; awaited callers still receive them.
         }
-        finally { lock (_gate) _pending.Remove(completion.Task); }
+        finally
+        {
+            lock (_gate)
+            {
+                _pending.Remove(completion.Task);
+            }
+        }
     }
 
     public Task StopAsync()
@@ -49,10 +72,15 @@ public sealed class BackgroundWorkScope : IDisposable, IAsyncDisposable
         TaskCompletionSource completion;
         lock (_gate)
         {
-            if (_stopping is not null) return _stopping.Task;
-            completion = _stopping = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (_stopping is not null)
+            {
+                return _stopping.Task;
+            }
+
+            completion = _stopping = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             pending = [.. _pending];
         }
+
         _ = StopCoreAsync(pending, completion);
         return completion.Task;
     }
@@ -61,11 +89,16 @@ public sealed class BackgroundWorkScope : IDisposable, IAsyncDisposable
     {
         try { await _lifetime.CancelAsync().ConfigureAwait(false); }
         catch (Exception exception) { AppDiagnostics.Record("background.cancel", exception); }
-        try { await Task.WhenAll(pending).ConfigureAwait(false); }
-        catch (Exception) { /* Individual work faults are observed above; cancellation is normal during shutdown. */ }
-        finally { _lifetime.Dispose(); completion.TrySetResult(); }
-    }
 
-    public void Dispose() { _ = StopAsync(); GC.SuppressFinalize(this); }
-    public async ValueTask DisposeAsync() { await StopAsync().ConfigureAwait(false); GC.SuppressFinalize(this); }
+        try { await Task.WhenAll(pending).ConfigureAwait(false); }
+        catch (Exception)
+        {
+            /* Individual work faults are observed above; cancellation is normal during shutdown. */
+        }
+        finally
+        {
+            _lifetime.Dispose();
+            completion.TrySetResult();
+        }
+    }
 }

@@ -16,12 +16,14 @@
   "files.exclude": {
     "**/bin": true,
     "**/obj": true,
+    "**/out": true,
     "**/.vs": true,
     "**/node_modules": true
   },
   "search.exclude": {
     "**/bin": true,
     "**/obj": true,
+    "**/out": true,
     "**/.vs": true,
     "**/node_modules": true,
     "**/AppPackages": true
@@ -29,6 +31,7 @@
   "files.watcherExclude": {
     "**/bin/**": true,
     "**/obj/**": true,
+    "**/out/**": true,
     "**/.vs/**": true,
     "**/node_modules/**": true,
     "**/AppPackages/**": true

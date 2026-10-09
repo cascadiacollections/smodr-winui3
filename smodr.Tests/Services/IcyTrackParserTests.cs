@@ -42,8 +42,10 @@ public sealed class IcyTrackParserTests
     [DataRow("StreamTitle='H\uFFFDsker D\uFFFD - Ice Cold Ice';")]
     [DataRow("title='Ice Cold Ice';artist='H\uFFFDsker D\uFFFD';")]
     [DataRow("StreamTitle='Artist - Broken\uFFFD title';")]
-    public void RejectsNonSongCues(string raw) =>
+    public void RejectsNonSongCues(string raw)
+    {
         Assert.IsNull(IcyTrackParser.Parse(raw, "Radio One"));
+    }
 
     // Dialects and edge cases mirrored from Shoutkit iOS's ICYMetadataParserTests.
     [TestMethod]
@@ -56,7 +58,8 @@ public sealed class IcyTrackParserTests
         "Don't Stop Believin", "Journey")]
     [DataRow("text=\"Journey - Don't Stop Believin\" amgTrackId=\"123\" length=\"00:00:00\"",
         "Don't Stop Believin", "Journey")]
-    [DataRow("StreamTitle=' - title=\"Boom Boom Pow\",artist=\"Black Eyed Peas\",song_spot=\"M\" MediaBaseId=\"1187579\"';StreamUrl='';",
+    [DataRow(
+        "StreamTitle=' - title=\"Boom Boom Pow\",artist=\"Black Eyed Peas\",song_spot=\"M\" MediaBaseId=\"1187579\"';StreamUrl='';",
         "Boom Boom Pow", "Black Eyed Peas")]
     [DataRow("StreamTitle=' - text=\"Journey - Don't Stop Believin\" amgTrackId=\"123\"';",
         "Don't Stop Believin", "Journey")]
@@ -79,6 +82,8 @@ public sealed class IcyTrackParserTests
     [DataRow("StreamTitle=' - text=\"Spot Block End\" amgTrackId=\"9876543\" length=\"00:00:00\"';")]
     [DataRow("x-key=\"value\" other=\"thing\"")]
     [DataRow("StreamTitle='kexp.org';")]
-    public void SuppressesIosUpstreamNonSongCases(string raw) =>
+    public void SuppressesIosUpstreamNonSongCases(string raw)
+    {
         Assert.IsNull(IcyTrackParser.Parse(raw, "Radio One"));
+    }
 }

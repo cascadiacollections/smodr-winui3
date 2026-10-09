@@ -33,8 +33,10 @@ public sealed class ArtworkPipelineTests
     [DataRow(10_000d, 3d, 1024)]
     [DataRow(0d, 0d, 64)]
     [DataRow(double.NaN, double.NaN, 64)]
-    public void DecodeSizeUsesDisplayScaleAndBoundedBuckets(double size, double scale, int expected) =>
+    public void DecodeSizeUsesDisplayScaleAndBoundedBuckets(double size, double scale, int expected)
+    {
         Assert.AreEqual(expected, ArtworkSizing.DecodeEdge(size, scale));
+    }
 
     [TestMethod]
     public void DecodeDimensionsPreserveAspectRatioAndRejectImageBombs()
@@ -49,7 +51,11 @@ public sealed class ArtworkPipelineTests
     public async Task ValidArtworkIsCachedAndTransportIsNotRepeated()
     {
         var calls = 0;
-        using var handler = new Handler((_, _) => { calls++; return Task.FromResult(Response([1, 2, 3])); });
+        using var handler = new Handler((_, _) =>
+        {
+            calls++;
+            return Task.FromResult(Response([1, 2, 3]));
+        });
         using var client = new HttpClient(handler);
         using var loader = new StationArtworkLoader(client);
         var uri = new Uri("https://art.example/cover");
@@ -76,25 +82,37 @@ public sealed class ArtworkPipelineTests
         using var handler = new Handler((request, _) =>
         {
             var response = Response(new byte[StationArtworkLoader.MaxArtworkBytes + 1]);
-            if (request.RequestUri!.AbsolutePath == "/html") response.Content.Headers.ContentType = new MediaTypeHeaderValue("text/html");
-            if (request.RequestUri.AbsolutePath == "/declared") response.Content.Headers.ContentLength = StationArtworkLoader.MaxArtworkBytes + 1;
+            if (request.RequestUri!.AbsolutePath == "/html")
+            {
+                response.Content.Headers.ContentType = new MediaTypeHeaderValue("text/html");
+            }
+
+            if (request.RequestUri.AbsolutePath == "/declared")
+            {
+                response.Content.Headers.ContentLength = StationArtworkLoader.MaxArtworkBytes + 1;
+            }
+
             return Task.FromResult(response);
         });
         using var client = new HttpClient(handler);
         using var loader = new StationArtworkLoader(client);
-        foreach (var path in new[] { "html", "declared", "unknown" }) Assert.IsNull(await loader.GetAsync(new Uri("https://art.example/" + path)));
+        foreach (var path in new[] { "html", "declared", "unknown" })
+        {
+            Assert.IsNull(await loader.GetAsync(new Uri("https://art.example/" + path)));
+        }
     }
 
     [TestMethod]
     public async Task DeadlineCoversBodyAndUserCancellationStillPropagates()
     {
-        using var handler = new Handler((_, _) => Task.FromResult(Response([], hung: true)));
+        using var handler = new Handler((_, _) => Task.FromResult(Response([], true)));
         using var client = new HttpClient(handler);
         using var loader = new StationArtworkLoader(client, timeout: TimeSpan.FromMilliseconds(40));
         Assert.IsNull(await loader.GetAsync(new Uri("https://art.example/stall")).WaitAsync(TimeSpan.FromSeconds(3)));
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
-        await Assert.ThrowsAsync<OperationCanceledException>(() => loader.GetAsync(new Uri("https://art.example/cancel"), cancellation.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            loader.GetAsync(new Uri("https://art.example/cancel"), cancellation.Token));
     }
 
     [TestMethod]
@@ -105,13 +123,18 @@ public sealed class ArtworkPipelineTests
         var calls = 0;
         using var handler = new Handler(async (_, token) =>
         {
-            if (Interlocked.Increment(ref calls) == 4) started.SetResult();
+            if (Interlocked.Increment(ref calls) == 4)
+            {
+                started.SetResult();
+            }
+
             await release.Task.WaitAsync(token);
             return Response([1]);
         });
         using var client = new HttpClient(handler);
         using var loader = new StationArtworkLoader(client);
-        var pending = Enumerable.Range(0, 4).Select(index => loader.GetAsync(new Uri($"https://art.example/{index}"))).ToArray();
+        var pending = Enumerable.Range(0, 4).Select(index => loader.GetAsync(new Uri($"https://art.example/{index}")))
+            .ToArray();
         try
         {
             await started.Task.WaitAsync(TimeSpan.FromSeconds(3));
@@ -121,7 +144,11 @@ public sealed class ArtworkPipelineTests
             await Assert.ThrowsAsync<OperationCanceledException>(() => queued);
             Assert.AreEqual(4, Volatile.Read(ref calls));
         }
-        finally { release.TrySetResult(); await Task.WhenAll(pending); }
+        finally
+        {
+            release.TrySetResult();
+            await Task.WhenAll(pending);
+        }
     }
 
     [TestMethod]
@@ -135,7 +162,11 @@ public sealed class ArtworkPipelineTests
         using var handler = new Handler((_, _) =>
         {
             calls++;
-            if (calls > 1) return Task.FromResult(Response([1]));
+            if (calls > 1)
+            {
+                return Task.FromResult(Response([1]));
+            }
+
             var response = new HttpResponseMessage(HttpStatusCode.Found);
             response.Headers.Location = new Uri(location);
             return Task.FromResult(response);
@@ -153,9 +184,14 @@ public sealed class ArtworkPipelineTests
         return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
     }
 
-    private sealed class Handler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send) : HttpMessageHandler
+    private sealed class Handler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send)
+        : HttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => send(request, cancellationToken);
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            return send(request, cancellationToken);
+        }
     }
 
     private sealed class Body(byte[] bytes, bool hung) : Stream
@@ -166,18 +202,44 @@ public sealed class ArtworkPipelineTests
         public override bool CanWrite => false;
         public override long Length => throw new NotSupportedException();
         public override long Position { get => _position; set => throw new NotSupportedException(); }
-        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
         {
-            if (hung) await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            if (hung)
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+
             var count = Math.Min(buffer.Length, bytes.Length - _position);
             bytes.AsMemory(_position, count).CopyTo(buffer);
             _position += count;
             return count;
         }
-        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-        public override void Flush() => throw new NotSupportedException();
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-        public override void SetLength(long value) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void Flush()
+        {
+            throw new NotSupportedException();
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void SetLength(long value)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            throw new NotSupportedException();
+        }
     }
 }

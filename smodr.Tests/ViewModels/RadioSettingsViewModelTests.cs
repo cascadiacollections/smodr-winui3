@@ -50,7 +50,9 @@ public sealed class RadioSettingsViewModelTests
         settings.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(settings.IsPlayReportingEnabled))
+            {
                 restoredWhileBusy = settings.IsSaving;
+            }
         };
         await settings.SetPlayReportingEnabledAsync(false);
         Assert.IsTrue(settings.IsPlayReportingEnabled);
@@ -94,7 +96,9 @@ public sealed class RadioSettingsViewModelTests
         settings.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(settings.IsAlbumArtworkEnabled))
+            {
                 reentrant = settings.SetAlbumArtworkEnabledAsync(false);
+            }
         };
         await settings.SetPlayReportingEnabledAsync(false);
         await reentrant!;
@@ -137,7 +141,8 @@ public sealed class RadioSettingsViewModelTests
         var reads = 0;
         var settings = new RadioSettingsViewModel(new StubPrivacy(), readLicenses: () =>
         {
-            Assert.IsNull(SynchronizationContext.Current, "License preparation must not run on the caller's UI context.");
+            Assert.IsNull(SynchronizationContext.Current,
+                "License preparation must not run on the caller's UI context.");
             Interlocked.Increment(ref reads);
             started.SetResult();
             return completion.Task;
@@ -151,6 +156,7 @@ public sealed class RadioSettingsViewModelTests
             Assert.AreSame(pending, settings.LoadSoftwareLicenseSectionsAsync());
         }
         finally { SynchronizationContext.SetSynchronizationContext(previousContext); }
+
         await started.Task.WaitAsync(TimeSpan.FromSeconds(3));
         var text = new string('a', 10_000);
         completion.SetResult(text);
@@ -176,18 +182,24 @@ public sealed class RadioSettingsViewModelTests
         public RadioPrivacyChoices Current { get; private set; } = new(true, true);
         public bool IsPlayReportingEnabled => Current.PlayReportingEnabled;
         public bool IsAlbumArtworkEnabled => Current.AlbumArtworkEnabled;
+
         public async Task SetPlayReportingEnabledAsync(bool enabled)
         {
             Writes++;
             await BeforeSave();
             Current = Current with { PlayReportingEnabled = enabled };
         }
+
         public async Task SetAlbumArtworkEnabledAsync(bool enabled)
         {
             Writes++;
             await BeforeSave();
             Current = Current with { AlbumArtworkEnabled = enabled };
         }
-        public Task FlushAsync() => Task.CompletedTask;
+
+        public Task FlushAsync()
+        {
+            return Task.CompletedTask;
+        }
     }
 }

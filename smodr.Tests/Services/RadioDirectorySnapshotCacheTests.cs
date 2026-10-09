@@ -1,3 +1,4 @@
+using System.Globalization;
 using smodr.Models;
 using smodr.Services;
 
@@ -36,14 +37,17 @@ public sealed class RadioDirectorySnapshotCacheTests
             var cache = new RadioDirectorySnapshotCache(path);
             await Task.WhenAll(Enumerable.Range(0, 30)
                 .Select(index => cache.StoreAsync($"genre:{index}",
-                    (RadioStation[])[Station(index.ToString(System.Globalization.CultureInfo.InvariantCulture))])));
+                    (RadioStation[])[Station(index.ToString(CultureInfo.InvariantCulture))])));
             await cache.FlushAsync();
 
             var restarted = new RadioDirectorySnapshotCache(path);
             var found = 0;
             for (var index = 0; index < 30; index++)
             {
-                if (await restarted.GetAsync($"genre:{index}", TimeSpan.FromDays(1)) is not null) found++;
+                if (await restarted.GetAsync($"genre:{index}", TimeSpan.FromDays(1)) is not null)
+                {
+                    found++;
+                }
             }
 
             Assert.AreEqual(24, found);
@@ -77,26 +81,38 @@ public sealed class RadioDirectorySnapshotCacheTests
         Assert.AreEqual(key, RadioDirectorySnapshotCache.SearchKey("jazz station"));
     }
 
-    private static RadioStation Station(string id) => new()
+    private static RadioStation Station(string id)
     {
-        Id = id,
-        Name = $"Station {id}",
-        StreamUrl = $"https://example.com/{id}"
-    };
+        return new RadioStation { Id = id, Name = $"Station {id}", StreamUrl = $"https://example.com/{id}" };
+    }
 
-    private static string NewPath() => Path.Combine(
-        Path.GetTempPath(), $"shoutkit-directory-cache-{Guid.NewGuid():N}", "cache.json");
+    private static string NewPath()
+    {
+        return Path.Combine(
+            Path.GetTempPath(), $"shoutkit-directory-cache-{Guid.NewGuid():N}", "cache.json");
+    }
 
     private static void DeleteTestDirectory(string path)
     {
         var directory = Path.GetDirectoryName(path)!;
-        if (Directory.Exists(directory)) Directory.Delete(directory, true);
+        if (Directory.Exists(directory))
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     private sealed class TestClock : TimeProvider
     {
         private DateTimeOffset _now = new(2026, 9, 29, 0, 0, 0, TimeSpan.Zero);
-        public override DateTimeOffset GetUtcNow() => _now;
-        public void Advance(TimeSpan duration) => _now += duration;
+
+        public override DateTimeOffset GetUtcNow()
+        {
+            return _now;
+        }
+
+        public void Advance(TimeSpan duration)
+        {
+            _now += duration;
+        }
     }
 }

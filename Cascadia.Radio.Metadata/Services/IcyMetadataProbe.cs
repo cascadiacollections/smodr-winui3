@@ -16,7 +16,9 @@ public sealed class IcyMetadataProbe(HttpClient httpClient) : ITrackMetadataProb
     {
         ArgumentNullException.ThrowIfNull(streamUri);
         if (!streamUri.IsAbsoluteUri || streamUri.Scheme is not ("http" or "https"))
+        {
             return IcyProbeResult.Unsupported;
+        }
 
         using var request = new HttpRequestMessage(HttpMethod.Get, streamUri);
         request.Headers.TryAddWithoutValidation("Icy-MetaData", "1");
@@ -25,7 +27,9 @@ public sealed class IcyMetadataProbe(HttpClient httpClient) : ITrackMetadataProb
             HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         if (!TryGetInterval(response.Headers, response.Content.Headers, out var interval))
+        {
             return IcyProbeResult.Unsupported;
+        }
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         var buffer = new byte[4096];
@@ -38,23 +42,45 @@ public sealed class IcyMetadataProbe(HttpClient httpClient) : ITrackMetadataProb
             {
                 var read = await stream.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, remaining)),
                     cancellationToken).ConfigureAwait(false);
-                if (read == 0) return new IcyProbeResult(true, damagedCue);
+                if (read == 0)
+                {
+                    return new IcyProbeResult(true, damagedCue);
+                }
+
                 remaining -= read;
             }
+
             audioBytesRead += interval;
 
             var lengthByte = new byte[1];
             if (await stream.ReadAsync(lengthByte, cancellationToken).ConfigureAwait(false) == 0)
+            {
                 return new IcyProbeResult(true, damagedCue);
+            }
+
             var metadataLength = lengthByte[0] * 16;
-            if (metadataLength == 0) continue;
-            if (metadataLength > MaxMetadataLength) return new IcyProbeResult(true, null);
+            if (metadataLength == 0)
+            {
+                continue;
+            }
+
+            if (metadataLength > MaxMetadataLength)
+            {
+                return new IcyProbeResult(true, null);
+            }
+
             var metadata = new byte[metadataLength];
             await stream.ReadExactlyAsync(metadata, cancellationToken).ConfigureAwait(false);
             var raw = Decode(metadata).TrimEnd('\0').Trim();
             if (IcyTrackParser.Parse(raw, string.Empty) is not null)
+            {
                 return new IcyProbeResult(true, raw);
-            if (IcyTrackParser.IsDamagedSongCue(raw, string.Empty)) damagedCue = raw;
+            }
+
+            if (IcyTrackParser.IsDamagedSongCue(raw, string.Empty))
+            {
+                damagedCue = raw;
+            }
         }
 
         return new IcyProbeResult(true, damagedCue);
@@ -70,8 +96,8 @@ public sealed class IcyMetadataProbe(HttpClient httpClient) : ITrackMetadataProb
                 ? contentValues
                 : null;
         return values is not null
-            && int.TryParse(values.FirstOrDefault(), NumberStyles.None, CultureInfo.InvariantCulture, out interval)
-            && interval is > 0 and <= MaxMetadataInterval;
+               && int.TryParse(values.FirstOrDefault(), NumberStyles.None, CultureInfo.InvariantCulture, out interval)
+               && interval is > 0 and <= MaxMetadataInterval;
     }
 
     internal static string Decode(byte[] bytes)

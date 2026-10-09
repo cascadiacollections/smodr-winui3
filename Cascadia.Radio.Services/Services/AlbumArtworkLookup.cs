@@ -7,22 +7,28 @@ using smodr.Models;
 namespace smodr.Services;
 
 /// <summary>Best-effort song artwork and store-page lookup. Never participates in playback.</summary>
-public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = null,
+public sealed class AlbumArtworkLookup(
+    HttpClient client,
+    TimeSpan? timeout = null,
     RuntimeDiagnosticCounters? diagnostics = null) : IAlbumArtworkLookup, IDisposable, IAsyncDisposable
 {
-    private readonly RuntimeDiagnosticCounters _diagnostics = diagnostics ?? RuntimeDiagnostics.Counters;
     private const int MaxResponseBytes = 64 * 1024;
     private const int MaxCacheEntries = 256;
-    private readonly Lock _gate = new();
-    private readonly Dictionary<string, AlbumArtworkMatch?> _cache = [];
-    private readonly Dictionary<string, Task<AlbumArtworkMatch?>> _inFlight = [];
     private readonly BackgroundWorkScope _background = new();
+    private readonly Dictionary<string, AlbumArtworkMatch?> _cache = [];
+    private readonly RuntimeDiagnosticCounters _diagnostics = diagnostics ?? RuntimeDiagnostics.Counters;
+    private readonly Lock _gate = new();
+    private readonly Dictionary<string, Task<AlbumArtworkMatch?>> _inFlight = [];
     private bool _disposed;
 
     public async Task<AlbumArtworkMatch?> FindAsync(RadioTrackInfo track,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(track.Artist) || string.IsNullOrWhiteSpace(track.Title)) return null;
+        if (string.IsNullOrWhiteSpace(track.Artist) || string.IsNullOrWhiteSpace(track.Title))
+        {
+            return null;
+        }
+
         var artist = track.Artist.Trim();
         var title = track.Title.Trim();
         var country = RegionInfo.CurrentRegion.TwoLetterISORegionName;
@@ -37,6 +43,7 @@ public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = nu
                 _diagnostics.Increment(RuntimeCounter.AlbumCacheHit);
                 return cached;
             }
+
             if (!_inFlight.TryGetValue(key, out pending!))
             {
                 _diagnostics.Increment(RuntimeCounter.AlbumLookupStarted);
@@ -44,15 +51,42 @@ public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = nu
                     TaskCreationOptions.RunContinuationsAsynchronously);
                 pending = completion.Task;
                 _inFlight[key] = pending;
-                _ = _background.RunAsync(token => FetchAndCompleteAsync(key, artist, title, country, completion, token));
+                _ = _background.RunAsync(token =>
+                    FetchAndCompleteAsync(key, artist, title, country, completion, token));
             }
-            else _diagnostics.Increment(RuntimeCounter.AlbumLookupJoined);
+            else
+            {
+                _diagnostics.Increment(RuntimeCounter.AlbumLookupJoined);
+            }
         }
 
         // The request belongs to the shared lookup, not one UI listener. A
         // canceled listener stops waiting; another listener can reuse it.
         try { return await pending.WaitAsync(cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return null; }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await ShutdownAsync().ConfigureAwait(false);
+        GC.SuppressFinalize(this);
+    }
+
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _cache.Clear();
+        }
+
+        _background.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     private async Task FetchAndCompleteAsync(string key, string artist, string title, string country,
@@ -76,79 +110,101 @@ public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = nu
             _inFlight.Remove(key);
             if (result.Cacheable && !_disposed)
             {
-                if (_cache.Count >= MaxCacheEntries) _cache.Clear();
+                if (_cache.Count >= MaxCacheEntries)
+                {
+                    _cache.Clear();
+                }
+
                 _cache[key] = result.Match;
             }
         }
+
         completion.TrySetResult(result.Match);
     }
 
-    private async Task<LookupResult> FetchAsync(string artist, string title, string country, CancellationToken cancellationToken)
+    private async Task<LookupResult> FetchAsync(string artist, string title, string country,
+        CancellationToken cancellationToken)
     {
         var query = Uri.EscapeDataString($"{artist} {title}");
-        var uri = new Uri($"https://itunes.apple.com/search?term={query}&media=music&entity=song&limit=5&country={Uri.EscapeDataString(country)}");
+        var uri = new Uri(
+            $"https://itunes.apple.com/search?term={query}&media=music&entity=song&limit=5&country={Uri.EscapeDataString(country)}");
         try
         {
             using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
                 .ConfigureAwait(false);
             if (response.StatusCode != HttpStatusCode.OK
-                || response.Content.Headers.ContentLength > MaxResponseBytes) return RejectResponse();
+                || response.Content.Headers.ContentLength > MaxResponseBytes)
+            {
+                return RejectResponse();
+            }
+
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             using var buffer = new MemoryStream();
             var chunk = new byte[4096];
             int read;
             while ((read = await stream.ReadAsync(chunk, cancellationToken).ConfigureAwait(false)) != 0)
             {
-                if (buffer.Length + read > MaxResponseBytes) return RejectResponse();
+                if (buffer.Length + read > MaxResponseBytes)
+                {
+                    return RejectResponse();
+                }
+
                 await buffer.WriteAsync(chunk.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
             }
 
-            if (response.Content.Headers.ContentLength is { } length && length != buffer.Length) return RejectResponse();
+            if (response.Content.Headers.ContentLength is { } length && length != buffer.Length)
+            {
+                return RejectResponse();
+            }
+
             buffer.Position = 0;
-            using var document = await JsonDocument.ParseAsync(buffer, cancellationToken: cancellationToken).ConfigureAwait(false);
+            using var document = await JsonDocument.ParseAsync(buffer, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
             if (document.RootElement.ValueKind != JsonValueKind.Object
                 || !document.RootElement.TryGetProperty("results", out var results)
-                || results.ValueKind != JsonValueKind.Array) return RejectResponse();
+                || results.ValueKind != JsonValueKind.Array)
+            {
+                return RejectResponse();
+            }
+
             foreach (var item in results.EnumerateArray())
             {
                 if (item.ValueKind != JsonValueKind.Object
                     || !ReadString(item, "artistName", out var foundArtist)
                     || !ReadString(item, "trackName", out var foundTitle)
                     || !IsPlausibleMatch(artist, title, foundArtist, foundTitle)
-                    || !ReadUri(item, "artworkUrl100", "mzstatic.com", out var artwork)) continue;
+                    || !ReadUri(item, "artworkUrl100", "mzstatic.com", out var artwork))
+                {
+                    continue;
+                }
+
                 var resized = Regex.Replace(artwork.AbsoluteUri, @"/100x100bb(?=\.)", "/600x600bb",
                     RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
                 ReadStoreUri(item, out var store);
                 _diagnostics.Increment(RuntimeCounter.AlbumMatch);
-                return new(true, new AlbumArtworkMatch(new Uri(resized), store));
+                return new LookupResult(true, new AlbumArtworkMatch(new Uri(resized), store));
             }
+
             _diagnostics.Increment(RuntimeCounter.AlbumMiss);
-            return new(true, null); // A valid response without usable artwork is a cacheable miss.
+            return new LookupResult(true, null); // A valid response without usable artwork is a cacheable miss.
         }
         catch (OperationCanceledException)
         {
             _diagnostics.Increment(RuntimeCounter.AlbumTransportCanceled);
-            return new(false, null);
+            return new LookupResult(false, null);
         }
         catch (Exception exception) when (exception is HttpRequestException
-            or IOException or JsonException)
+                                              or IOException or JsonException)
         {
             _diagnostics.Increment(RuntimeCounter.AlbumTransportFailed);
-            return new(false, null); // Network and malformed responses may be retried.
+            return new LookupResult(false, null); // Network and malformed responses may be retried.
         }
     }
 
     private LookupResult RejectResponse()
     {
         _diagnostics.Increment(RuntimeCounter.AlbumResponseRejected);
-        return new(false, null);
-    }
-
-    public void Dispose()
-    {
-        lock (_gate) { if (_disposed) return; _disposed = true; _cache.Clear(); }
-        _background.Dispose();
-        GC.SuppressFinalize(this);
+        return new LookupResult(false, null);
     }
 
     public Task ShutdownAsync()
@@ -158,19 +214,25 @@ public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = nu
 #pragma warning restore CA1849
         return _background.StopAsync();
     }
-    public async ValueTask DisposeAsync() { await ShutdownAsync().ConfigureAwait(false); GC.SuppressFinalize(this); }
 
     private static bool IsPlausibleMatch(string artist, string title, string foundArtist,
-        string foundTitle) => Normalize(LeadArtist(artist)) == Normalize(LeadArtist(foundArtist))
-            && Normalize(BaseTitle(title)) == Normalize(BaseTitle(foundTitle));
+        string foundTitle)
+    {
+        return Normalize(LeadArtist(artist)) == Normalize(LeadArtist(foundArtist))
+               && Normalize(BaseTitle(title)) == Normalize(BaseTitle(foundTitle));
+    }
 
     private static string LeadArtist(string value)
     {
         foreach (var separator in new[] { " feat.", " featuring ", " ft.", " & ", " with " })
         {
             var index = value.IndexOf(separator, StringComparison.OrdinalIgnoreCase);
-            if (index > 0) value = value[..index];
+            if (index > 0)
+            {
+                value = value[..index];
+            }
         }
+
         return value;
     }
 
@@ -179,22 +241,32 @@ public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = nu
         // A featured-artist credit can differ between radio and catalog fields.
         // Other qualifiers (live, remix, acoustic) identify different recordings.
         var parenthesis = value.LastIndexOf('(');
-        if (parenthesis <= 0 || !value.EndsWith(')')) return value;
+        if (parenthesis <= 0 || !value.EndsWith(')'))
+        {
+            return value;
+        }
+
         var credit = value[(parenthesis + 1)..^1].TrimStart();
         return credit.StartsWith("feat", StringComparison.OrdinalIgnoreCase)
-            || credit.StartsWith("ft.", StringComparison.OrdinalIgnoreCase)
-            || credit.StartsWith("featuring", StringComparison.OrdinalIgnoreCase)
-            ? value[..parenthesis] : value;
+               || credit.StartsWith("ft.", StringComparison.OrdinalIgnoreCase)
+               || credit.StartsWith("featuring", StringComparison.OrdinalIgnoreCase)
+            ? value[..parenthesis]
+            : value;
     }
 
-    private static string Normalize(string value) =>
-        new([.. value.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant)]);
+    private static string Normalize(string value)
+    {
+        return new string([.. value.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant)]);
+    }
 
     private static bool ReadString(JsonElement item, string name, out string value)
     {
         value = string.Empty;
         if (!item.TryGetProperty(name, out var property) || property.ValueKind != JsonValueKind.String)
+        {
             return false;
+        }
+
         value = property.GetString() ?? string.Empty;
         return value.Length > 0;
     }
@@ -206,7 +278,11 @@ public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = nu
             || !Uri.TryCreate(raw, UriKind.Absolute, out var parsed)
             || parsed.Scheme != Uri.UriSchemeHttps
             || (!parsed.Host.Equals(host, StringComparison.OrdinalIgnoreCase)
-                && !parsed.Host.EndsWith($".{host}", StringComparison.OrdinalIgnoreCase))) return false;
+                && !parsed.Host.EndsWith($".{host}", StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
         uri = parsed;
         return true;
     }
@@ -218,7 +294,11 @@ public sealed class AlbumArtworkLookup(HttpClient client, TimeSpan? timeout = nu
             || !Uri.TryCreate(raw, UriKind.Absolute, out var parsed)
             || parsed.Scheme != Uri.UriSchemeHttps
             || (!parsed.Host.Equals("itunes.apple.com", StringComparison.OrdinalIgnoreCase)
-                && !parsed.Host.Equals("music.apple.com", StringComparison.OrdinalIgnoreCase))) return false;
+                && !parsed.Host.Equals("music.apple.com", StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
         uri = parsed;
         return true;
     }

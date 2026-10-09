@@ -23,22 +23,25 @@ public static class TopTracksAggregator
         foreach (var row in history)
         {
             if (string.IsNullOrWhiteSpace(row.Title) || string.IsNullOrWhiteSpace(row.Artist)
-                || row.HeardAt < since) continue;
-            var key = (row.Title.ToUpperInvariant(), row.Artist.ToUpperInvariant());
-            if (buckets.TryGetValue(key, out var existing))
+                                                     || row.HeardAt < since)
             {
-                buckets[key] = new TopTrack(
+                continue;
+            }
+
+            var key = (row.Title.ToUpperInvariant(), row.Artist.ToUpperInvariant());
+            buckets[key] = buckets.TryGetValue(key, out var existing)
+                ? new TopTrack(
                     row.HeardAt > existing.LastHeardAt ? row.Title : existing.Title,
                     row.HeardAt > existing.LastHeardAt ? row.Artist : existing.Artist,
                     existing.PlayCount + 1,
-                    row.HeardAt > existing.LastHeardAt ? row.HeardAt : existing.LastHeardAt);
-            }
-            else
-            {
-                buckets[key] = new TopTrack(row.Title, row.Artist, 1, row.HeardAt);
-            }
+                    row.HeardAt > existing.LastHeardAt ? row.HeardAt : existing.LastHeardAt)
+                : new TopTrack(row.Title, row.Artist, 1, row.HeardAt);
         }
-        return [.. buckets.Values.OrderByDescending(track => track.PlayCount)
-            .ThenByDescending(track => track.LastHeardAt).Take(limit)];
+
+        return
+        [
+            .. buckets.Values.OrderByDescending(track => track.PlayCount)
+                .ThenByDescending(track => track.LastHeardAt).Take(limit)
+        ];
     }
 }

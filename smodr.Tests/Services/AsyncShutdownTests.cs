@@ -12,7 +12,7 @@ public sealed class AsyncShutdownTests
     [TestMethod]
     public async Task AlbumShutdownCancelsBodyReadAndCompletesAllSharedListeners()
     {
-        using var body = new ControlledHttpBody([], stalled: true);
+        using var body = new ControlledHttpBody([], true);
         using var handler = new ControlledHttpHandler((_, _) =>
         {
             var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(body) };
@@ -36,7 +36,11 @@ public sealed class AsyncShutdownTests
     {
         var probeResult = new TaskCompletionSource<IcyProbeResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var monitor = new IcyTrackMonitor(new Probe(() => { started.TrySetResult(); return probeResult.Task; }));
+        using var monitor = new IcyTrackMonitor(new Probe(() =>
+        {
+            started.TrySetResult();
+            return probeResult.Task;
+        }));
         var published = 0;
         monitor.TrackChanged += (_, _) => published++;
         monitor.Start(new RadioStation { Name = "Synthetic", StreamUrl = "https://example.com/live" });
@@ -62,21 +66,29 @@ public sealed class AsyncShutdownTests
             using var warmer = new RadioStreamPrewarmer(preferences, () => true, async (_, token) =>
             {
                 started.TrySetResult();
-                try { await Task.Delay(Timeout.InfiniteTimeSpan, token); return null; }
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                    return null;
+                }
                 finally { cleaned = true; }
             });
-            var pending = warmer.WarmAsync((RadioStation[])[new RadioStation { StreamUrl = "https://example.com/live" }]);
+            var pending =
+                warmer.WarmAsync((RadioStation[])[new RadioStation { StreamUrl = "https://example.com/live" }]);
             await started.Task.WaitAsync(TimeSpan.FromSeconds(3));
             await warmer.ShutdownAsync().WaitAsync(TimeSpan.FromSeconds(3));
             await pending;
             Assert.IsTrue(cleaned);
             await warmer.WarmAsync((RadioStation[])[new RadioStation { StreamUrl = "https://example.com/late" }]);
         }
-        finally { directory.Delete(recursive: true); }
+        finally { directory.Delete(true); }
     }
 
     private sealed class Probe(Func<Task<IcyProbeResult>> read) : ITrackMetadataProbe
     {
-        public Task<IcyProbeResult> ProbeAsync(Uri streamUri, CancellationToken cancellationToken = default) => read();
+        public Task<IcyProbeResult> ProbeAsync(Uri streamUri, CancellationToken cancellationToken = default)
+        {
+            return read();
+        }
     }
 }

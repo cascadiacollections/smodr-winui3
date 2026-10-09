@@ -6,6 +6,6 @@ internal static class AudioOutputChangePolicy
         bool isDefaultRole, bool playbackRequested)
     {
         return isDefaultRole && playbackRequested && !string.IsNullOrWhiteSpace(previousDeviceId)
-        && !string.Equals(previousDeviceId, nextDeviceId, StringComparison.OrdinalIgnoreCase);
+               && !string.Equals(previousDeviceId, nextDeviceId, StringComparison.OrdinalIgnoreCase);
     }
 }

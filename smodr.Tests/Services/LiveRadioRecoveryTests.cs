@@ -28,7 +28,7 @@ public sealed class LiveRadioRecoveryTests
     {
         var restarted = false;
         using var recovery = NewRecovery(_ => restarted = true, _ => { },
-            stall: TimeSpan.FromSeconds(1), retry: TimeSpan.FromMilliseconds(60));
+            TimeSpan.FromSeconds(1), retry: TimeSpan.FromMilliseconds(60));
 
         recovery.Begin();
         recovery.Fail();
@@ -44,7 +44,7 @@ public sealed class LiveRadioRecoveryTests
     {
         var restarted = 0;
         using var recovery = NewRecovery(_ => Interlocked.Increment(ref restarted), _ => { },
-            stall: TimeSpan.FromSeconds(1), retry: TimeSpan.FromMilliseconds(80));
+            TimeSpan.FromSeconds(1), retry: TimeSpan.FromMilliseconds(80));
 
         recovery.Begin();
         recovery.Fail();
@@ -60,7 +60,7 @@ public sealed class LiveRadioRecoveryTests
     {
         var restarted = false;
         using var recovery = NewRecovery(_ => restarted = true, _ => { },
-            stall: TimeSpan.FromMilliseconds(40));
+            TimeSpan.FromMilliseconds(40));
 
         recovery.Begin();
         recovery.Playing();
@@ -75,7 +75,7 @@ public sealed class LiveRadioRecoveryTests
     {
         var restarted = new TaskCompletionSource<long>(TaskCreationOptions.RunContinuationsAsynchronously);
         using var recovery = NewRecovery(epoch => restarted.TrySetResult(epoch), _ => { },
-            stall: TimeSpan.FromSeconds(1), resume: TimeSpan.FromMilliseconds(30));
+            TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(30));
 
         recovery.Begin();
         recovery.Pause();
@@ -92,7 +92,7 @@ public sealed class LiveRadioRecoveryTests
     {
         var restarted = new TaskCompletionSource<long>(TaskCreationOptions.RunContinuationsAsynchronously);
         using var recovery = NewRecovery(epoch => restarted.TrySetResult(epoch), _ => { },
-            stall: TimeSpan.FromSeconds(1), resume: TimeSpan.FromMilliseconds(25));
+            TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(25));
 
         recovery.Begin();
         recovery.ResumePending();
@@ -109,16 +109,33 @@ public sealed class LiveRadioRecoveryTests
         var calls = new List<string>();
         var restarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var recovery = new LiveRadioRecovery(
-            _ => { lock (calls) calls.Add("restart"); restarted.TrySetResult(); },
+            _ =>
+            {
+                lock (calls)
+                {
+                    calls.Add("restart");
+                }
+
+                restarted.TrySetResult();
+            },
             _ => { },
             stallTimeout: TimeSpan.FromMilliseconds(25),
             retryBaseDelay: TimeSpan.FromMilliseconds(25),
-            beforeRetry: _ => { lock (calls) calls.Add("retire"); });
+            beforeRetry: _ =>
+            {
+                lock (calls)
+                {
+                    calls.Add("retire");
+                }
+            });
 
         recovery.Begin();
         await restarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
-        lock (calls) Assert.AreEqual("retire,restart", string.Join(',', calls));
+        lock (calls)
+        {
+            Assert.AreEqual("retire,restart", string.Join(',', calls));
+        }
     }
 
     private static LiveRadioRecovery NewRecovery(
@@ -127,11 +144,14 @@ public sealed class LiveRadioRecoveryTests
         TimeSpan? stall = null,
         TimeSpan? resume = null,
         TimeSpan? retry = null,
-        int maxRetries = 3) => new(
+        int maxRetries = 3)
+    {
+        return new LiveRadioRecovery(
             restart,
             exhausted,
             stallTimeout: stall ?? TimeSpan.FromMilliseconds(25),
             resumeTimeout: resume ?? TimeSpan.FromMilliseconds(25),
             retryBaseDelay: retry ?? TimeSpan.FromMilliseconds(20),
             maxRetries: maxRetries);
+    }
 }

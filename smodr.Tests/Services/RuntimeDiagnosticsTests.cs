@@ -12,7 +12,10 @@ public sealed class RuntimeDiagnosticsTests
         var counters = new RuntimeDiagnosticCounters();
         await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Task.Run(() =>
         {
-            for (var index = 0; index < 1000; index++) counters.Increment(RuntimeCounter.MetadataAccepted);
+            for (var index = 0; index < 1000; index++)
+            {
+                counters.Increment(RuntimeCounter.MetadataAccepted);
+            }
         })));
         var snapshot = counters.Snapshot();
         Assert.AreEqual(8000L, snapshot[nameof(RuntimeCounter.MetadataAccepted)]);
@@ -24,8 +27,11 @@ public sealed class RuntimeDiagnosticsTests
     [TestMethod]
     [DataRow(-1)]
     [DataRow(10000)]
-    public void UnknownCategoriesCannotBecomeDiagnosticLabels(int value) =>
-        Assert.Throws<ArgumentOutOfRangeException>(() => new RuntimeDiagnosticCounters().Increment((RuntimeCounter)value));
+    public void UnknownCategoriesCannotBecomeDiagnosticLabels(int value)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RuntimeDiagnosticCounters().Increment((RuntimeCounter)value));
+    }
 
     [TestMethod]
     public async Task SavedReportContainsOnlyVersionTimeAndAllowListedNumericCounts()
@@ -50,13 +56,16 @@ public sealed class RuntimeDiagnosticsTests
                 CollectionAssert.Contains(expectedNames, value.Name);
                 Assert.IsTrue(value.Value.TryGetInt64(out var count) && count >= 0);
             }
+
             Assert.AreEqual(1L, values.GetProperty(nameof(RuntimeCounter.RecoveryRetryScheduled)).GetInt64());
             counters.Increment(RuntimeCounter.RecoveryRetryScheduled);
             await counters.SaveAsync(path);
             using var replacement = JsonDocument.Parse(await File.ReadAllTextAsync(path));
-            Assert.AreEqual(2L, replacement.RootElement.GetProperty("counters").GetProperty(nameof(RuntimeCounter.RecoveryRetryScheduled)).GetInt64());
+            Assert.AreEqual(2L,
+                replacement.RootElement.GetProperty("counters")
+                    .GetProperty(nameof(RuntimeCounter.RecoveryRetryScheduled)).GetInt64());
             Assert.HasCount(1, directory.GetFiles());
         }
-        finally { directory.Delete(recursive: true); }
+        finally { directory.Delete(true); }
     }
 }

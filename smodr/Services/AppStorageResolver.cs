@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Windows.ApplicationModel;
 using Windows.Storage;
 
@@ -30,7 +31,7 @@ internal static class AppStorageResolver
             packaged = ApplicationData.Current.LocalFolder.Path;
         }
         catch (Exception exception) when (exception is InvalidOperationException
-            or System.Runtime.InteropServices.COMException)
+                                              or COMException)
         {
             return LegacyDirectory;
         }
@@ -40,6 +41,7 @@ internal static class AppStorageResolver
         {
             AppDiagnostics.Record("package.data-import", exception);
         }
+
         return packaged;
     }
 }

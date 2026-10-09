@@ -72,7 +72,8 @@ public sealed class LibraryEditingTests
         var id = await history.RecordAsync(Station("a"), new RadioTrackInfo("Song", "Artist"));
 
         await history.ClearAsync();
-        await history.UpdateArtworkAsync(id, new AlbumArtworkMatch(new Uri("https://is1-ssl.mzstatic.com/a.jpg"), null));
+        await history.UpdateArtworkAsync(id,
+            new AlbumArtworkMatch(new Uri("https://is1-ssl.mzstatic.com/a.jpg"), null));
         await history.RecordAsync(Station("a"), new RadioTrackInfo("Next", "Artist"));
 
         var reopened = new TrackHistoryService(file.Path);
@@ -153,36 +154,64 @@ public sealed class LibraryEditingTests
     private static async Task<RadioLibraryService> LibraryWithAsync(TempFile file, params string[] favoriteIds)
     {
         var library = new RadioLibraryService(file.Path);
-        foreach (var id in favoriteIds) await library.ToggleFavoriteAsync(Station(id));
+        foreach (var id in favoriteIds)
+        {
+            await library.ToggleFavoriteAsync(Station(id));
+        }
+
         return library;
     }
 
-    private static RadioMainViewModel CreateViewModel(IRadioLibraryService library, ITrackHistoryService? history = null) =>
-        new(new NullPlayer(), new NullDirectory(), library, action => action(), trackHistory: history);
+    private static RadioMainViewModel CreateViewModel(IRadioLibraryService library,
+        ITrackHistoryService? history = null)
+    {
+        return new RadioMainViewModel(new NullPlayer(), new NullDirectory(), library, action => action(),
+            trackHistory: history);
+    }
 
-    private static RadioStation Station(string id) =>
-        new() { Id = id, Name = id.ToUpperInvariant(), StreamUrl = $"https://stream.example/{id}" };
+    private static RadioStation Station(string id)
+    {
+        return new RadioStation { Id = id, Name = id.ToUpperInvariant(), StreamUrl = $"https://stream.example/{id}" };
+    }
 
-    private static string Ids(IEnumerable<RadioStation> stations) => string.Join(",", stations.Select(station => station.Id));
+    private static string Ids(IEnumerable<RadioStation> stations)
+    {
+        return string.Join(",", stations.Select(station => station.Id));
+    }
 
     private sealed class TempFile : IDisposable
     {
-        public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"shoutkit-edit-{Guid.NewGuid():N}.json");
+        public string Path { get; } =
+            System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"shoutkit-edit-{Guid.NewGuid():N}.json");
 
         public void Dispose()
         {
-            if (File.Exists(Path)) File.Delete(Path);
+            if (File.Exists(Path))
+            {
+                File.Delete(Path);
+            }
         }
     }
 
     private sealed class NullDirectory : IRadioDirectoryService
     {
-        public Task<IReadOnlyList<RadioStation>> GetPopularStationsAsync(int limit = 50, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<RadioStation>>([]);
-        public Task<IReadOnlyList<RadioStation>> SearchAsync(string query, int limit = 50, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<RadioStation>>([]);
-        public Task<IReadOnlyList<RadioStation>> SearchGenreAsync(string genre, int limit = 50, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<RadioStation>>([]);
+        public Task<IReadOnlyList<RadioStation>> GetPopularStationsAsync(int limit = 50,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<RadioStation>>([]);
+        }
+
+        public Task<IReadOnlyList<RadioStation>> SearchAsync(string query, int limit = 50,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<RadioStation>>([]);
+        }
+
+        public Task<IReadOnlyList<RadioStation>> SearchGenreAsync(string genre, int limit = 50,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<RadioStation>>([]);
+        }
     }
 
     private sealed class NullPlayer : IRadioPlayer
@@ -190,6 +219,16 @@ public sealed class LibraryEditingTests
         public RadioStation? CurrentStation => null;
         public RadioTrackInfo? CurrentTrack => null;
         public bool IsPlaybackRequested => false;
+
+        public Task PlayStationAsync(RadioStation station)
+        {
+            return Task.CompletedTask;
+        }
+
+        public void Play() { }
+        public void Pause() { }
+        public void StopStation() { }
+        public void SetNowPlayingArtwork(RadioStation station, Uri? artworkUrl) { }
 #pragma warning disable CS0067 // Library editing never raises player events.
         public event EventHandler<RadioStation?>? StationChanged;
         public event EventHandler<RadioTrackUpdate?>? TrackChanged;
@@ -197,10 +236,5 @@ public sealed class LibraryEditingTests
         public event EventHandler<string>? PlaybackFailed;
         public event EventHandler? UserPlaybackStarted;
 #pragma warning restore CS0067
-        public Task PlayStationAsync(RadioStation station) => Task.CompletedTask;
-        public void Play() { }
-        public void Pause() { }
-        public void StopStation() { }
-        public void SetNowPlayingArtwork(RadioStation station, Uri? artworkUrl) { }
     }
 }

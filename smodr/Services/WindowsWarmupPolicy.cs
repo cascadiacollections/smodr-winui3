@@ -9,14 +9,22 @@ internal static class WindowsWarmupPolicy
     {
         try
         {
-            if (PowerManager.EnergySaverStatus == EnergySaverStatus.On) return false;
+            if (PowerManager.EnergySaverStatus == EnergySaverStatus.On)
+            {
+                return false;
+            }
+
             var connection = NetworkInformation.GetInternetConnectionProfile();
-            if (connection?.GetNetworkConnectivityLevel() != NetworkConnectivityLevel.InternetAccess) return false;
+            if (connection?.GetNetworkConnectivityLevel() != NetworkConnectivityLevel.InternetAccess)
+            {
+                return false;
+            }
+
             var cost = connection.GetConnectionCost();
             return cost.NetworkCostType == NetworkCostType.Unrestricted
-                && !cost.Roaming
-                && !cost.OverDataLimit
-                && !cost.BackgroundDataUsageRestricted;
+                   && !cost.Roaming
+                   && !cost.OverDataLimit
+                   && !cost.BackgroundDataUsageRestricted;
         }
         catch (Exception)
         {

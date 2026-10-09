@@ -4,18 +4,24 @@ using smodr.Services;
 namespace smodr.ViewModels;
 
 /// <summary>UI-thread settings presentation; persistence remains in the shared privacy service.</summary>
-public partial class RadioSettingsViewModel(IRadioPrivacySettings privacy,
-    Func<bool, Task>? setArtwork = null, Func<Task<string>>? readLicenses = null,
-    RadioPlaybackPreferences? playback = null, Action? clearWarmup = null,
-    bool jumpListSupported = false, Action? refreshJumpList = null,
+public partial class RadioSettingsViewModel(
+    IRadioPrivacySettings privacy,
+    Func<bool, Task>? setArtwork = null,
+    Func<Task<string>>? readLicenses = null,
+    RadioPlaybackPreferences? playback = null,
+    Action? clearWarmup = null,
+    bool jumpListSupported = false,
+    Action? refreshJumpList = null,
     RadioAppearancePreferences? appearance = null) : ObservableObject
 {
-    private Task _pendingEdit = Task.CompletedTask;
     private readonly Lock _licenseGate = new();
-    private Task<IReadOnlyList<string>>? _licenseSections;
-    private readonly Func<bool, Task> _setArtwork = setArtwork ?? privacy.SetAlbumArtworkEnabledAsync;
+
     private readonly Func<Task<string>> _readLicenses = readLicenses ?? (() => File.ReadAllTextAsync(
         Path.Combine(AppContext.BaseDirectory, "Assets", "SoftwareLicenses.txt")));
+
+    private readonly Func<bool, Task> _setArtwork = setArtwork ?? privacy.SetAlbumArtworkEnabledAsync;
+    private Task<IReadOnlyList<string>>? _licenseSections;
+    private Task _pendingEdit = Task.CompletedTask;
 
     public bool IsPlayReportingEnabled => privacy.IsPlayReportingEnabled;
     public bool IsAlbumArtworkEnabled => privacy.IsAlbumArtworkEnabled;
@@ -87,23 +93,28 @@ public partial class RadioSettingsViewModel(IRadioPrivacySettings privacy,
     public Task SetResumeAfterNetworkLossEnabledAsync(bool enabled)
     {
         return SaveAsync(enabled, IsResumeAfterNetworkLossEnabled,
-            value => playback?.UpdateAsync(options => options with { ResumeAfterNetworkLoss = value }) ?? Task.CompletedTask,
+            value => playback?.UpdateAsync(options => options with { ResumeAfterNetworkLoss = value }) ??
+                     Task.CompletedTask,
             "playback.network-resume-write", "resume-after-network-loss");
     }
 
     public Task SetEqualizerPresetAsync(int index)
     {
-        return !Enum.IsDefined((RadioEqualizerPreset)index) || playback is null ? Task.CompletedTask : SaveAsync(index, SelectedEqualizerPreset, async value =>
-        {
-            await playback.UpdateAsync(options => options with { Equalizer = (RadioEqualizerPreset)value });
-            clearWarmup?.Invoke();
-        }, "playback.equalizer-write", "equalizer");
+        return !Enum.IsDefined((RadioEqualizerPreset)index) || playback is null
+            ? Task.CompletedTask
+            : SaveAsync(index, SelectedEqualizerPreset, async value =>
+            {
+                await playback.UpdateAsync(options => options with { Equalizer = (RadioEqualizerPreset)value });
+                clearWarmup?.Invoke();
+            }, "playback.equalizer-write", "equalizer");
     }
 
     public Task SetBackdropAsync(int index)
     {
-        return !Enum.IsDefined((RadioWindowBackdrop)index) || appearance is null ? Task.CompletedTask : SaveAsync(index, SelectedBackdrop, value => appearance.SetAsync((RadioWindowBackdrop)value),
-            "appearance.write", "window-background");
+        return !Enum.IsDefined((RadioWindowBackdrop)index) || appearance is null
+            ? Task.CompletedTask
+            : SaveAsync(index, SelectedBackdrop, value => appearance.SetAsync((RadioWindowBackdrop)value),
+                "appearance.write", "window-background");
     }
 
     public Task FlushAsync()
@@ -172,7 +183,8 @@ public partial class RadioSettingsViewModel(IRadioPrivacySettings privacy,
         catch (Exception exception)
         {
             AppDiagnostics.Record("licenses.read", exception);
-            return "Software license notices are unavailable in this installation. See LICENSE.txt and the package lockfile in the project repository.";
+            return
+                "Software license notices are unavailable in this installation. See LICENSE.txt and the package lockfile in the project repository.";
         }
     }
 

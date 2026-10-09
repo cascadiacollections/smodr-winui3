@@ -7,9 +7,31 @@ namespace smodr.Services;
 /// <summary>OS subscriptions only; the consumer marshals immutable observations to its owner thread.</summary>
 internal sealed class WindowsPlaybackEnvironment(Action<bool?, bool?> changed) : IDisposable
 {
-    private bool _powerSubscribed;
-    private bool _networkSubscribed;
     private int _disposed;
+    private bool _networkSubscribed;
+    private bool _powerSubscribed;
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
+
+        if (_powerSubscribed)
+        {
+            try { PowerManager.SystemSuspendStatusChanged -= SuspendChanged; }
+            catch (Exception exception) { AppDiagnostics.Record("playback.power-unwatch", exception); }
+        }
+
+        if (_networkSubscribed)
+        {
+            try { NetworkInformation.NetworkStatusChanged -= NetworkChanged; }
+            catch (Exception exception) { AppDiagnostics.Record("playback.network-unwatch", exception); }
+        }
+
+        GC.SuppressFinalize(this);
+    }
 
     public void Start()
     {
@@ -20,6 +42,7 @@ internal sealed class WindowsPlaybackEnvironment(Action<bool?, bool?> changed) :
             PublishPower();
         }
         catch (Exception exception) { AppDiagnostics.Record("playback.power-watch", exception); }
+
         try
         {
             NetworkInformation.NetworkStatusChanged += NetworkChanged;
@@ -75,25 +98,5 @@ internal sealed class WindowsPlaybackEnvironment(Action<bool?, bool?> changed) :
             changed(null, connected);
         }
         catch (Exception exception) { AppDiagnostics.Record("playback.network-read", exception); }
-    }
-
-    public void Dispose()
-    {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
-        {
-            return;
-        }
-
-        if (_powerSubscribed)
-        {
-            try { PowerManager.SystemSuspendStatusChanged -= SuspendChanged; }
-            catch (Exception exception) { AppDiagnostics.Record("playback.power-unwatch", exception); }
-        }
-        if (_networkSubscribed)
-        {
-            try { NetworkInformation.NetworkStatusChanged -= NetworkChanged; }
-            catch (Exception exception) { AppDiagnostics.Record("playback.network-unwatch", exception); }
-        }
-        GC.SuppressFinalize(this);
     }
 }

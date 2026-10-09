@@ -13,8 +13,7 @@ public sealed class TopTracksAggregatorTests
     {
         var tracks = new[]
         {
-            Heard("Song", "Artist", _now.AddDays(-2), "One"),
-            Heard("SONG", "ARTIST", _now.AddDays(-1), "Two"),
+            Heard("Song", "Artist", _now.AddDays(-2), "One"), Heard("SONG", "ARTIST", _now.AddDays(-1), "Two"),
             Heard("Other", "Band", _now, "One")
         };
         var result = TopTracksAggregator.Aggregate(tracks, TopTracksTimeframe.Week, _now);
@@ -29,8 +28,7 @@ public sealed class TopTracksAggregatorTests
     {
         var tracks = new[]
         {
-            Heard("Old", "Band", _now.AddDays(-40)),
-            Heard("Month", "Band", _now.AddDays(-15)),
+            Heard("Old", "Band", _now.AddDays(-40)), Heard("Month", "Band", _now.AddDays(-15)),
             Heard("Week", "Band", _now.AddDays(-2))
         };
         Assert.HasCount(1, TopTracksAggregator.Aggregate(tracks, TopTracksTimeframe.Week, _now));
@@ -44,8 +42,7 @@ public sealed class TopTracksAggregatorTests
     {
         var tracks = new[]
         {
-            Heard("Song", null, _now),
-            Heard("Older", "Band", _now.AddDays(-2)),
+            Heard("Song", null, _now), Heard("Older", "Band", _now.AddDays(-2)),
             Heard("Newer", "Band", _now.AddDays(-1))
         };
         var result = TopTracksAggregator.Aggregate(tracks, TopTracksTimeframe.AllTime, _now);
@@ -53,12 +50,15 @@ public sealed class TopTracksAggregatorTests
         Assert.AreEqual("Newer", result[0].Title);
     }
 
-    private static HeardTrack Heard(string title, string? artist, DateTimeOffset heardAt, string stationName = "Radio") => new()
+    private static HeardTrack Heard(string title, string? artist, DateTimeOffset heardAt, string stationName = "Radio")
     {
-        StationId = stationName,
-        StationName = stationName,
-        Title = title,
-        Artist = artist,
-        HeardAt = heardAt
-    };
+        return new HeardTrack
+        {
+            StationId = stationName,
+            StationName = stationName,
+            Title = title,
+            Artist = artist,
+            HeardAt = heardAt
+        };
+    }
 }

@@ -304,6 +304,16 @@ dotnet_diagnostic.IDE0052.severity = warning       # Remove unread private membe
 dotnet_diagnostic.IDE0060.severity = suggestion     # Unused params — suggestion only (XAML event handlers require fixed signatures)
 dotnet_diagnostic.IDE0161.severity = warning       # Use file-scoped namespace
 dotnet_diagnostic.IDE0090.severity = warning       # Simplify new expression
+dotnet_diagnostic.IDE0045.severity = warning
+dotnet_diagnostic.IDE0046.severity = warning
+
+# Shared by Roslyn and ReSharper/Rider. Keep generated output out of cleanup;
+# compiler errors in these files still require regeneration and a real build.
+[**/{obj,bin,out}/**]
+generated_code = true
+
+[*.{g,g.i,generated}.cs]
+generated_code = true
 
 # Generated vendor notice text preserves the publishers' trailing whitespace.
 [smodr/Assets/SoftwareLicenses.txt]

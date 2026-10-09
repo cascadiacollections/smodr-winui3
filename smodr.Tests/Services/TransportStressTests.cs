@@ -20,16 +20,25 @@ public sealed class TransportStressTests
         var calls = 0;
         using var handler = new ControlledHttpHandler((_, _) =>
         {
-            var body = new ControlledHttpBody([], stalled: true);
+            var body = new ControlledHttpBody([], true);
             bodies.Add(body); // The response owns the stream.
-            if (Interlocked.Increment(ref calls) == 4) active.TrySetResult();
+            if (Interlocked.Increment(ref calls) == 4)
+            {
+                active.TrySetResult();
+            }
+
             return Task.FromResult(Response(body, "image/png"));
         });
         using var client = new HttpClient(handler);
         await using var loader = new StationArtworkLoader(client);
-        var requests = Enumerable.Range(0, 24).Select(index => loader.GetAsync(new Uri($"https://art.example/{index}"))).ToArray();
+        var requests = Enumerable.Range(0, 24).Select(index => loader.GetAsync(new Uri($"https://art.example/{index}")))
+            .ToArray();
         await active.Task.WaitAsync(TimeSpan.FromSeconds(3));
-        foreach (var body in bodies) await body.ReadEntered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        foreach (var body in bodies)
+        {
+            await body.ReadEntered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        }
+
         var shutdown = loader.ShutdownAsync();
         Assert.AreSame(shutdown, loader.ShutdownAsync());
         await shutdown.WaitAsync(TimeSpan.FromSeconds(3));
@@ -39,7 +48,8 @@ public sealed class TransportStressTests
         Assert.IsTrue(bodies.All(body => body.IsDisposed));
         await Assert.ThrowsAsync<ObjectDisposedException>(() => loader.GetAsync(new Uri("https://art.example/late")));
         // A shared service must not dispose its caller-owned client.
-        using var response = await client.GetAsync(new Uri("https://art.example/client-still-owned"), HttpCompletionOption.ResponseHeadersRead);
+        using var response = await client.GetAsync(new Uri("https://art.example/client-still-owned"),
+            HttpCompletionOption.ResponseHeadersRead);
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
     }
 
@@ -53,7 +63,8 @@ public sealed class TransportStressTests
             bodies.Add(body);
             var response = Response(body, "image/png");
             response.StatusCode = HttpStatusCode.Found;
-            response.Headers.Location = new Uri(request.RequestUri!.AbsolutePath == "/a" ? "/b" : "/a", UriKind.Relative);
+            response.Headers.Location =
+                new Uri(request.RequestUri!.AbsolutePath == "/a" ? "/b" : "/a", UriKind.Relative);
             return Task.FromResult(response);
         });
         using var client = new HttpClient(handler);
@@ -104,7 +115,7 @@ public sealed class TransportStressTests
     [TestMethod]
     public async Task AlbumDeadlineIncludesStalledBodyAndDisposesResponse()
     {
-        using var body = new ControlledHttpBody([], stalled: true);
+        using var body = new ControlledHttpBody([], true);
         using var handler = new ControlledHttpHandler((_, _) => Task.FromResult(Response(body, "application/json")));
         using var client = new HttpClient(handler);
         await using var lookup = new AlbumArtworkLookup(client, TimeSpan.FromMilliseconds(100));

@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 using smodr.Services;
 using Windows.Storage;
+using WinRT;
 
 namespace smodr;
 
@@ -15,7 +16,7 @@ public static class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        WinRT.ComWrappersSupport.InitializeComWrappers();
+        ComWrappersSupport.InitializeComWrappers();
 
         // The disposable CI package exercises the same import path as App's
         // constructor without opening a WinUI window or joining the player instance.
@@ -26,13 +27,17 @@ public static class Program
             {
                 var directory = AppStorageResolver.ResolveDirectory();
                 if (!string.Equals(directory, ApplicationData.Current.LocalFolder.Path,
-                    StringComparison.OrdinalIgnoreCase)) Environment.ExitCode = 1;
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    Environment.ExitCode = 1;
+                }
             }
             catch (Exception exception)
             {
                 AppDiagnostics.Record("ci.package-import", exception);
                 Environment.ExitCode = 1;
             }
+
             return;
         }
 

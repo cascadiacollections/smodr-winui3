@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using smodr.Services;
 using Windows.Storage;
 using Windows.Storage.Pickers;
+using WinRT.Interop;
 
 namespace smodr;
 
@@ -12,23 +13,36 @@ public sealed partial class MainWindow
 {
     private bool _exportOpen;
 
-    private async void ExportHistory_Click(object sender, RoutedEventArgs e) =>
+    private async void ExportHistory_Click(object sender, RoutedEventArgs e)
+    {
         await ExportAsync("listening-history", ViewModel.ExportHistoryAsync);
+    }
 
-    private async void ExportDiagnostics_Click(object sender, RoutedEventArgs e) =>
-        await ExportAsync("runtime-diagnostics", () => Task.FromResult(LocalDataExport.Diagnostics(RuntimeDiagnostics.Counters)));
+    private async void ExportDiagnostics_Click(object sender, RoutedEventArgs e)
+    {
+        await ExportAsync("runtime-diagnostics",
+            () => Task.FromResult(LocalDataExport.Diagnostics(RuntimeDiagnostics.Counters)));
+    }
 
     private async Task ExportAsync(string name, Func<Task<string>> createSnapshot)
     {
-        if (_closed || _exportOpen || _confirmOpen || _licensesOpen) return;
+        if (_closed || _exportOpen || _confirmOpen || _licensesOpen)
+        {
+            return;
+        }
+
         _exportOpen = true;
         try
         {
             var picker = new FileSavePicker { SuggestedFileName = name };
             picker.FileTypeChoices.Add("JSON", [".json"]);
-            WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
+            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
             var file = await picker.PickSaveFileAsync();
-            if (file is null || _closed) return;
+            if (file is null || _closed)
+            {
+                return;
+            }
+
             await FileIO.WriteTextAsync(file, await createSnapshot());
         }
         catch (Exception exception)

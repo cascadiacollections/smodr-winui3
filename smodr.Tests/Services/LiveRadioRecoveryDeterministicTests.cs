@@ -41,6 +41,7 @@ public sealed class LiveRadioRecoveryDeterministicTests
             recovery.Playing();
             clock.Advance(TimeSpan.FromSeconds(1));
         }
+
         recovery.Fail();
         Assert.AreEqual(1, exhausted);
         Assert.IsFalse(recovery.IsRequested);
@@ -70,10 +71,14 @@ public sealed class LiveRadioRecoveryDeterministicTests
     [TestMethod]
     public void InvalidTimerConfigurationFailsSynchronously()
     {
-        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new LiveRadioRecovery(_ => { }, _ => { }, stallTimeout: TimeSpan.Zero));
-        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new LiveRadioRecovery(_ => { }, _ => { }, resumeTimeout: TimeSpan.FromSeconds(-1)));
-        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new LiveRadioRecovery(_ => { }, _ => { }, retryBaseDelay: TimeSpan.FromDays(1), maxRetries: 10));
-        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new LiveRadioRecovery(_ => { }, _ => { }, stablePlaybackWindow: TimeSpan.Zero));
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            new LiveRadioRecovery(_ => { }, _ => { }, stallTimeout: TimeSpan.Zero));
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            new LiveRadioRecovery(_ => { }, _ => { }, resumeTimeout: TimeSpan.FromSeconds(-1)));
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            new LiveRadioRecovery(_ => { }, _ => { }, retryBaseDelay: TimeSpan.FromDays(1), maxRetries: 10));
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            new LiveRadioRecovery(_ => { }, _ => { }, stablePlaybackWindow: TimeSpan.Zero));
     }
 
     [TestMethod]

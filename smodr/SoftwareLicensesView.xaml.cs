@@ -5,7 +5,10 @@ namespace smodr;
 
 public sealed partial class SoftwareLicensesView : UserControl
 {
-    public SoftwareLicensesView() => InitializeComponent();
+    public SoftwareLicensesView()
+    {
+        InitializeComponent();
+    }
 
 #pragma warning disable CA1822 // Named controls are generated instance fields from XAML.
     internal void SetNotices(IReadOnlyList<string> sections)

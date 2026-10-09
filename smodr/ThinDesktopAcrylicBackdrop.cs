@@ -15,7 +15,11 @@ public sealed class ThinDesktopAcrylicBackdrop : SystemBackdrop
     protected override void OnTargetConnected(ICompositionSupportsSystemBackdrop connectedTarget, XamlRoot xamlRoot)
     {
         base.OnTargetConnected(connectedTarget, xamlRoot);
-        if (!DesktopAcrylicController.IsSupported()) return;
+        if (!DesktopAcrylicController.IsSupported())
+        {
+            return;
+        }
+
         _controller = new DesktopAcrylicController { Kind = DesktopAcrylicKind.Thin };
         _controller.SetSystemBackdropConfiguration(GetDefaultSystemBackdropConfiguration(connectedTarget, xamlRoot));
         _controller.AddSystemBackdropTarget(connectedTarget);

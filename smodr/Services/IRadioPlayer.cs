@@ -8,8 +8,10 @@ public interface IRadioPlayer
     RadioStation? CurrentStation { get; }
     RadioTrackInfo? CurrentTrack { get; }
     bool IsPlaybackRequested { get; }
+
     /// <summary>An automatic rejoin is in progress after a stream failure; cleared once audio plays again.</summary>
     bool IsReconnecting => false;
+
     event EventHandler<RadioStation?>? StationChanged;
     event EventHandler<RadioTrackUpdate?>? TrackChanged;
     event EventHandler<MediaPlaybackState>? PlaybackStateChanged;

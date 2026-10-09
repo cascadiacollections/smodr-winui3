@@ -4,6 +4,7 @@ public static class LocalDiagnosticLog
 {
     private const long MaxLogBytes = 1_000_000;
     private static readonly Lock _gate = new();
+
     public static string LogPath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "CascadiaCollections", "ShoutkitWindows", "diagnostics.log");

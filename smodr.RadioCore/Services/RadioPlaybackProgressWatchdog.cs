@@ -6,8 +6,8 @@ public sealed class RadioPlaybackProgressWatchdog
     private readonly TimeProvider _clock;
     private readonly TimeSpan _stallTimeout;
     private readonly TimeSpan _timelineResetThreshold;
-    private TimeSpan _position;
     private TimeSpan? _pendingTimelineReset;
+    private TimeSpan _position;
     private long _progressAt;
 
     public RadioPlaybackProgressWatchdog(
@@ -18,8 +18,15 @@ public sealed class RadioPlaybackProgressWatchdog
         _clock = clock ?? TimeProvider.System;
         _stallTimeout = stallTimeout ?? TimeSpan.FromSeconds(30);
         _timelineResetThreshold = timelineResetThreshold ?? TimeSpan.FromSeconds(5);
-        if (_stallTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(stallTimeout));
-        if (_timelineResetThreshold <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(timelineResetThreshold));
+        if (_stallTimeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(stallTimeout));
+        }
+
+        if (_timelineResetThreshold <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(timelineResetThreshold));
+        }
     }
 
     public void Reset(TimeSpan position)
@@ -36,11 +43,24 @@ public sealed class RadioPlaybackProgressWatchdog
         // continually refresh the deadline.
         if (_pendingTimelineReset is { } pending)
         {
-            if (position > pending && position - pending < _timelineResetThreshold) Reset(position);
-            else if (position >= _position) _pendingTimelineReset = null;
+            if (position > pending && position - pending < _timelineResetThreshold)
+            {
+                Reset(position);
+            }
+            else if (position >= _position)
+            {
+                _pendingTimelineReset = null;
+            }
         }
-        else if (position > _position) Reset(position);
-        else if (_position - position >= _timelineResetThreshold) _pendingTimelineReset = position;
+        else if (position > _position)
+        {
+            Reset(position);
+        }
+        else if (_position - position >= _timelineResetThreshold)
+        {
+            _pendingTimelineReset = position;
+        }
+
         return _clock.GetElapsedTime(_progressAt) >= _stallTimeout;
     }
 }

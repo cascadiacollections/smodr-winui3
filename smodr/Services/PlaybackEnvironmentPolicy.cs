@@ -5,8 +5,8 @@ internal enum PlaybackEnvironmentAction { None, Hold, Resume }
 /// <summary>Owner-thread policy. OS interruption is not a user pause, and never grants new playback intent.</summary>
 internal sealed class PlaybackEnvironmentPolicy
 {
-    private bool _sleepInterrupted;
     private bool _networkInterrupted;
+    private bool _sleepInterrupted;
     public bool IsBlocked { get; private set; }
     public bool IsResumePending { get; private set; }
 
@@ -18,7 +18,8 @@ internal sealed class PlaybackEnvironmentPolicy
             return;
         }
 
-        _sleepInterrupted = false; _networkInterrupted = false;
+        _sleepInterrupted = false;
+        _networkInterrupted = false;
     }
 
     public PlaybackEnvironmentAction Update(bool suspended, bool connected, bool requested,
@@ -46,6 +47,7 @@ internal sealed class PlaybackEnvironmentPolicy
             IsResumePending = requested;
             return PlaybackEnvironmentAction.Hold;
         }
+
         if (!IsBlocked)
         {
             return PlaybackEnvironmentAction.None;
@@ -53,7 +55,7 @@ internal sealed class PlaybackEnvironmentPolicy
 
         IsBlocked = false;
         var resume = IsResumePending && (!_sleepInterrupted || resumeAfterSleep)
-            && (!_networkInterrupted || resumeAfterNetwork);
+                                     && (!_networkInterrupted || resumeAfterNetwork);
         IsResumePending = false;
         _sleepInterrupted = false;
         _networkInterrupted = false;

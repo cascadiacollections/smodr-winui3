@@ -6,11 +6,27 @@ namespace smodr.Services;
 internal sealed class RadioAudioEngineCoordinator(Action<Action> dispatch) : IDisposable
 {
     private IRadioAudioEngine? _current;
-    private long _generation;
     private bool _disposed;
+    private long _generation;
     public IRadioAudioEngine? Current => Volatile.Read(ref _current);
     public double Volume { get; private set; } = 0.5;
     public TimeSpan Duration => Current?.Duration ?? TimeSpan.Zero;
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        try { Replace(null); }
+        finally
+        {
+            _disposed = true;
+            GC.SuppressFinalize(this);
+        }
+    }
+
     public event EventHandler<MediaPlaybackState>? StateChanged;
     public event EventHandler? Completed;
     public event EventHandler? Failed;
@@ -18,7 +34,11 @@ internal sealed class RadioAudioEngineCoordinator(Action<Action> dispatch) : IDi
     public void Replace(IRadioAudioEngine? engine, bool disposePrevious = true)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (ReferenceEquals(engine, Current)) return;
+        if (ReferenceEquals(engine, Current))
+        {
+            return;
+        }
+
         var previous = Interlocked.Exchange(ref _current, null);
         Interlocked.Increment(ref _generation);
         try
@@ -28,11 +48,23 @@ internal sealed class RadioAudioEngineCoordinator(Action<Action> dispatch) : IDi
                 previous.StateChanged -= Engine_StateChanged;
                 previous.Completed -= Engine_Completed;
                 previous.Failed -= Engine_Failed;
-                if (disposePrevious) previous.Dispose();
+                if (disposePrevious)
+                {
+                    previous.Dispose();
+                }
             }
         }
-        catch { engine?.Dispose(); throw; }
-        if (engine is null) return;
+        catch
+        {
+            engine?.Dispose();
+            throw;
+        }
+
+        if (engine is null)
+        {
+            return;
+        }
+
         try
         {
             engine.SetVolume(Volume);
@@ -74,25 +106,32 @@ internal sealed class RadioAudioEngineCoordinator(Action<Action> dispatch) : IDi
     private void Deliver(object? sender, Action action)
     {
         var generation = Interlocked.Read(ref _generation);
-        if (!ReferenceEquals(sender, Current)) return;
+        if (!ReferenceEquals(sender, Current))
+        {
+            return;
+        }
+
         dispatch(() =>
         {
-            if (generation == Interlocked.Read(ref _generation) && ReferenceEquals(sender, Current)) action();
+            if (generation == Interlocked.Read(ref _generation) && ReferenceEquals(sender, Current))
+            {
+                action();
+            }
         });
     }
 
-    private void Engine_StateChanged(object? sender, MediaPlaybackState state) => Deliver(sender, () => StateChanged?.Invoke(this, state));
-    private void Engine_Completed(object? sender, EventArgs args) => Deliver(sender, () => Completed?.Invoke(this, args));
-    private void Engine_Failed(object? sender, EventArgs args) => Deliver(sender, () => Failed?.Invoke(this, args));
-
-    public void Dispose()
+    private void Engine_StateChanged(object? sender, MediaPlaybackState state)
     {
-        if (_disposed) return;
-        try { Replace(null); }
-        finally
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
+        Deliver(sender, () => StateChanged?.Invoke(this, state));
+    }
+
+    private void Engine_Completed(object? sender, EventArgs args)
+    {
+        Deliver(sender, () => Completed?.Invoke(this, args));
+    }
+
+    private void Engine_Failed(object? sender, EventArgs args)
+    {
+        Deliver(sender, () => Failed?.Invoke(this, args));
     }
 }

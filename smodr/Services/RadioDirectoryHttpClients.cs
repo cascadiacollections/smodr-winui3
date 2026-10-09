@@ -9,16 +9,20 @@ namespace smodr.Services;
 internal static class RadioDirectoryHttpClients
 {
     /// <summary>
-    /// The read client is used for idempotent directory reads. The report client is used for non-idempotent play count reports. The report client does not receive a retry policy because a retry could result in double-counting a single user action.
+    ///     The read client is used for idempotent directory reads. The report client is used for non-idempotent play count
+    ///     reports. The report client does not receive a retry policy because a retry could result in double-counting a single
+    ///     user action.
     /// </summary>
     internal const string ReadClient = "radio-browser-read";
+
     /// <summary>
-    /// The report client is used for non-idempotent play count reports. The report client does not receive a retry policy because a retry could result in double-counting a single user action.
+    ///     The report client is used for non-idempotent play count reports. The report client does not receive a retry policy
+    ///     because a retry could result in double-counting a single user action.
     /// </summary>
     internal const string ReportClient = "radio-browser-report";
 
     /// <summary>
-    /// Adds the radio directory HTTP clients to the service collection.
+    ///     Adds the radio directory HTTP clients to the service collection.
     /// </summary>
     /// <param name="services">The service collection to add the clients to.</param>
     /// <returns>The updated service collection.</returns>
@@ -34,7 +38,7 @@ internal static class RadioDirectoryHttpClients
                 ShouldRetryAfterHeader = false,
                 ShouldHandle = args => ValueTask.FromResult(
                     args.Outcome.Exception is HttpRequestException
-                    || args.Outcome.Result?.StatusCode == HttpStatusCode.ServiceUnavailable),
+                    || args.Outcome.Result?.StatusCode == HttpStatusCode.ServiceUnavailable)
             }));
 
         // /json/url/{uuid} contributes to the community play count. A retry

@@ -100,8 +100,8 @@ public sealed class PlaybackSleepTimerTests
 
     private sealed class ControlledDelays
     {
-        private readonly List<TaskCompletionSource> _delays = [];
         private readonly List<TaskCompletionSource> _completed = [];
+        private readonly List<TaskCompletionSource> _delays = [];
 
         public Task WaitAsync(TimeSpan _, CancellationToken token)
         {
@@ -112,8 +112,15 @@ public sealed class PlaybackSleepTimerTests
             return WaitCoreAsync(delay.Task, completed);
         }
 
-        public void Complete(int index) => _delays[index].SetResult();
-        public Task Completed(int index) => _completed[index].Task.WaitAsync(TimeSpan.FromSeconds(3));
+        public void Complete(int index)
+        {
+            _delays[index].SetResult();
+        }
+
+        public Task Completed(int index)
+        {
+            return _completed[index].Task.WaitAsync(TimeSpan.FromSeconds(3));
+        }
 
         private static async Task WaitCoreAsync(Task delay, TaskCompletionSource completed)
         {

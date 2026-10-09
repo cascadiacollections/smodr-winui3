@@ -23,7 +23,10 @@ public sealed class RadioPrivacySettingsTests
         }
         finally
         {
-            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, true);
+            }
         }
     }
 
@@ -43,7 +46,10 @@ public sealed class RadioPrivacySettingsTests
         }
         finally
         {
-            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, true);
+            }
         }
     }
 
@@ -68,7 +74,7 @@ public sealed class RadioPrivacySettingsTests
         }
         finally
         {
-            Directory.Delete(directory, recursive: true);
+            Directory.Delete(directory, true);
         }
     }
 
@@ -89,7 +95,7 @@ public sealed class RadioPrivacySettingsTests
         }
         finally
         {
-            Directory.Delete(directory, recursive: true);
+            Directory.Delete(directory, true);
         }
     }
 
@@ -112,7 +118,10 @@ public sealed class RadioPrivacySettingsTests
         }
         finally
         {
-            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, true);
+            }
         }
     }
 
@@ -136,7 +145,7 @@ public sealed class RadioPrivacySettingsTests
         }
         finally
         {
-            Directory.Delete(directory, recursive: true);
+            Directory.Delete(directory, true);
         }
     }
 }

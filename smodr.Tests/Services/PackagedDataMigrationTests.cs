@@ -22,8 +22,10 @@ public sealed class PackagedDataMigrationTests
 
             PackagedDataMigration.Import(legacy, packaged);
             Assert.AreEqual("legacy-library", await File.ReadAllTextAsync(Path.Combine(packaged, "library.json")));
-            Assert.AreEqual("legacy-playback", await File.ReadAllTextAsync(Path.Combine(packaged, "playback-settings.json")));
-            Assert.AreEqual("legacy-appearance", await File.ReadAllTextAsync(Path.Combine(packaged, "appearance-settings.json")));
+            Assert.AreEqual("legacy-playback",
+                await File.ReadAllTextAsync(Path.Combine(packaged, "playback-settings.json")));
+            Assert.AreEqual("legacy-appearance",
+                await File.ReadAllTextAsync(Path.Combine(packaged, "appearance-settings.json")));
             Assert.IsFalse(File.Exists(Path.Combine(packaged, "unexpected.json")));
             await File.WriteAllTextAsync(Path.Combine(packaged, "library.json"), "packaged-library");
             PackagedDataMigration.Import(legacy, packaged);
@@ -57,7 +59,13 @@ public sealed class PackagedDataMigrationTests
         if (!Path.GetDirectoryName(resolved)!.Equals(Path.GetFullPath(Path.GetTempPath())
                 .TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
             || !Path.GetFileName(resolved).StartsWith("shoutkit-import-", StringComparison.Ordinal))
+        {
             throw new InvalidOperationException("Unexpected migration test directory.");
-        if (Directory.Exists(resolved)) Directory.Delete(resolved, recursive: true);
+        }
+
+        if (Directory.Exists(resolved))
+        {
+            Directory.Delete(resolved, true);
+        }
     }
 }

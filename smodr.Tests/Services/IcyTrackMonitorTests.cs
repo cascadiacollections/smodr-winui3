@@ -6,11 +6,14 @@ namespace smodr.Tests.Services;
 [TestClass]
 public sealed class IcyTrackMonitorTests
 {
+    private static readonly string[] _expectedTitles = ["Old Song", "Ice Cold Ice"];
+
     [TestMethod]
     public async Task StaleProbeCannotPublishAfterStationSwitch()
     {
         var oldResult = new TaskCompletionSource<IcyProbeResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var newPublished = new TaskCompletionSource<RadioTrackUpdate>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var newPublished =
+            new TaskCompletionSource<RadioTrackUpdate>(TaskCreationOptions.RunContinuationsAsynchronously);
         var probe = new StubProbe(uri => uri.AbsolutePath == "/old"
             ? oldResult.Task
             : Task.FromResult(new IcyProbeResult(true, "StreamTitle='New Artist - New Song';")));
@@ -18,7 +21,11 @@ public sealed class IcyTrackMonitorTests
         var updates = new List<RadioTrackUpdate>();
         monitor.TrackChanged += (_, update) =>
         {
-            lock (updates) updates.Add(update);
+            lock (updates)
+            {
+                updates.Add(update);
+            }
+
             newPublished.TrySetResult(update);
         };
 
@@ -29,7 +36,10 @@ public sealed class IcyTrackMonitorTests
         monitor.Stop();
 
         Assert.AreEqual("New Song", published.Track.Title);
-        lock (updates) Assert.HasCount(1, updates);
+        lock (updates)
+        {
+            Assert.HasCount(1, updates);
+        }
     }
 
     [TestMethod]
@@ -89,7 +99,10 @@ public sealed class IcyTrackMonitorTests
             lock (titles)
             {
                 titles.Add(update.Track.Title);
-                if (titles.Count == 2) published.TrySetResult();
+                if (titles.Count == 2)
+                {
+                    published.TrySetResult();
+                }
             }
         };
         monitor.Start(Station("one"));
@@ -101,6 +114,7 @@ public sealed class IcyTrackMonitorTests
             Assert.AreEqual("First", titles[0]);
             Assert.AreEqual("Second", titles[1]);
         }
+
         Assert.AreEqual(0, probeCalls);
     }
 
@@ -134,7 +148,11 @@ public sealed class IcyTrackMonitorTests
             }));
         monitor.TrackChanged += (_, update) =>
         {
-            lock (updates) updates.Add(update);
+            lock (updates)
+            {
+                updates.Add(update);
+            }
+
             published.TrySetResult(update);
         };
         monitor.Start(Station("one"));
@@ -142,7 +160,10 @@ public sealed class IcyTrackMonitorTests
         monitor.Stop();
         Assert.AreEqual("Hüsker Dü", track.Artist);
         Assert.AreEqual("Ice Cold Ice", track.Title);
-        lock (updates) Assert.HasCount(1, updates);
+        lock (updates)
+        {
+            Assert.HasCount(1, updates);
+        }
     }
 
     [TestMethod]
@@ -183,7 +204,11 @@ public sealed class IcyTrackMonitorTests
             }, clock,
             new StubContinuousReader(async (_, emit, token) =>
             {
-                if (Interlocked.Increment(ref attempts) == 1) throw new IOException("temporary drop");
+                if (Interlocked.Increment(ref attempts) == 1)
+                {
+                    throw new IOException("temporary drop");
+                }
+
                 emit("StreamTitle='Artist - Recovered';");
                 await Task.Delay(Timeout.InfiniteTimeSpan, token);
                 return true;
@@ -195,20 +220,10 @@ public sealed class IcyTrackMonitorTests
         monitor.Stop();
     }
 
-    private static RadioStation Station(string id) => new()
+    private static RadioStation Station(string id)
     {
-        Id = id,
-        Name = id,
-        StreamUrl = $"https://example.com/{id}"
-    };
-
-    private sealed class StubProbe(Func<Uri, Task<IcyProbeResult>> get) : ITrackMetadataProbe
-    {
-        public Task<IcyProbeResult> ProbeAsync(Uri streamUri,
-            CancellationToken cancellationToken = default) => get(streamUri);
+        return new RadioStation { Id = id, Name = id, StreamUrl = $"https://example.com/{id}" };
     }
-
-    private static readonly string[] _expectedTitles = ["Old Song", "Ice Cold Ice"];
 
     [TestMethod]
     public async Task DamagedSongInvalidatesOnceButEmptyAndAdvertisingCuesDoNot()
@@ -242,23 +257,46 @@ public sealed class IcyTrackMonitorTests
     [DataRow("StreamTitle='';")]
     [DataRow("StreamTitle='Artist - Commercial break\uFFFD';")]
     [DataRow("StreamTitle='https://example.com/\uFFFD';")]
-    public void NonSongCuesAreNotClassifiedAsDamagedSongs(string raw) =>
+    public void NonSongCuesAreNotClassifiedAsDamagedSongs(string raw)
+    {
         Assert.IsFalse(IcyTrackParser.IsDamagedSongCue(raw, "one"));
+    }
+
+    private sealed class StubProbe(Func<Uri, Task<IcyProbeResult>> get) : ITrackMetadataProbe
+    {
+        public Task<IcyProbeResult> ProbeAsync(Uri streamUri,
+            CancellationToken cancellationToken = default)
+        {
+            return get(streamUri);
+        }
+    }
 
     private sealed class StubContinuousReader(
         Func<Uri, Action<string>, CancellationToken, Task<bool>> listen) : IContinuousTrackMetadataReader
     {
         public Task<bool> ListenAsync(Uri streamUri, Action<string> onMetadata,
-            CancellationToken cancellationToken = default) => listen(streamUri, onMetadata, cancellationToken);
+            CancellationToken cancellationToken = default)
+        {
+            return listen(streamUri, onMetadata, cancellationToken);
+        }
     }
 
     private sealed class FakeClock : TimeProvider
     {
-        private long _ticks;
         private DateTimeOffset _now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        private long _ticks;
         public override long TimestampFrequency => TimeSpan.TicksPerSecond;
-        public override long GetTimestamp() => Interlocked.Read(ref _ticks);
-        public override DateTimeOffset GetUtcNow() => _now;
+
+        public override long GetTimestamp()
+        {
+            return Interlocked.Read(ref _ticks);
+        }
+
+        public override DateTimeOffset GetUtcNow()
+        {
+            return _now;
+        }
+
         public void Advance(TimeSpan duration)
         {
             Interlocked.Add(ref _ticks, duration.Ticks);

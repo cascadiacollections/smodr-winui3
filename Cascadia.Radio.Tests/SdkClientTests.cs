@@ -7,17 +7,21 @@ namespace smodr.Tests;
 [TestClass]
 public sealed class SdkClientTests
 {
+    private const string Valid =
+        """[{"stationuuid":"one","name":"Radio","url_resolved":"https://radio.example/live","countrycode":"US"}]""";
+
     private static readonly Guid _uuid = Guid.Parse("12345678-1234-1234-1234-123456789012");
     private static readonly Uri[] _servers = [new("https://one.example/"), new("https://two.example/")];
-    private const string Valid = """[{"stationuuid":"one","name":"Radio","url_resolved":"https://radio.example/live","countrycode":"US"}]""";
 
     [TestMethod]
     public async Task ReadsFailOverAndKeepWireModelsIndependent()
     {
-        using var handler = new Handler(request => Reply(request.RequestUri!.Host == "one.example" ? "not json" : Valid));
+        using var handler =
+            new Handler(request => Reply(request.RequestUri!.Host == "one.example" ? "not json" : Valid));
         using var http = new HttpClient(handler);
         var client = Client(http);
-        var stations = await client.SearchAsync(new SearchOptions { Name = "jazz & blues", CountryCode = "US", Offset = 20 });
+        var stations =
+            await client.SearchAsync(new SearchOptions { Name = "jazz & blues", CountryCode = "US", Offset = 20 });
         Assert.HasCount(1, stations);
         Assert.AreEqual("US", stations[0].CountryCode);
         Assert.HasCount(2, handler.Requests);
@@ -35,7 +39,11 @@ public sealed class SdkClientTests
             using var handler = new Handler(request =>
             {
                 var response = Reply(request.RequestUri!.Host == "one.example" ? payload : Valid);
-                if (request.RequestUri.Host == "one.example" && payload == Valid) response.Content.Headers.ContentLength = 1;
+                if (request.RequestUri.Host == "one.example" && payload == Valid)
+                {
+                    response.Content.Headers.ContentLength = 1;
+                }
+
                 return response;
             });
             using var http = new HttpClient(handler);
@@ -47,7 +55,7 @@ public sealed class SdkClientTests
     [TestMethod]
     public async Task MutationsDoNotRetryOrFailOver()
     {
-        using var handler = new Handler(_ => new(HttpStatusCode.ServiceUnavailable));
+        using var handler = new Handler(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
         using var http = new HttpClient(handler);
         await Assert.ThrowsAsync<HttpRequestException>(() => Client(http).RegisterClickAsync(_uuid));
         Assert.HasCount(1, handler.Requests);
@@ -64,7 +72,8 @@ public sealed class SdkClientTests
         await client.GetByUrlAsync(new Uri("https://radio.example/live?q=a&b=c"));
         Assert.AreEqual("/json/stations/byuuid", handler.Requests[0].AbsolutePath);
         StringAssert.Contains(handler.Requests[0].Query, $"uuids={_uuid:D}", StringComparison.Ordinal);
-        Assert.IsFalse(handler.Requests.Any(uri => uri.AbsolutePath.StartsWith("/json/url/", StringComparison.Ordinal)));
+        Assert.IsFalse(handler.Requests.Any(uri =>
+            uri.AbsolutePath.StartsWith("/json/url/", StringComparison.Ordinal)));
     }
 
     [TestMethod]
@@ -82,9 +91,15 @@ public sealed class SdkClientTests
     public async Task CancellationDuringTransportNeverContactsSecondMirror()
     {
         using var stop = new CancellationTokenSource();
-        using var handler = new Handler(_ => { stop.Cancel(); stop.Token.ThrowIfCancellationRequested(); return Reply(Valid); });
+        using var handler = new Handler(_ =>
+        {
+            stop.Cancel();
+            stop.Token.ThrowIfCancellationRequested();
+            return Reply(Valid);
+        });
         using var http = new HttpClient(handler);
-        await Assert.ThrowsAsync<OperationCanceledException>(() => Client(http).GetRankedAsync(cancellationToken: stop.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            Client(http).GetRankedAsync(cancellationToken: stop.Token));
         Assert.HasCount(1, handler.Requests);
     }
 
@@ -95,19 +110,29 @@ public sealed class SdkClientTests
         using var http = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
         var client = new RadioBrowserClient(http, new Mirrors([_servers[0]]),
             new ClientOptions { UserAgent = "Consumer/1.0", RequestTimeout = TimeSpan.FromMilliseconds(50) });
-        await Assert.ThrowsAsync<DirectoryUnavailableException>(() => client.GetRankedAsync().WaitAsync(TimeSpan.FromSeconds(3)));
+        await Assert.ThrowsAsync<DirectoryUnavailableException>(() =>
+            client.GetRankedAsync().WaitAsync(TimeSpan.FromSeconds(3)));
     }
 
     [TestMethod]
     public async Task FacetsAndAllRankingsAreTypedAndBounded()
     {
-        using var handler = new Handler(request => Reply(request.RequestUri!.AbsolutePath.Contains("/stations/", StringComparison.Ordinal)
-            ? Valid : """[{"name":"US","stationcount":123}]"""));
+        using var handler = new Handler(request =>
+            Reply(request.RequestUri!.AbsolutePath.Contains("/stations/", StringComparison.Ordinal)
+                ? Valid
+                : """[{"name":"US","stationcount":123}]"""));
         using var http = new HttpClient(handler);
         var client = Client(http);
-        foreach (var rank in Enum.GetValues<StationRanking>()) Assert.HasCount(1, await client.GetRankedAsync(rank));
+        foreach (var rank in Enum.GetValues<StationRanking>())
+        {
+            Assert.HasCount(1, await client.GetRankedAsync(rank));
+        }
+
         foreach (var facet in Enum.GetValues<DirectoryFacet>())
+        {
             Assert.AreEqual(123, (await client.GetValuesAsync(facet))[0].StationCount);
+        }
+
         Assert.HasCount(8, handler.Requests);
     }
 
@@ -116,7 +141,11 @@ public sealed class SdkClientTests
     {
         var pending = new TaskCompletionSource<IReadOnlyList<Uri>>(TaskCreationOptions.RunContinuationsAsynchronously);
         var calls = 0;
-        var provider = new DnsMirrorProvider(_ => { Interlocked.Increment(ref calls); return pending.Task; });
+        var provider = new DnsMirrorProvider(_ =>
+        {
+            Interlocked.Increment(ref calls);
+            return pending.Task;
+        });
         using var stop = new CancellationTokenSource();
         var first = provider.GetServersAsync(stop.Token);
         var second = provider.GetServersAsync();
@@ -133,7 +162,8 @@ public sealed class SdkClientTests
     {
         using var handler = new Handler(request => Reply(request.RequestUri!.Host == "one.example" ? "{}" : Valid));
         using var http = new HttpClient(handler);
-        var client = new RadioBrowserClient(http, new Mirrors(_servers), new ClientOptions { UserAgent = "Consumer/1.0" }, diagnostics: new BadDiagnostics());
+        var client = new RadioBrowserClient(http, new Mirrors(_servers),
+            new ClientOptions { UserAgent = "Consumer/1.0" }, diagnostics: new BadDiagnostics());
         Assert.HasCount(1, await client.GetRankedAsync());
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => client.SearchAsync(new SearchOptions { Limit = 0 }));
         Assert.ThrowsExactly<ArgumentException>(() => client.GetByUuidAsync(Guid.Empty));
@@ -141,7 +171,11 @@ public sealed class SdkClientTests
         Assert.HasCount(2, handler.Requests);
     }
 
-    private static RadioBrowserClient Client(HttpClient http) => new(http, new Mirrors(_servers), new ClientOptions { UserAgent = "Consumer/1.0" });
+    private static RadioBrowserClient Client(HttpClient http)
+    {
+        return new RadioBrowserClient(http, new Mirrors(_servers), new ClientOptions { UserAgent = "Consumer/1.0" });
+    }
+
     [TestMethod]
     [DataRow(null)]
     [DataRow("")]
@@ -163,15 +197,22 @@ public sealed class SdkClientTests
         using var http = new HttpClient(handler);
         var mirrors = new CountingMirrors();
         var client = new RadioBrowserClient(http, mirrors, new ClientOptions { UserAgent = "Consumer/1.0" });
-        await Assert.ThrowsAsync<OperationCanceledException>(() => client.GetRankedAsync(cancellationToken: stop.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            client.GetRankedAsync(cancellationToken: stop.Token));
         await Assert.ThrowsAsync<OperationCanceledException>(() => client.RegisterClickAsync(_uuid, stop.Token));
         Assert.AreEqual(0, mirrors.Calls);
         Assert.HasCount(0, handler.Requests);
     }
 
+    private static HttpResponseMessage Reply(string json)
+    {
+        return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json) };
+    }
+
     private sealed class CountingMirrors : IMirrorProvider
     {
         public int Calls { get; private set; }
+
         public Task<IReadOnlyList<Uri>> GetServersAsync(CancellationToken cancellationToken = default)
         {
             Calls++;
@@ -179,29 +220,40 @@ public sealed class SdkClientTests
         }
     }
 
-    private static HttpResponseMessage Reply(string json) => new(HttpStatusCode.OK) { Content = new StringContent(json) };
     private sealed class Mirrors(IReadOnlyList<Uri> servers) : IMirrorProvider
     {
-        public Task<IReadOnlyList<Uri>> GetServersAsync(CancellationToken cancellationToken = default) => Task.FromResult(servers);
+        public Task<IReadOnlyList<Uri>> GetServersAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(servers);
+        }
     }
+
     private sealed class BadDiagnostics : IClientDiagnostics
     {
-        public void Record(ClientDiagnostic diagnostic) => throw new InvalidOperationException();
+        public void Record(ClientDiagnostic diagnostic)
+        {
+            throw new InvalidOperationException();
+        }
     }
+
     private sealed class Handler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
     {
         public List<Uri> Requests { get; } = [];
         public string? UserAgent { get; private set; }
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+            CancellationToken cancellationToken)
         {
             Requests.Add(request.RequestUri!);
             UserAgent = request.Headers.UserAgent.ToString();
             return Task.FromResult(respond(request));
         }
     }
+
     private sealed class StallHandler : HttpMessageHandler
     {
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+            CancellationToken cancellationToken)
         {
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             throw new InvalidOperationException();
