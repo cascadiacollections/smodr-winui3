@@ -37,11 +37,11 @@ https://www.nuget.org/packages/CommunityToolkit.Common/8.2.1
 Notice: License.md -> SHA256 f08306705ce618d02880e2e3a456a48a8a1c167bd17bc5766a96a9bcb3e6b795
 Notice: ThirdPartyNotices.txt -> SHA256 79498b27081bbec29c504798c727761e0898963259fb7421ea587a758e803ed3
 
-CommunityToolkit.Mvvm 8.4.0
+CommunityToolkit.Mvvm 8.4.2
 Declared license (expression): MIT
 Authors: Microsoft
 (c) .NET Foundation and Contributors. All rights reserved.
-https://www.nuget.org/packages/CommunityToolkit.Mvvm/8.4.0
+https://www.nuget.org/packages/CommunityToolkit.Mvvm/8.4.2
 Notice: License.md -> SHA256 f08306705ce618d02880e2e3a456a48a8a1c167bd17bc5766a96a9bcb3e6b795
 Notice: ThirdPartyNotices.txt -> SHA256 79498b27081bbec29c504798c727761e0898963259fb7421ea587a758e803ed3
 
@@ -239,18 +239,18 @@ https://www.nuget.org/packages/Microsoft.Windows.SDK.BuildTools.MSIX/1.7.2512211
 Notice: NOTICE.txt -> SHA256 a0865b04bfc0e08d9ec8e53aaabddb01fa781c04b8f8d0e8bfdbf66d2d2e69db
 Notice: sdk_license.txt -> SHA256 ee21bcfdd62f376d1baa63cb6659a5163f74010127a10debe681b7dd30641ece
 
-Microsoft.Windows.SDK.BuildTools 10.0.26100.7705 [build-only]
+Microsoft.Windows.SDK.BuildTools 10.0.28000.2705 [build-only]
 Declared license (legacy-url): https://aka.ms/WinSDKLicenseURL
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.Windows.SDK.BuildTools/10.0.26100.7705
+https://www.nuget.org/packages/Microsoft.Windows.SDK.BuildTools/10.0.28000.2705
 No bundled license/notice text found; review the declared license before redistribution.
 
-Microsoft.WindowsAppSDK.AI 2.4.4
+Microsoft.WindowsAppSDK.AI 2.5.5
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK.AI/2.4.4
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK.AI/2.5.5
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 
 Microsoft.WindowsAppSDK.Base 2.0.4
@@ -268,41 +268,40 @@ Authors: Microsoft
 https://www.nuget.org/packages/Microsoft.WindowsAppSDK.DWrite/2.1.0
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 
-Microsoft.WindowsAppSDK.Foundation 2.3.9
+Microsoft.WindowsAppSDK.Foundation 2.3.12
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Foundation/2.3.9
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Foundation/2.3.12
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 
-Microsoft.WindowsAppSDK.InteractiveExperiences 2.1.6
+Microsoft.WindowsAppSDK.InteractiveExperiences 2.1.9
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK.InteractiveExperiences/2.1.6
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK.InteractiveExperiences/2.1.9
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 
-Microsoft.WindowsAppSDK.ML 2.1.74
+Microsoft.WindowsAppSDK.ML 2.1.94
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK.ML/2.1.74
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK.ML/2.1.94
 Notice: license.txt -> SHA256 3f861a9e1adbe168f5eb54f8ce27612e5703fcacf576958b2caf7feddcd96ba8
-Notice: ThirdPartyNotices.txt -> SHA256 c4fcfa1b48ff5d5b8b269a7d016e491c029d737f362e4d402947cf2514008e5d
 
-Microsoft.WindowsAppSDK.Runtime 2.4.0
+Microsoft.WindowsAppSDK.Runtime 2.5.1
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Runtime/2.4.0
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Runtime/2.5.1
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 Notice: NOTICE.txt -> SHA256 0d58793a293c3b7cc61db9a94cdeb76d48c0442722bbed30a22105b57ed43599
 
-Microsoft.WindowsAppSDK.Search 2.4.4
+Microsoft.WindowsAppSDK.Search 2.5.5
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Search/2.4.4
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Search/2.5.5
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 
 Microsoft.WindowsAppSDK.Widgets 2.0.5
@@ -312,20 +311,20 @@ Authors: Microsoft
 https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Widgets/2.0.5
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 
-Microsoft.WindowsAppSDK.WinUI 2.3.6
+Microsoft.WindowsAppSDK.WinUI 2.3.9
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK.WinUI/2.3.6
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK.WinUI/2.3.9
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 Notice: NOTICE.txt -> SHA256 2abd2efc56d6e0268abc0ce767c3087459dd0b544c97d99ec3c65d567d3bcc9a
 Notice: tools/NOTICE.txt -> SHA256 31523fc2e8e089b04311eba6b55090868db431eb512567641d1bd6f8ad7e8912
 
-Microsoft.WindowsAppSDK 2.4.0
+Microsoft.WindowsAppSDK 2.5.1
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK/2.4.0
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK/2.5.1
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 Notice: NOTICE.txt -> SHA256 0d58793a293c3b7cc61db9a94cdeb76d48c0442722bbed30a22105b57ed43599
 

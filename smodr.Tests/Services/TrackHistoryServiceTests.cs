@@ -7,6 +7,20 @@ namespace smodr.Tests.Services;
 public sealed class TrackHistoryServiceTests
 {
     [TestMethod]
+    public async Task ExplicitArrivalTimeSurvivesPersistenceAndDuplicateClockReversal()
+    {
+        var file = TempFile();
+        try
+        {
+            var history = new TrackHistoryService(file);
+            var arrival = DateTimeOffset.Parse("2026-01-01T12:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
+            await history.RecordAtAsync(Station("one"), new RadioTrackInfo("Song", "Artist"), arrival);
+            await history.RecordAtAsync(Station("one"), new RadioTrackInfo("Song", "Artist"), arrival.AddMinutes(-1));
+            Assert.AreEqual(arrival, new TrackHistoryService(file).Entries[0].HeardAt);
+        }
+        finally { File.Delete(file); }
+    }
+    [TestMethod]
     public async Task ConsecutiveDuplicateRefreshesTimestampAndSurvivesRestart()
     {
         var file = TempFile();

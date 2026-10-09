@@ -1,0 +1,46 @@
+name: Experimental WinUI comparison
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  experiment:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: x64
+            architecture: x64
+            runner: windows-latest
+            sdk: 2.5.4-experimental
+            toolkit: 8.2.251219
+          - platform: ARM64
+            architecture: arm64
+            runner: windows-11-vs2026-arm
+            sdk: 2.5.4-experimental
+            toolkit: 8.2.251219
+          - platform: ARM64
+            architecture: arm64
+            runner: windows-11-vs2026-arm
+            sdk: 2.5.1
+            toolkit: 8.3.260402-preview2
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          architecture: ${{ matrix.architecture }}
+      - uses: microsoft/setup-msbuild@v3
+        with:
+          msbuild-architecture: ${{ matrix.architecture }}
+      - name: Compare experimental SDK in isolated source copy
+        shell: pwsh
+        run: ./scripts/Test-WinUiExperiment.ps1 -Platform ${{ matrix.platform }} -Version ${{ matrix.sdk }} -ToolkitVersion ${{ matrix.toolkit }} -Source https://api.nuget.org/v3/index.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: winui-experiment-${{ matrix.platform }}-${{ matrix.sdk }}-${{ matrix.toolkit }}
+          path: out/winui-experiment/**/results
+          if-no-files-found: warn

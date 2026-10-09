@@ -1,5 +1,28 @@
 # Headless runtime confidence and performance
 
+## Modernization follow-up: 2026-10-08
+
+The performance process now emits schema version 2 with eight timing cases: the six
+existing measurements plus Windows PNG and JPEG decode/downscale. Encoded fixtures
+are generated locally with Windows encoders before measurement; no files are downloaded.
+The wrapper requires finite measurements, matching architecture, and eleven valid
+resource samples. Default runs repeat 2,000 alternating PNG/JPEG decodes and synthetic
+history loads; `-ResourceCycles 20000` runs the longer resource check. Each process
+records private bytes, working set, managed bytes and handle count across the cycles.
+This describes the harness, including WinRT decoding; it does not measure the running
+WinUI app, GPU allocations, playback, or an application's native memory leaks. There
+are no resource-growth or timing thresholds. The wrapper allows 60 seconds per process.
+
+History arrival timestamps are captured at the audio callback before UI dispatch and
+serialized persistence. Duplicate timestamps cannot move backward. Local history
+export waits for the history store's accepted writes, then takes a detached snapshot;
+it does not clear history. Diagnostics export serializes only fixed integer counters
+and capture metadata, never exception logs, profile files, station or track labels.
+Headless tests check queued-export ordering, timestamp persistence, and the exact
+diagnostics allow-list. Native file-picker and shell appearance QA remains required.
+
+See [current validation](HEADLESS_VALIDATION.md) for this run's evidence and limitations.
+
 ## Local aggregate diagnostics
 
 Normal close writes `runtime-counters.json` in the app's storage directory

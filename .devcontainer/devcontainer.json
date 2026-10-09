@@ -43,6 +43,7 @@
 
   "forwardPorts": [],
 
+  "onCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.nuget/packages /var/tmp/shoutkit-radio-artifacts",
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "updateContentCommand": "bash .devcontainer/prewarm.sh",
   "mounts": [

@@ -31,6 +31,7 @@
     <Compile Include="../smodr.Tests/Services/StationArtworkDiskCacheTests.cs" Link="Services/StationArtworkDiskCacheTests.cs" />
     <Compile Include="../smodr.Tests/Services/RadioLibraryServiceTests.cs" Link="Services/RadioLibraryServiceTests.cs" />
     <Compile Include="../smodr.Tests/Services/TrackHistoryServiceTests.cs" Link="Services/TrackHistoryServiceTests.cs" />
+    <Compile Include="../smodr.Tests/Services/LocalDataExportTests.cs" Link="Services/LocalDataExportTests.cs" />
     <Compile Include="../smodr.Tests/Services/TopTracksAggregatorTests.cs" Link="Services/TopTracksAggregatorTests.cs" />
     <Compile Include="../smodr.Tests/Services/RadioDirectorySnapshotCacheTests.cs" Link="Services/RadioDirectorySnapshotCacheTests.cs" />
     <Compile Include="../smodr.Tests/Services/RuntimeDiagnosticsTests.cs" Link="Services/RuntimeDiagnosticsTests.cs" />

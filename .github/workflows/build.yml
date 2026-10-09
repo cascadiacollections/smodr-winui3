@@ -67,7 +67,7 @@ jobs:
 
     - name: Restore and audit project dependencies
       shell: pwsh
-      run: dotnet restore ${{ env.SOLUTION_PATH }} -p:Platform=${{ matrix.platform }} --locked-mode -p:NuGetAudit=true -p:NuGetAuditMode=all "-p:WarningsAsErrors=NU1901;NU1902;NU1903;NU1904"
+      run: dotnet restore ${{ env.SOLUTION_PATH }} -p:Platform=${{ matrix.platform }} --locked-mode -p:NuGetAudit=true -p:NuGetAuditMode=all "-p:WarningsAsErrors=NU1901%3BNU1902%3BNU1903%3BNU1904"
 
     - name: Verify generated software notices and test inventory tooling
       shell: pwsh
@@ -135,16 +135,19 @@ jobs:
         Copy-Item -LiteralPath out/sbom-x64/_manifest -Destination out/shoutkit-x64/_manifest -Recurse
 
     - name: Validate unsigned MSIX packaging
-      run: dotnet msbuild smodr/smodr.csproj -restore -p:RestoreLockedMode=true -p:Configuration=${{ env.CONFIGURATION }} -p:Platform=${{ matrix.platform }} -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=false -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageDir=out/msix-${{ matrix.platform }}/ -v:q
+      shell: pwsh
+      run: |
+        $packageDirectory = Join-Path $env:GITHUB_WORKSPACE 'out/msix-${{ matrix.platform }}'
+        dotnet msbuild smodr/smodr.csproj -restore -p:RestoreLockedMode=true -p:Configuration=${{ env.CONFIGURATION }} -p:Platform=${{ matrix.platform }} -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=false -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly "-p:AppxPackageDir=$packageDirectory/" -v:q
 
     - name: Verify packaged software notices
       shell: pwsh
       run: ./scripts/Test-LicenseInventory.ps1 -MsixDirectory out/msix-${{ matrix.platform }}
 
     - name: Install and upgrade disposable signed MSIX
-      if: matrix.platform == 'ARM64'
+      if: matrix.platform == 'ARM64' || matrix.platform == 'x64'
       shell: powershell
-      run: ./scripts/Test-MsixInstall.ps1 -Platform ARM64
+      run: ./scripts/Test-MsixInstall.ps1 -Platform ${{ matrix.platform }}
 
     - name: Upload build artifacts
       if: success()

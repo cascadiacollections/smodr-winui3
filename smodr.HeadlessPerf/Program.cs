@@ -7,6 +7,10 @@ using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
 
 // No WinUI application, audio engine, user profile, HTTP client, or network access.
+var resourceCycles = args.Length == 2 && args[0] == "--resource-cycles"
+    ? int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture) : 2000;
+if (resourceCycles is < 200 or > 100000 || resourceCycles % 10 != 0)
+    throw new ArgumentOutOfRangeException(nameof(args), "Resource cycles must be a multiple of ten between 200 and 100000.");
 var directory = Directory.CreateTempSubdirectory("shoutkit-headless-perf-");
 try
 {
@@ -31,6 +35,8 @@ try
     var key = RadioDirectorySnapshotCache.PopularKey(60);
     await cache.StoreAsync(key, stations);
     var bitmap = CreateBitmap();
+    var png = await EncodeAsync(BitmapEncoder.PngEncoderId);
+    var jpeg = await EncodeAsync(BitmapEncoder.JpegEncoderId);
     var notices = Path.Combine(AppContext.BaseDirectory, "SoftwareLicenses.txt");
     var warmText = await File.ReadAllTextAsync(notices);
     var artworkCache = new ArtworkMemoryCache<byte[]>(48, 8 * 1024 * 1024);
@@ -68,6 +74,8 @@ try
         Require(artworkCache.TryGet("synthetic", out var bytes) && ReferenceEquals(bytes, bitmap));
         return Task.CompletedTask;
     }),
+    await MeasureAsync("artwork.native-png-decode-512-to-128", () => DecodeAsync(png)),
+    await MeasureAsync("artwork.native-jpeg-decode-512-to-128", () => DecodeAsync(jpeg)),
     await MeasureAsync("licenses.read-and-split", async () =>
         Require(SoftwareLicenseText.Split(await File.ReadAllTextAsync(notices)).Count > 0)),
     await MeasureAsync("licenses.split-only", () =>
@@ -76,9 +84,31 @@ try
         Require(sections.Sum(section => section.Length) == warmText.Length);
         return Task.CompletedTask;
     })];
+    var resourceSamples = new List<object>();
+    using var process = Process.GetCurrentProcess();
+    for (var cycle = 0; cycle <= resourceCycles; cycle++)
+    {
+        if (cycle > 0)
+        {
+            await DecodeAsync(cycle % 2 == 0 ? png : jpeg);
+            _ = new TrackHistoryService(historyPath).Entries;
+        }
+        if (cycle % (resourceCycles / 10) == 0)
+        {
+            process.Refresh();
+            resourceSamples.Add(new
+            {
+                cycle,
+                privateBytes = process.PrivateMemorySize64,
+                workingSetBytes = process.WorkingSet64,
+                managedBytes = GC.GetTotalMemory(false),
+                handles = process.HandleCount
+            });
+        }
+    }
     Console.WriteLine(JsonSerializer.Serialize(new
     {
-        schemaVersion = 1,
+        schemaVersion = 2,
         capturedAtUtc = DateTimeOffset.UtcNow,
         runtime = RuntimeInformation.FrameworkDescription,
         architecture = RuntimeInformation.ProcessArchitecture.ToString(),
@@ -88,7 +118,9 @@ try
         stationCount = stations.Length,
         noticeCharacters = warmText.Length,
         sourceBitmapBytes = bitmap.Length,
-        limitations = "Synthetic fixtures; OS file cache not cleared. Excludes WinUI startup/layout, BitmapImage rendering, audio, network, and native memory. Managed allocations include all process threads.",
+        resourceSamples,
+        resourceCycles,
+        limitations = "Synthetic fixtures; OS file cache not cleared. Resource samples describe this harness, not app/GPU leaks. Excludes WinUI startup/layout, BitmapImage rendering, audio and network. Managed allocations include all process threads.",
         measurements = results
     }, new JsonSerializerOptions { WriteIndented = true }));
 }
@@ -97,6 +129,37 @@ finally { directory.Delete(recursive: true); }
 static void Require(bool condition)
 {
     if (!condition) throw new InvalidOperationException("Performance fixture correctness check failed.");
+}
+
+static async Task<byte[]> EncodeAsync(Guid codec)
+{
+    using var stream = new InMemoryRandomAccessStream();
+    var encoder = await BitmapEncoder.CreateAsync(codec, stream);
+    encoder.SetPixelData(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore, 512, 512, 96, 96, new byte[512 * 512 * 4]);
+    await encoder.FlushAsync();
+    stream.Seek(0);
+    using var reader = new DataReader(stream);
+    await reader.LoadAsync((uint)stream.Size);
+    var bytes = new byte[(int)stream.Size];
+    reader.ReadBytes(bytes);
+    return bytes;
+}
+
+static async Task DecodeAsync(byte[] bytes)
+{
+    using var stream = new InMemoryRandomAccessStream();
+    using (var writer = new DataWriter(stream))
+    {
+        writer.WriteBytes(bytes);
+        await writer.StoreAsync();
+        writer.DetachStream();
+    }
+    stream.Seek(0);
+    var decoder = await BitmapDecoder.CreateAsync(stream);
+    var pixels = await decoder.GetPixelDataAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore,
+        new BitmapTransform { ScaledWidth = 128, ScaledHeight = 128 },
+        ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
+    Require(pixels.DetachPixelData().Length == 128 * 128 * 4);
 }
 
 static async Task<Measurement> MeasureAsync(string name, Func<Task> action)

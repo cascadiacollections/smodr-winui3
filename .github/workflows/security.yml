@@ -29,6 +29,15 @@ jobs:
       - uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
         with:
           category: /language:csharp
+          # GitHub default setup owns code-scanning uploads. Retain explicit
+          # analysis for PRs targeting main, which is not the default branch.
+          upload: false
+          output: out/codeql
+      - uses: actions/upload-artifact@v7
+        with:
+          name: codeql-csharp
+          path: out/codeql/*.sarif
+          if-no-files-found: error
 
   dependency-review:
     name: Dependency review

@@ -25,6 +25,8 @@
     <!-- Required for IDE0005 (remove unnecessary usings) to work during build -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
+    <!-- Explicit opt-in for the isolated experimental SDK comparison only. -->
+    <NoWarn Condition="'$(EnableExperimentalWinUI)' == 'true'">$(NoWarn);CS8305</NoWarn>
 
     <!-- Generate packages.lock.json for deterministic restores -->
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>

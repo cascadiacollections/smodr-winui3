@@ -50,7 +50,8 @@ try {
             "-p:PackageCertificateThumbprint=$($certificate.Thumbprint)",
             "-p:AppxPackageDir=$packageDirectory/"
         )
-        & dotnet @buildArguments
+        # Keep native build logs out of this function's package-path return value.
+        & dotnet @buildArguments | Out-Host
         if ($LASTEXITCODE -ne 0) { throw "MSIX $phase build failed." }
         $package = Get-ChildItem -LiteralPath $packageDirectory -Filter '*.msix' -File -Recurse |
             Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1

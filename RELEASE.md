@@ -96,4 +96,6 @@ Software notices are generated from the restored app lockfile and self-contained
 
 References: [Windows packaging choices](https://learn.microsoft.com/windows/apps/package-and-deploy/packaging/), [MSIX signing](https://learn.microsoft.com/windows/msix/package/sign-msix-package-guide), [WinUI testing](https://learn.microsoft.com/windows/apps/develop/testing/), and [GitHub-hosted Windows ARM64 runners](https://docs.github.com/actions/reference/runners/github-hosted-runners).
 
-Latest local results: see [2026-10-07 headless validation](HEADLESS_VALIDATION.md) for both architectures, portable SDK, soak, packaging and hashed evidence, plus remaining distribution gates.
+For the modernized shell, check active Thin Acrylic over a patterned desktop, inactive fallback, Windows transparency disabled, Energy Saver, high contrast, and both themes. Check title-bar drag, caption buttons, maximize/restore, and 100–200% scaling. Save/cancel history and diagnostics exports, try an unwritable destination, and close while the picker is open. Confirm diagnostics contain only capture metadata and the fixed counter set; history export is a user-selected local snapshot.
+
+Latest local results: see [2026-10-08 headless validation](HEADLESS_VALIDATION.md) for both architectures, portable SDK, soak, packaging and hashed evidence, plus remaining distribution gates.
