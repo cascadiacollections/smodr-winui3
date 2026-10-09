@@ -135,7 +135,10 @@ jobs:
         Copy-Item -LiteralPath out/sbom-x64/_manifest -Destination out/shoutkit-x64/_manifest -Recurse
 
     - name: Validate unsigned MSIX packaging
-      run: dotnet msbuild smodr/smodr.csproj -restore -p:RestoreLockedMode=true -p:Configuration=${{ env.CONFIGURATION }} -p:Platform=${{ matrix.platform }} -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=false -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageDir=out/msix-${{ matrix.platform }}/ -v:q
+      shell: pwsh
+      run: |
+        $packageDirectory = Join-Path $env:GITHUB_WORKSPACE 'out/msix-${{ matrix.platform }}'
+        dotnet msbuild smodr/smodr.csproj -restore -p:RestoreLockedMode=true -p:Configuration=${{ env.CONFIGURATION }} -p:Platform=${{ matrix.platform }} -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=false -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly "-p:AppxPackageDir=$packageDirectory/" -v:q
 
     - name: Verify packaged software notices
       shell: pwsh
