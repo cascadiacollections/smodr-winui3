@@ -137,7 +137,10 @@ public sealed partial class MainWindow
         {
             await new ContentDialog
             {
-                Title = title, Content = message, CloseButtonText = "Close", XamlRoot = Content.XamlRoot
+                Title = title,
+                Content = message,
+                CloseButtonText = "Close",
+                XamlRoot = Content.XamlRoot
             }.ShowAsync();
         }
         catch (Exception dialogException) { AppDiagnostics.Record("local-export.dialog", dialogException); }

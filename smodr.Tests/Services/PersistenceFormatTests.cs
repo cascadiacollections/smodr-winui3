@@ -22,7 +22,9 @@ public sealed class PersistenceFormatTests
 
     private static readonly RadioStation _scratchStation = new()
     {
-        Id = "scratch", Name = "Scratch", StreamUrl = "https://example.com/scratch.mp3"
+        Id = "scratch",
+        Name = "Scratch",
+        StreamUrl = "https://example.com/scratch.mp3"
     };
 
     [TestMethod]

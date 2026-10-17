@@ -31,7 +31,9 @@ public sealed class FavoritesTransferTests
 
     private static readonly RadioStation _second = new()
     {
-        Id = SecondUuid, Name = "News Radio", StreamUrl = "https://stream.example/news"
+        Id = SecondUuid,
+        Name = "News Radio",
+        StreamUrl = "https://stream.example/news"
     };
 
     [TestMethod]
@@ -331,7 +333,9 @@ public sealed class FavoritesTransferTests
     {
         return JsonSerializer.Serialize(new Dictionary<string, string>
         {
-            ["id"] = id, ["name"] = name, ["streamURL"] = stream
+            ["id"] = id,
+            ["name"] = name,
+            ["streamURL"] = stream
         });
     }
 

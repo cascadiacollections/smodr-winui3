@@ -275,17 +275,14 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
     public Task SearchAsync(string query)
     {
         var filters = SearchFilters.Current;
-        if (filters.IsActive)
-        {
-            return FilteredSearchAsync(query, filters, "Searching…");
-        }
-
-        return SearchCoreAsync(
-            token => _directory.SearchAsync(query, cancellationToken: token),
-            string.IsNullOrWhiteSpace(query) ? "Browse by genre" : "Searching…",
-            string.IsNullOrWhiteSpace(query)
-                ? RadioDirectorySnapshotCache.PopularKey(50)
-                : RadioDirectorySnapshotCache.SearchKey(query));
+        return filters.IsActive
+            ? FilteredSearchAsync(query, filters, "Searching…")
+            : SearchCoreAsync(
+                token => _directory.SearchAsync(query, cancellationToken: token),
+                string.IsNullOrWhiteSpace(query) ? "Browse by genre" : "Searching…",
+                string.IsNullOrWhiteSpace(query)
+                    ? RadioDirectorySnapshotCache.PopularKey(50)
+                    : RadioDirectorySnapshotCache.SearchKey(query));
     }
 
     public Task SearchGenreAsync(string genre)
