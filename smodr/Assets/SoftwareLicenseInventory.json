@@ -153,41 +153,41 @@
     },
     {
       "Id": "Microsoft.Extensions.Configuration.Binder",
-      "Version": "11.0.0-rc.1.26425.128",
-      "ContentHash": "1AI7GybRhwcPmOgi275FOlxDP3PL/pspE1R4itBxLgQ771sRy0LhYi4usSYNvixnocxcPp0aZqJ27CyYdM9Aaw==",
+      "Version": "11.0.0-rc.2.26504.105",
+      "ContentHash": "ZoYmpwsArjRPTPPH/QhoJvygteVtuCK+Y//bxCpxfQpELfO4xWNmSj5iQ6UaNMTIvfANz1KaKff4VJNCCxq+Lw==",
       "Origin": "App lockfile (includes build-time dependencies)",
       "BuildOnly": false,
       "Authors": "Microsoft",
       "Copyright": "© Microsoft Corporation. All rights reserved.",
       "LicenseKind": "expression",
       "License": "MIT",
-      "PackageUrl": "https://www.nuget.org/packages/Microsoft.Extensions.Configuration.Binder/11.0.0-rc.1.26425.128",
+      "PackageUrl": "https://www.nuget.org/packages/Microsoft.Extensions.Configuration.Binder/11.0.0-rc.2.26504.105",
       "NoticeFiles": [
         {
           "File": "THIRD-PARTY-NOTICES.TXT",
           "Sha256": "a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05"
         }
       ],
-      "MetadataSha256": "ea0356e1a3d7008aeb5ebf57f04fd06dc531e36fcc7f9e44c4d010f45c57cd98"
+      "MetadataSha256": "03d03ce19292f13eda51386862da46ad71b41f6b354a58efdd99b5e35ae00007"
     },
     {
       "Id": "Microsoft.Extensions.Configuration",
-      "Version": "11.0.0-rc.1.26425.128",
-      "ContentHash": "67EIKOU5pzuMcTHoezn/hmv1hyMcxpiSIlVL9oT6Uc3bcErYhkTBuZCuVqHuNjJBm0nqmpJb1v644M/NV7Q0Vw==",
+      "Version": "11.0.0-rc.2.26504.105",
+      "ContentHash": "jA9ENNmv5gfDFG0DnimIgGdD6RUDRIR+ozqn5S0dzCLlZdU0NFHJIRBA0pl2tP8P8wItosXen4ZvCkv9KweTUA==",
       "Origin": "App lockfile (includes build-time dependencies)",
       "BuildOnly": false,
       "Authors": "Microsoft",
       "Copyright": "© Microsoft Corporation. All rights reserved.",
       "LicenseKind": "expression",
       "License": "MIT",
-      "PackageUrl": "https://www.nuget.org/packages/Microsoft.Extensions.Configuration/11.0.0-rc.1.26425.128",
+      "PackageUrl": "https://www.nuget.org/packages/Microsoft.Extensions.Configuration/11.0.0-rc.2.26504.105",
       "NoticeFiles": [
         {
           "File": "THIRD-PARTY-NOTICES.TXT",
           "Sha256": "a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05"
         }
       ],
-      "MetadataSha256": "4e89da172aad9b4ad398db6546833f47ce2a7c7482d2349d9c1ef1b55703d954"
+      "MetadataSha256": "630d8c5b6a38cc92c8ddc487bb3705fa3678eb8603db260144107c773739bb8a"
     },
     {
       "Id": "Microsoft.Extensions.DependencyInjection.AutoActivation",
@@ -205,22 +205,22 @@
     },
     {
       "Id": "Microsoft.Extensions.DependencyInjection",
-      "Version": "11.0.0-rc.1.26425.128",
-      "ContentHash": "r9VvtUpwM0MZ21DaTQWDqmsm6ABmuuXA/4aqa9LJVZET0HGlIG0Z5eN2esarFAQW2xtgGFyIYcnWs5uxUUizgg==",
+      "Version": "11.0.0-rc.2.26504.105",
+      "ContentHash": "yjotWRNS6RNuJE1UNlVWgRTPfEhavYoGMdORt3Y90rB8bJo+GNVAsrnvclyPn830Ws2etLC94QcYBZ13Naszgw==",
       "Origin": "App lockfile (includes build-time dependencies)",
       "BuildOnly": false,
       "Authors": "Microsoft",
       "Copyright": "© Microsoft Corporation. All rights reserved.",
       "LicenseKind": "expression",
       "License": "MIT",
-      "PackageUrl": "https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection/11.0.0-rc.1.26425.128",
+      "PackageUrl": "https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection/11.0.0-rc.2.26504.105",
       "NoticeFiles": [
         {
           "File": "THIRD-PARTY-NOTICES.TXT",
           "Sha256": "a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05"
         }
       ],
-      "MetadataSha256": "3ff3786999bc07ad499a981a5dbcc2f85322638db5e22bf782f65a9b631e4fae"
+      "MetadataSha256": "54e8a5c9404a3eb465be257f04566f545d7385e85d26948624d8f6b8ccd5c7b1"
     },
     {
       "Id": "Microsoft.Extensions.Diagnostics.ExceptionSummarization",
@@ -238,22 +238,22 @@
     },
     {
       "Id": "Microsoft.Extensions.Diagnostics",
-      "Version": "11.0.0-rc.1.26425.128",
-      "ContentHash": "4O8+S1awKr1nwX0KboSyMszc1TGlxI1rSZsuFfvoByNnvlOj2C0Zg0/DUTFaBTpKAMCGvBZomDbY3uOtUvhvTw==",
+      "Version": "11.0.0-rc.2.26504.105",
+      "ContentHash": "qKUt588f6I5G/AD0ZhEyyNbaOZwc1DDJ1WcVR3LlAau0QZ/pheWTFm+o62aTHHq9r8F4Gb9Fzn9rq7guXpLARQ==",
       "Origin": "App lockfile (includes build-time dependencies)",
       "BuildOnly": false,
       "Authors": "Microsoft",
       "Copyright": "© Microsoft Corporation. All rights reserved.",
       "LicenseKind": "expression",
       "License": "MIT",
-      "PackageUrl": "https://www.nuget.org/packages/Microsoft.Extensions.Diagnostics/11.0.0-rc.1.26425.128",
+      "PackageUrl": "https://www.nuget.org/packages/Microsoft.Extensions.Diagnostics/11.0.0-rc.2.26504.105",
       "NoticeFiles": [
         {
           "File": "THIRD-PARTY-NOTICES.TXT",
           "Sha256": "a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05"
         }
       ],
-      "MetadataSha256": "2a4d3a57dfab19afe0f68f960385ec350ed98ef2a553a4269712fd742518b27d"
+      "MetadataSha256": "3f4b78538f3b1996d64a32aeb5c1bb85a8f6dcc31df8fd46f2df0cc382fab48a"
     },
     {
       "Id": "Microsoft.Extensions.Http.Diagnostics",
@@ -285,22 +285,22 @@
     },
     {
       "Id": "Microsoft.Extensions.Http",
-      "Version": "11.0.0-rc.1.26425.128",
-      "ContentHash": "/QwyZQrjhK4Bh2YEyqPEV7RqznsHtEdrh0sdYBrY6hVtxmIhVX+IHJ6AZegF1rwCPxI9Rr21dp7mHLduTfrQ9w==",
+      "Version": "11.0.0-rc.2.26504.105",
+      "ContentHash": "4nSSW/XXaPLSdfiq58MFVB9jSaVVAYGCxFYXLvcOMHT6YEJZTkLo9BIPvgZLJDVdTKOuBAPdy2tZRdNXasFosw==",
       "Origin": "App lockfile (includes build-time dependencies)",
       "BuildOnly": false,
       "Authors": "Microsoft",
       "Copyright": "© Microsoft Corporation. All rights reserved.",
       "LicenseKind": "expression",
       "License": "MIT",
-      "PackageUrl": "https://www.nuget.org/packages/Microsoft.Extensions.Http/11.0.0-rc.1.26425.128",
+      "PackageUrl": "https://www.nuget.org/packages/Microsoft.Extensions.Http/11.0.0-rc.2.26504.105",
       "NoticeFiles": [
         {
           "File": "THIRD-PARTY-NOTICES.TXT",
           "Sha256": "a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05"
         }
       ],
-      "MetadataSha256": "79d204cc91a36e555c8c752d374410053ed37f4d0ca97319ccc47400aa181f74"
+      "MetadataSha256": "c6126f5cc4995e3985739f44c555203e3b1380332826afee8f940e8ebedffe75"
     },
     {
       "Id": "Microsoft.Extensions.Logging.Configuration",
@@ -323,22 +323,22 @@
     },
     {
       "Id": "Microsoft.Extensions.Logging",
-      "Version": "11.0.0-rc.1.26425.128",
-      "ContentHash": "SxnI3xH/jZ11sRY5l1DqaqH4z7tyEqAa0ehQ6xsBGenst1mFy91iGWGZfUA0MnyPxQCdjmAlvPmuCvLsrv/ufw==",
+      "Version": "11.0.0-rc.2.26504.105",
+      "ContentHash": "tGZ8lo15pCx32vlCtKprvLFtnNmPykudpw/62pkf4hN4kzwhZTiRkxgZwjl5PSwsaNmVDdwnZiYkqeBBxqRSiQ==",
       "Origin": "App lockfile (includes build-time dependencies)",
       "BuildOnly": false,
       "Authors": "Microsoft",
       "Copyright": "© Microsoft Corporation. All rights reserved.",
       "LicenseKind": "expression",
       "License": "MIT",
-      "PackageUrl": "https://www.nuget.org/packages/Microsoft.Extensions.Logging/11.0.0-rc.1.26425.128",
+      "PackageUrl": "https://www.nuget.org/packages/Microsoft.Extensions.Logging/11.0.0-rc.2.26504.105",
       "NoticeFiles": [
         {
           "File": "THIRD-PARTY-NOTICES.TXT",
           "Sha256": "a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05"
         }
       ],
-      "MetadataSha256": "98e0bc6d03fef6c38bc09c7bd5f1d1f9a637bb0c39dee00fcec8f5115efc5ec7"
+      "MetadataSha256": "7dad62249dcb66821665b03fe14fda568ac8268e94d7e1297d658fda5a776e8b"
     },
     {
       "Id": "Microsoft.Extensions.ObjectPool",
@@ -361,22 +361,22 @@
     },
     {
       "Id": "Microsoft.Extensions.Options.ConfigurationExtensions",
-      "Version": "11.0.0-rc.1.26425.128",
-      "ContentHash": "z3K4AJwVQeNAHUfU4DSvs3Yvnzak7vbbD/rtcU4eKMxCKmmw3PA3sTefMTUUcIrePEhpIEODGtiOGJ00b/dNzg==",
+      "Version": "11.0.0-rc.2.26504.105",
+      "ContentHash": "yHCV5jkkq2lVhwQJikZnkX4HalrFtBAkwObyCWO/7XTWt+wQS3r11mi+nkxKXoKpnpbveu7gDnR7G8zNmVgyPw==",
       "Origin": "App lockfile (includes build-time dependencies)",
       "BuildOnly": false,
       "Authors": "Microsoft",
       "Copyright": "© Microsoft Corporation. All rights reserved.",
       "LicenseKind": "expression",
       "License": "MIT",
-      "PackageUrl": "https://www.nuget.org/packages/Microsoft.Extensions.Options.ConfigurationExtensions/11.0.0-rc.1.26425.128",
+      "PackageUrl": "https://www.nuget.org/packages/Microsoft.Extensions.Options.ConfigurationExtensions/11.0.0-rc.2.26504.105",
       "NoticeFiles": [
         {
           "File": "THIRD-PARTY-NOTICES.TXT",
           "Sha256": "a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05"
         }
       ],
-      "MetadataSha256": "9ae8adde35fa9780f16cf8993394a0de06b49906270d49db1e383ede05ef54a4"
+      "MetadataSha256": "ae398bb36d716222fefb0ff20a2549f90eed65fdcea7a635b9cd7f85e17e23fe"
     },
     {
       "Id": "Microsoft.Extensions.Resilience",
@@ -422,15 +422,15 @@
     },
     {
       "Id": "Microsoft.NETCore.App.Runtime.win-arm64",
-      "Version": "11.0.0-rc.1.26425.128",
-      "ContentHash": "t9tyBQJBLFfiFvArBnJ14WvsXPEDP8OLucVUIFz1UNB6FPoCjFhlJHtVKtF6HTeh3oSrCVa2tWllOMyUmMcNLQ==",
+      "Version": "11.0.0-rc.2.26504.105",
+      "ContentHash": "7nUVafMNLnYKmTLn24gBbh4SGDTfmCKb+YBrMIoRikUeZj6IoAsf1gf5nycSnfenywe9/fH5Q9QBnCtR+nJTsQ==",
       "Origin": "Self-contained .NET runtime pack",
       "BuildOnly": false,
       "Authors": "Microsoft",
       "Copyright": "© Microsoft Corporation. All rights reserved.",
       "LicenseKind": "expression",
       "License": "MIT",
-      "PackageUrl": "https://www.nuget.org/packages/Microsoft.NETCore.App.Runtime.win-arm64/11.0.0-rc.1.26425.128",
+      "PackageUrl": "https://www.nuget.org/packages/Microsoft.NETCore.App.Runtime.win-arm64/11.0.0-rc.2.26504.105",
       "NoticeFiles": [
         {
           "File": "LICENSE.TXT",
@@ -441,19 +441,19 @@
           "Sha256": "a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05"
         }
       ],
-      "MetadataSha256": "6bd0a764e18158b8e627d9a71afd61f1a0e1ca085703d752a84fa13e802cd9cf"
+      "MetadataSha256": "b0b95ea55c0ef057227ce40c06da698f6e025e1b14b5092efd1f9ea1d94b8ea0"
     },
     {
       "Id": "Microsoft.NETCore.App.Runtime.win-x64",
-      "Version": "11.0.0-rc.1.26425.128",
-      "ContentHash": "MVaS0aST+ryerk640qSVkdFNNj/r6Fqu58SJMAbQqAPf8DJqryKGsL9NK5tgxXYIQumbrx7+p8DpBSu7MWxTwQ==",
+      "Version": "11.0.0-rc.2.26504.105",
+      "ContentHash": "6xgC1PG/IDYQ+HW51Efl6Q4xlIC0VP8aI/Q8o9ztgmpVSJIMKTa8i/Zv7Agiu9n2UkJNPrnLwVJYkegXvdLhpw==",
       "Origin": "Self-contained .NET runtime pack",
       "BuildOnly": false,
       "Authors": "Microsoft",
       "Copyright": "© Microsoft Corporation. All rights reserved.",
       "LicenseKind": "expression",
       "License": "MIT",
-      "PackageUrl": "https://www.nuget.org/packages/Microsoft.NETCore.App.Runtime.win-x64/11.0.0-rc.1.26425.128",
+      "PackageUrl": "https://www.nuget.org/packages/Microsoft.NETCore.App.Runtime.win-x64/11.0.0-rc.2.26504.105",
       "NoticeFiles": [
         {
           "File": "LICENSE.TXT",
@@ -464,7 +464,7 @@
           "Sha256": "a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05"
         }
       ],
-      "MetadataSha256": "284194812fba12d9a92e71360cd800801187429db6bd7a3ba241268e16ae3b07"
+      "MetadataSha256": "90ac96ecb873fdcad0de614e1f5f10766c3c9af157f41154c582fc8533e241ec"
     },
     {
       "Id": "Microsoft.Web.WebView2",

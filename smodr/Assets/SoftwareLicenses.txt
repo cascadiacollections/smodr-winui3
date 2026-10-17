@@ -87,18 +87,18 @@ Authors: Microsoft
 https://www.nuget.org/packages/Microsoft.Extensions.Compliance.Abstractions/10.10.0
 No bundled license/notice text found; review the declared license before redistribution.
 
-Microsoft.Extensions.Configuration.Binder 11.0.0-rc.1.26425.128
+Microsoft.Extensions.Configuration.Binder 11.0.0-rc.2.26504.105
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.Extensions.Configuration.Binder/11.0.0-rc.1.26425.128
+https://www.nuget.org/packages/Microsoft.Extensions.Configuration.Binder/11.0.0-rc.2.26504.105
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
-Microsoft.Extensions.Configuration 11.0.0-rc.1.26425.128
+Microsoft.Extensions.Configuration 11.0.0-rc.2.26504.105
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.Extensions.Configuration/11.0.0-rc.1.26425.128
+https://www.nuget.org/packages/Microsoft.Extensions.Configuration/11.0.0-rc.2.26504.105
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
 Microsoft.Extensions.DependencyInjection.AutoActivation 10.10.0
@@ -108,11 +108,11 @@ Authors: Microsoft
 https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection.AutoActivation/10.10.0
 No bundled license/notice text found; review the declared license before redistribution.
 
-Microsoft.Extensions.DependencyInjection 11.0.0-rc.1.26425.128
+Microsoft.Extensions.DependencyInjection 11.0.0-rc.2.26504.105
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection/11.0.0-rc.1.26425.128
+https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection/11.0.0-rc.2.26504.105
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
 Microsoft.Extensions.Diagnostics.ExceptionSummarization 10.10.0
@@ -122,11 +122,11 @@ Authors: Microsoft
 https://www.nuget.org/packages/Microsoft.Extensions.Diagnostics.ExceptionSummarization/10.10.0
 No bundled license/notice text found; review the declared license before redistribution.
 
-Microsoft.Extensions.Diagnostics 11.0.0-rc.1.26425.128
+Microsoft.Extensions.Diagnostics 11.0.0-rc.2.26504.105
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.Extensions.Diagnostics/11.0.0-rc.1.26425.128
+https://www.nuget.org/packages/Microsoft.Extensions.Diagnostics/11.0.0-rc.2.26504.105
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
 Microsoft.Extensions.Http.Diagnostics 10.10.0
@@ -143,11 +143,11 @@ Authors: Microsoft
 https://www.nuget.org/packages/Microsoft.Extensions.Http.Resilience/10.10.0
 No bundled license/notice text found; review the declared license before redistribution.
 
-Microsoft.Extensions.Http 11.0.0-rc.1.26425.128
+Microsoft.Extensions.Http 11.0.0-rc.2.26504.105
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.Extensions.Http/11.0.0-rc.1.26425.128
+https://www.nuget.org/packages/Microsoft.Extensions.Http/11.0.0-rc.2.26504.105
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
 Microsoft.Extensions.Logging.Configuration 10.0.12
@@ -157,11 +157,11 @@ Authors: Microsoft
 https://www.nuget.org/packages/Microsoft.Extensions.Logging.Configuration/10.0.12
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 b7d4569659507a00efeea90f15a0a95bb2f8b6ce33737d86090b8e22c74a8c98
 
-Microsoft.Extensions.Logging 11.0.0-rc.1.26425.128
+Microsoft.Extensions.Logging 11.0.0-rc.2.26504.105
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.Extensions.Logging/11.0.0-rc.1.26425.128
+https://www.nuget.org/packages/Microsoft.Extensions.Logging/11.0.0-rc.2.26504.105
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
 Microsoft.Extensions.ObjectPool 10.0.12
@@ -171,11 +171,11 @@ Authors: Microsoft
 https://www.nuget.org/packages/Microsoft.Extensions.ObjectPool/10.0.12
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 9c0268c3085d693279c6e75e2509e4c67d976170dbd4f886aaccbb163e345b9e
 
-Microsoft.Extensions.Options.ConfigurationExtensions 11.0.0-rc.1.26425.128
+Microsoft.Extensions.Options.ConfigurationExtensions 11.0.0-rc.2.26504.105
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.Extensions.Options.ConfigurationExtensions/11.0.0-rc.1.26425.128
+https://www.nuget.org/packages/Microsoft.Extensions.Options.ConfigurationExtensions/11.0.0-rc.2.26504.105
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
 Microsoft.Extensions.Resilience 10.10.0
@@ -199,19 +199,19 @@ Authors: Microsoft
 https://www.nuget.org/packages/Microsoft.Extensions.Telemetry/10.10.0
 No bundled license/notice text found; review the declared license before redistribution.
 
-Microsoft.NETCore.App.Runtime.win-arm64 11.0.0-rc.1.26425.128
+Microsoft.NETCore.App.Runtime.win-arm64 11.0.0-rc.2.26504.105
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.NETCore.App.Runtime.win-arm64/11.0.0-rc.1.26425.128
+https://www.nuget.org/packages/Microsoft.NETCore.App.Runtime.win-arm64/11.0.0-rc.2.26504.105
 Notice: LICENSE.TXT -> SHA256 ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
-Microsoft.NETCore.App.Runtime.win-x64 11.0.0-rc.1.26425.128
+Microsoft.NETCore.App.Runtime.win-x64 11.0.0-rc.2.26504.105
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.NETCore.App.Runtime.win-x64/11.0.0-rc.1.26425.128
+https://www.nuget.org/packages/Microsoft.NETCore.App.Runtime.win-x64/11.0.0-rc.2.26504.105
 Notice: LICENSE.TXT -> SHA256 ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
