@@ -1,0 +1,55 @@
+{
+  "SchemaVersion": 1,
+  "Favorites": [
+    {
+      "stationuuid": "9617a958-0601-11e8-ae97-52543be04c81",
+      "name": "Caf\u00E9 \u003C\u00D1\u003E \u0026 \u0022Jazz\u0022 \u2014 \u2615",
+      "url_resolved": "https://stream.example.com/jazz.mp3?x=1\u0026y=2",
+      "favicon": "https://example.com/a.png",
+      "tags": "jazz,smooth jazz",
+      "country": "France",
+      "countrycode": "",
+      "codec": "MP3",
+      "bitrate": 128,
+      "Details": "France \u00B7 jazz \u00B7 128 kbps MP3"
+    },
+    {
+      "stationuuid": "",
+      "name": "Plain",
+      "url_resolved": "http://example.com/plain",
+      "favicon": "",
+      "tags": "",
+      "country": "",
+      "countrycode": "",
+      "codec": "",
+      "bitrate": 0,
+      "Details": ""
+    }
+  ],
+  "Recents": [
+    {
+      "stationuuid": "",
+      "name": "Plain",
+      "url_resolved": "http://example.com/plain",
+      "favicon": "",
+      "tags": "",
+      "country": "",
+      "countrycode": "",
+      "codec": "",
+      "bitrate": 0,
+      "Details": ""
+    },
+    {
+      "stationuuid": "9617a958-0601-11e8-ae97-52543be04c81",
+      "name": "Caf\u00E9 \u003C\u00D1\u003E \u0026 \u0022Jazz\u0022 \u2014 \u2615",
+      "url_resolved": "https://stream.example.com/jazz.mp3?x=1\u0026y=2",
+      "favicon": "https://example.com/a.png",
+      "tags": "jazz,smooth jazz",
+      "country": "France",
+      "countrycode": "",
+      "codec": "MP3",
+      "bitrate": 128,
+      "Details": "France \u00B7 jazz \u00B7 128 kbps MP3"
+    }
+  ]
+}

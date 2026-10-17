@@ -4,6 +4,28 @@ namespace smodr.Models;
 
 public sealed class HeardTrack
 {
+    public HeardTrack()
+    {
+    }
+
+    // Source-generated JSON populates init-only members as constructor arguments; these defaults keep
+    // members missing from older saved files at their initializers instead of null.
+    [JsonConstructor]
+    internal HeardTrack(Guid id = default, string stationId = "", string stationName = "", string title = "",
+        string? artist = null, DateTimeOffset heardAt = default, string artworkUrl = "",
+        string stationArtworkUrl = "", string appleMusicUrl = "")
+    {
+        Id = id;
+        StationId = stationId;
+        StationName = stationName;
+        Title = title;
+        Artist = artist;
+        HeardAt = heardAt;
+        ArtworkUrl = artworkUrl;
+        StationArtworkUrl = stationArtworkUrl;
+        AppleMusicUrl = appleMusicUrl;
+    }
+
     public Guid Id { get; init; }
     public string StationId { get; init; } = string.Empty;
     public string StationName { get; init; } = string.Empty;

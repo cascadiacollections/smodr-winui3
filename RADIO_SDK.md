@@ -10,7 +10,7 @@
 | Cascadia.Radio.Services | Optional album lookup, artwork caches/loaders, favorites/recents, listening history, directory snapshots | Cascadia.Radio and Metadata |
 | smodr.RadioCore | App compatibility adapters, privacy/preferences, SHOUTcast and playback policy | Reusable libraries |
 
-The four libraries target stable .NET 10, not preview runtimes. Windows app/engine/UI remain .NET 11 RC. Only RadioBrowser advertises trimming/AOT compatibility today. Persistence/catalog modules still use reflection JSON.
+The four libraries target stable .NET 10, not preview runtimes. Windows app/engine/UI remain .NET 11 RC. All four set IsTrimmable/IsAotCompatible and build clean under the trim/AOT analyzers. Persistence (library, history, directory snapshots, exports, diagnostics) and RadioCore preferences use source-generated JSON contexts; checked-in fixtures in smodr.Tests/Fixtures/Persistence pin the existing on-disk formats.
 
 Reusable persistence requires a host-selected path, resolved once; there are no implicit writes to the Shoutkit profile. App composition supplies its existing paths, preserving profile layout and file schemas.
 
@@ -55,7 +55,7 @@ The package script packs all four modules with SDK validation, then runs an offl
 
 Pass -BaselineDirectory pointing to **immutable** 0.1.0 packages to compare future builds against a chosen baseline; never use the output directory being rebuilt. The negative API fixture creates a broken package and requires CP0001 for removed public types. This proves the compatibility gate is active, but does not substitute for a released baseline.
 
-The directory-only trim consumer exercises source-generated station/facet JSON and explicit reporting offline. IsAotCompatible enables AOT analyzers; native AOT execution is not yet verified. Persistence/catalog modules are excluded from trimming claims.
+The directory-only trim consumer exercises source-generated station/facet JSON and explicit reporting offline. IsAotCompatible enables AOT analyzers; native AOT execution is not yet verified. Trimmed execution is only exercised for the directory client; persistence trim safety rests on the analyzers and fixture round-trip tests.
 
 Docker uses isolated artifacts, runs tests, packs all modules, runs the offline package consumer, and publishes/executes the trimmed consumer. Its default RID is this host's Linux ARM64 environment. It downloads build dependencies but never opens UI/audio, contacts public streams, or sends Radio Browser mutations.
 

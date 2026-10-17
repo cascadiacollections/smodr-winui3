@@ -47,7 +47,7 @@ public sealed class RadioPlaybackPreferences
                 return;
             }
 
-            var data = JsonSerializer.Deserialize<PreferencesData>(bytes.AsSpan(0, count));
+            var data = JsonSerializer.Deserialize(bytes.AsSpan(0, count), RadioCoreJsonContext.Default.PreferencesData);
             if (data?.SchemaVersion != 1)
             {
                 IsReadOnly = true;
@@ -128,7 +128,8 @@ public sealed class RadioPlaybackPreferences
         }
 
         await Task.Run(() => AtomicFileWriter.WriteAllText(_path,
-            JsonSerializer.Serialize(new PreferencesData(1, next)))).ConfigureAwait(false);
+            JsonSerializer.Serialize(new PreferencesData(1, next),
+                RadioCoreJsonContext.Default.PreferencesData))).ConfigureAwait(false);
         lock (_gate)
         {
             _current = next;
@@ -144,7 +145,7 @@ public sealed class RadioPlaybackPreferences
         }
     }
 
-    private sealed record PreferencesData(int SchemaVersion, RadioPlaybackOptions? Options);
+    internal sealed record PreferencesData(int SchemaVersion, RadioPlaybackOptions? Options);
 }
 
 public readonly record struct RadioEqualizerBand(double Frequency, double Gain);

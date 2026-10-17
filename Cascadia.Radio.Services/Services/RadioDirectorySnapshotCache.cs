@@ -104,7 +104,8 @@ public sealed class RadioDirectorySnapshotCache : IRadioDirectorySnapshotCache
                 return;
             }
 
-            var data = JsonSerializer.Deserialize<CacheData>(File.ReadAllText(_filePath));
+            var data = JsonSerializer.Deserialize(File.ReadAllText(_filePath),
+                RadioServicesJsonContext.Default.CacheData);
             if (data?.Version != SchemaVersion || data.Entries is null)
             {
                 return;
@@ -159,16 +160,17 @@ public sealed class RadioDirectorySnapshotCache : IRadioDirectorySnapshotCache
 
     private void Save(CacheData snapshot)
     {
-        AtomicFileWriter.WriteAllText(_filePath, JsonSerializer.Serialize(snapshot));
+        AtomicFileWriter.WriteAllText(_filePath,
+            JsonSerializer.Serialize(snapshot, RadioServicesJsonContext.Default.CacheData));
     }
 
-    private sealed class CacheData
+    internal sealed class CacheData
     {
         public int Version { get; set; } = SchemaVersion;
         public Dictionary<string, CacheEntry> Entries { get; set; } = [];
     }
 
-    private sealed class CacheEntry
+    internal sealed class CacheEntry
     {
         public DateTimeOffset SavedAt { get; set; }
         public List<RadioStation> Stations { get; set; } = [];

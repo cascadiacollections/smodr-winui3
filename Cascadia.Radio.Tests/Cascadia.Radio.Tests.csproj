@@ -37,5 +37,8 @@
     <Compile Include="../smodr.Tests/Services/RuntimeDiagnosticsTests.cs" Link="Services/RuntimeDiagnosticsTests.cs" />
     <Compile Include="../smodr.Tests/Services/TransportStressTests.cs" Link="Services/TransportStressTests.cs" />
     <Compile Include="../smodr.Tests/Fixtures/ControlledHttpBody.cs" Link="Fixtures/ControlledHttpBody.cs" />
+    <Compile Include="../smodr.Tests/Fixtures/PersistenceFixture.cs" Link="Fixtures/PersistenceFixture.cs" />
+    <Compile Include="../smodr.Tests/Services/PersistenceFormatTests.cs" Link="Services/PersistenceFormatTests.cs" />
+    <None Include="../smodr.Tests/Fixtures/Persistence/*.json" LinkBase="Fixtures/Persistence" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
