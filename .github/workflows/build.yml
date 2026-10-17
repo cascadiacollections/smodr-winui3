@@ -113,9 +113,11 @@ jobs:
     - name: Publish self-contained app
       run: dotnet publish smodr/smodr.csproj --configuration ${{ env.CONFIGURATION }} --no-restore -p:Platform=${{ matrix.platform }} -r ${{ matrix.rid }} --self-contained true -o out/shoutkit-${{ matrix.platform }}
 
-    - name: Verify published software notices
+    - name: Verify published software notices and ReadyToRun images
       shell: pwsh
-      run: ./scripts/Test-LicenseInventory.ps1 -PublishedDirectory out/shoutkit-${{ matrix.platform }}
+      run: |
+        ./scripts/Test-LicenseInventory.ps1 -PublishedDirectory out/shoutkit-${{ matrix.platform }}
+        ./scripts/Test-ReadyToRun.ps1 -PublishedDirectory out/shoutkit-${{ matrix.platform }}
 
     - name: Download pinned Microsoft SBOM Tool
       if: matrix.platform == 'x64'
@@ -138,11 +140,15 @@ jobs:
       shell: pwsh
       run: |
         $packageDirectory = Join-Path $env:GITHUB_WORKSPACE 'out/msix-${{ matrix.platform }}'
-        dotnet msbuild smodr/smodr.csproj -restore -p:RestoreLockedMode=true -p:Configuration=${{ env.CONFIGURATION }} -p:Platform=${{ matrix.platform }} -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=false -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly "-p:AppxPackageDir=$packageDirectory/" -v:q
+        # RID-specific so the package gets ReadyToRun images. A global RID cannot go through
+        # -restore (NU1004 in the RID-agnostic library lock files); reuse the locked restore above.
+        dotnet msbuild smodr/smodr.csproj -p:Configuration=${{ env.CONFIGURATION }} -p:Platform=${{ matrix.platform }} -p:RuntimeIdentifier=${{ matrix.rid }} -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true -p:AppxPackageSigningEnabled=false -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly "-p:AppxPackageDir=$packageDirectory/" -v:q
 
-    - name: Verify packaged software notices
+    - name: Verify packaged software notices and ReadyToRun images
       shell: pwsh
-      run: ./scripts/Test-LicenseInventory.ps1 -MsixDirectory out/msix-${{ matrix.platform }}
+      run: |
+        ./scripts/Test-LicenseInventory.ps1 -MsixDirectory out/msix-${{ matrix.platform }}
+        ./scripts/Test-ReadyToRun.ps1 -MsixDirectory out/msix-${{ matrix.platform }}
 
     - name: Install and upgrade disposable signed MSIX
       if: matrix.platform == 'ARM64' || matrix.platform == 'x64'

@@ -12,10 +12,18 @@ $project = Join-Path $repository 'smodr/smodr.csproj'
 $signed = -not [string]::IsNullOrWhiteSpace($CertificateThumbprint)
 & (Join-Path $PSScriptRoot 'Test-PackageManifest.ps1') -ManifestPath $manifestPath
 $packageDir = Join-Path $repository ("out/msix-$Platform" + $(if ($signed) { '-signed' } else { '' }))
+$runtimeIdentifier = if ($Platform -eq 'ARM64') { 'win-arm64' } else { 'win-x64' }
+
+# The package build is RID-specific so it gets ReadyToRun images. A global RID cannot go
+# through -restore (NU1004 in the RID-agnostic library lock files), so restore separately.
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $runner $Platform restore `
+    (Join-Path $repository 'smodr.slnx') "-p:Platform=$Platform" --locked-mode
+if ($LASTEXITCODE -ne 0) { throw "Locked restore failed with exit code $LASTEXITCODE." }
+
 $arguments = @(
-    $Platform, 'msbuild', $project, '-restore',
-    '-p:RestoreLockedMode=true', '-p:Configuration=Release',
-    "-p:Platform=$Platform", '-p:WindowsPackageType=MSIX',
+    $Platform, 'msbuild', $project, '-p:Configuration=Release',
+    "-p:Platform=$Platform", "-p:RuntimeIdentifier=$runtimeIdentifier",
+    '-p:WindowsPackageType=MSIX',
     '-p:GenerateAppxPackageOnBuild=true', '-p:AppxBundle=Never',
     '-p:UapAppxPackageBuildMode=SideloadOnly',
     "-p:AppxPackageDir=$packageDir\"
@@ -49,6 +57,7 @@ if ($LASTEXITCODE -ne 0) { throw "MSIX build failed with exit code $LASTEXITCODE
 $package = Get-ChildItem -LiteralPath $packageDir -Recurse -Filter '*.msix' -File |
     Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
 if (-not $package) { throw 'MSBuild succeeded but produced no MSIX package.' }
+& (Join-Path $PSScriptRoot 'Test-ReadyToRun.ps1') -MsixDirectory $package.DirectoryName | Out-Host
 if ($signed) {
     $signature = Get-AuthenticodeSignature -LiteralPath $package.FullName
     if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne $thumbprint) {

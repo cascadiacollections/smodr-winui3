@@ -14,6 +14,16 @@
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
 
+  <!--
+    ReadyToRun images for RID-specific publishes and MSIX packages. Restore evaluation also sees
+    it, so the RID-agnostic solution restore downloads the host Crossgen2 pack (a PackageDownload,
+    not a lock file entry). RID-less builds, such as the test project's reference to this app,
+    have no runtime pack to compile against and stay JIT-only.
+  -->
+  <PropertyGroup Condition="'$(PublishReadyToRun)' == '' and ('$(RuntimeIdentifier)' != '' or '$(MSBuildIsRestoring)' == 'true')">
+    <PublishReadyToRun>true</PublishReadyToRun>
+  </PropertyGroup>
+
   <ItemGroup>
     <Content Include="Assets\SplashScreen.scale-200.png" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
