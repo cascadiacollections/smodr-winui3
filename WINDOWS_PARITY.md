@@ -34,9 +34,29 @@ Windows 11 ARM64 driven through UI Automation):
 - **Recovery UX** (#208): "Reconnecting…" during automatic rejoins and a Retry
   action once the retry budget is spent.
 
-Still missing versus iOS/Android, highest value first: favorites export/import,
-search filters (bitrate/tag/country; the client already supports bitrate),
-localization (`.resw`; iOS ships 10 catalogs), first-run welcome, initials
+Closed after this sync (headless tests only; native UI checks below remain open):
+
+- **Favorites export/import** (`FavoritesTransfer`, iOS
+  `LibraryStore+FavoritesTransfer.swift`): same schema-1 document, so backups
+  move between platforms. Windows is stricter than iOS: bounded size/entries,
+  duplicate-key/comment/depth rejection, per-entry URL and length validation,
+  and a preview/confirm step before an append-only, re-deduplicated write. iOS
+  favorites without a `streamURL` are skipped as invalid because Windows cannot
+  play them without another directory lookup.
+- **Search filters** (`RadioSearchFilters`, `SearchFiltersViewModel`, iOS
+  `StationSearchFilters`): tag, country and minimum bitrate. iOS also has a
+  bitrate ceiling and uses exact `tagList` matching; Windows sends Radio
+  Browser's substring `tag`. Directories without server-side filters (SHOUTcast
+  fallback) filter their returned page locally with the iOS rule that unknown
+  bitrate/country does not exclude a station.
+
+Native checks still needed for both: keyboard order and Enter/Escape in the
+filter Expander and import dialog, Narrator announcements for the country and
+bitrate ComboBoxes, the import preview list and the success InfoBar, the
+Windows file pickers (packaged and unpackaged), text scaling/narrow widths in
+the Search header, and an import of a real iOS export.
+
+Still missing versus iOS/Android, highest value first: localization (`.resw`; iOS ships 10 catalogs), first-run welcome, initials
 placeholder artwork, directory-unavailable empty state with Retry, Share
 (`DataTransferManager`), fade-in on rejoin, and the iOS `SongTitleFilter`
 station-name heuristics. Android-only (`sir-android`): home widget, Quick
@@ -145,6 +165,8 @@ verification also passed. Windows build/test outputs are isolated under
 | Reorder/remove saved stations with undo | ListView drag, Alt+Up/Down and Move up/down menu; InfoBar Undo restoring the former position |
 | Clear listening history | Confirmed Clear for Recently Played and Recently Heard; Top Tracks recomputed |
 | Reconnecting state and Retry | `LiveRadioRecovery.IsReconnecting` mapped to "Reconnecting…"; InfoBar Retry after the budget is spent |
+| Favorites backup export/import | iOS-compatible JSON via `FileSavePicker`/`FileOpenPicker`; validated preview dialog, append-only merge |
+| Search filters (bitrate/tag/country) | Search Expander with tag box and ComboBoxes; Radio Browser `bitrateMin`/`tag`/`countrycode` |
 
 ## Next platform-native slices
 
@@ -154,7 +176,7 @@ verification also passed. Windows build/test outputs are isolated under
 4. **Optional SHOUTcast validation.** A process-environment developer key enables a bounded HTTPS legacy directory fallback with keyless PLS tune-in resolution. The key is not persisted or embedded. Resolution is cancellable/version-guarded and non-UUID station IDs do not submit Radio Browser telemetry. Synthetic coverage exists; developer access/terms review and live key-backed smoke tests are still required.
 5. **Settings and flags.** Windows now exposes opt-in finite-broadcast looping, genuine native saved-stream preparation, and experimental equalizer presets through durable Playback settings. Invalid/future settings fail closed without overwriting their files. Diagnostics remain local category/type/HResult records; there is no instrumentation/export toggle, precise-location feature, spatial audio, or Live Activity equivalent. The iOS internal prewarming/location/instrumentation flags are not all ordinary Release Settings. Windows genre snapshot warmup and native stream preparation are separate features; neither guarantees a startup latency improvement.
 
-6. **ARM64 startup: ReadyToRun.** Measured 2026-10-07 on Windows 11 ARM64 (self-contained `win-arm64` publish, sandboxed profile, 5 warm launches each, time from process start to the titled main window): JIT median 601 ms (568–2820), `PublishReadyToRun` median 478 ms (408–630), about 20% faster for +57 MB (308 vs 251 MB). Not yet enabled: `publish --no-restore` fails with NETSDK1094 because the Crossgen2 pack is only restored for a RID-specific restore, which adds RID sections to every lockfile. Enable it together with a RID-aware locked restore (`-r win-arm64` / `win-x64`) and the CI/MSIX publish steps in one change. Trimming and Native AOT come after .NET 11 GA.
+6. **ARM64 startup: ReadyToRun (enabled).** RID-specific builds of the app compile ReadyToRun images: the self-contained `win-arm64`/`win-x64` publishes and the MSIX packages, which `build.yml`, `Build-Msix.ps1` and `Test-MsixInstall.ps1` now build with an explicit `RuntimeIdentifier` after a separate locked solution restore. `smodr.csproj` sets `PublishReadyToRun` for RID-specific builds and for restore evaluation, so the ordinary RID-agnostic solution restore downloads the host Crossgen2 pack as a `PackageDownload`; no lock file changed and no library/test lock file gained RID sections. RID-less builds (including the test project's reference to the app) stay JIT-only, and `Test-ReadyToRun.ps1` fails CI if the published folder or MSIX ships IL-only app assemblies. Measured 2026-10-17 on Windows 11 ARM64 (self-contained `win-arm64` Release publish, sandboxed `LOCALAPPDATA`, 1 discarded warm-up then 9 alternating warm launches each, process start to titled main window): JIT median 530 ms (486–567), ReadyToRun median 379 ms (345–412), about 28% faster. Size: 254.8 → 311.5 MB (+56.7 MB) for the ARM64 folder; x64 is 286.3 MB. The RID-specific MSIX is 60.5 MB (ARM64) / 62.5 MB (x64) versus 89.5 MB for the previous RID-less ARM64 package, which also carried other architectures' native payloads (`runtimes/win-x64`, `win-arm64ec`, `win-x86`). The earlier 2026-10-07 run measured 601 → 478 ms. x64 startup and installed-MSIX startup were not measured. Trimming and Native AOT come after .NET 11 GA.
 7. **Toolchain.** Windows App SDK 2.5.1 is the latest stable (2.4.0 pinned; confirmed via the NuGet v2 feed because `api.nuget.org` is blocked on the reference host). .NET 11 is pinned to RC2 (released 2026-10-13); GA is expected in November 2026. Bump each separately with the full locked restore, ARM64/x64 tests and MSIX lanes, and raise the manifest's `MaxVersionTested` at the same time.
 
 Windows widgets, cross-device Handoff, watch/TV targets, and CarPlay do not have one-to-one desktop equivalents. Scope each as a separate product feature rather than treating it as a missing method call. The immediate release gates remain signed package identity, live stream/device-change smoke tests, accessibility, and visual checks; see [RELEASE.md](RELEASE.md).

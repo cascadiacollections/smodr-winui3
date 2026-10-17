@@ -37,7 +37,6 @@ public enum RuntimeCounter
 public sealed class RuntimeDiagnosticCounters
 {
     private static readonly string[] _names = Enum.GetNames<RuntimeCounter>();
-    private static readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     private readonly long[] _counts = new long[_names.Length];
 
     public void Increment(RuntimeCounter counter)
@@ -67,10 +66,11 @@ public sealed class RuntimeDiagnosticCounters
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         return Task.Run(() => AtomicFileWriter.WriteAllText(filePath,
-            JsonSerializer.Serialize(new DiagnosticSnapshot(1, DateTimeOffset.UtcNow, Snapshot()), _json)));
+            JsonSerializer.Serialize(new DiagnosticSnapshot(1, DateTimeOffset.UtcNow, Snapshot()),
+                RadioJsonContext.Default.DiagnosticSnapshot)));
     }
 
-    private sealed record DiagnosticSnapshot(
+    internal sealed record DiagnosticSnapshot(
         int SchemaVersion,
         DateTimeOffset CapturedAtUtc,
         Dictionary<string, long> Counters);

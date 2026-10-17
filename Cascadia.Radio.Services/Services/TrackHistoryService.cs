@@ -225,7 +225,9 @@ public sealed class TrackHistoryService : ITrackHistoryService
                 throw new IOException("Track history exceeds its size limit.");
             }
 
-            var data = JsonSerializer.Deserialize<HistoryData>(File.ReadAllText(_filePath)) ?? new HistoryData();
+            var data = JsonSerializer.Deserialize(File.ReadAllText(_filePath),
+                           RadioServicesJsonContext.Default.HistoryData)
+                       ?? new HistoryData();
             data.Entries ??= [];
             _readOnly = data.Version > SchemaVersion;
             data.Entries =
@@ -246,7 +248,8 @@ public sealed class TrackHistoryService : ITrackHistoryService
 
     private void Save(HistoryData data)
     {
-        AtomicFileWriter.WriteAllText(_filePath, JsonSerializer.Serialize(data));
+        AtomicFileWriter.WriteAllText(_filePath,
+            JsonSerializer.Serialize(data, RadioServicesJsonContext.Default.HistoryData));
     }
 
     private static HeardTrack EnsureId(HeardTrack entry)
@@ -267,7 +270,7 @@ public sealed class TrackHistoryService : ITrackHistoryService
             };
     }
 
-    private sealed class HistoryData
+    internal sealed class HistoryData
     {
         public int Version { get; set; } = SchemaVersion;
         public List<HeardTrack> Entries { get; set; } = [];

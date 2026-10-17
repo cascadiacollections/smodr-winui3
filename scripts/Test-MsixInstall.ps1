@@ -36,14 +36,20 @@ try {
     Import-Certificate -FilePath $certificatePath `
         -CertStoreLocation 'Cert:\LocalMachine\TrustedPeople' | Out-Null
 
+    $runtimeIdentifier = if ($Platform -eq 'ARM64') { 'win-arm64' } else { 'win-x64' }
+    # A global RID cannot go through msbuild -restore (NU1004 in RID-agnostic library lock files).
+    & dotnet restore (Join-Path $repository 'smodr.slnx') "-p:Platform=$Platform" --locked-mode | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw 'Locked restore failed.' }
+
     function Build-TestPackage([string] $version, [string] $phase) {
         $identity.SetAttribute('Version', $version)
         $manifest.Save($manifestPath)
         $packageDirectory = Join-Path $testRoot $phase
+        # Same RID-specific (ReadyToRun) package as Build-Msix.ps1, from the locked restore above.
         $buildArguments = @(
-            'msbuild', $project, '-restore', '-v:q',
-            '-p:RestoreLockedMode=true', '-p:Configuration=Release',
-            "-p:Platform=$Platform", '-p:WindowsPackageType=MSIX',
+            'msbuild', $project, '-v:q', '-p:Configuration=Release',
+            "-p:Platform=$Platform", "-p:RuntimeIdentifier=$runtimeIdentifier",
+            '-p:WindowsPackageType=MSIX',
             '-p:GenerateAppxPackageOnBuild=true', '-p:AppxBundle=Never',
             '-p:UapAppxPackageBuildMode=SideloadOnly',
             '-p:AppxPackageSigningEnabled=true',

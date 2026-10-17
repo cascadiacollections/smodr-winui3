@@ -7,7 +7,6 @@ public sealed class RadioLibraryService : IRadioLibraryService
 {
     private const int CurrentSchemaVersion = 1;
     private const int RecentLimit = 20;
-    private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
     private readonly string _filePath;
     private readonly Lock _writeGate = new();
     private RadioLibraryData _data;
@@ -101,6 +100,19 @@ public sealed class RadioLibraryService : IRadioLibraryService
         });
     }
 
+    public Task<int> AddFavoritesAsync(IReadOnlyList<RadioStation> stations)
+    {
+        ArgumentNullException.ThrowIfNull(stations);
+        RadioStation[] requested = [.. stations];
+        return MutateAsync(data =>
+        {
+            // Re-check against the saved list: favorites may have changed since the import was previewed.
+            var additions = FavoritesTransfer.SelectNew(data.Favorites, requested);
+            data.Favorites.AddRange(additions);
+            return additions.Count;
+        });
+    }
+
     public Task LogRecentAsync(RadioStation station)
     {
         return MutateAsync(data =>
@@ -183,7 +195,8 @@ public sealed class RadioLibraryService : IRadioLibraryService
         {
             if (File.Exists(_filePath))
             {
-                var data = JsonSerializer.Deserialize<RadioLibraryData>(File.ReadAllText(_filePath)) ??
+                var data = JsonSerializer.Deserialize(File.ReadAllText(_filePath),
+                               RadioServicesJsonContext.Default.RadioLibraryData) ??
                            new RadioLibraryData();
                 data.Favorites ??= [];
                 data.Recents ??= [];
@@ -224,10 +237,11 @@ public sealed class RadioLibraryService : IRadioLibraryService
 
     private void Save(RadioLibraryData data)
     {
-        AtomicFileWriter.WriteAllText(_filePath, JsonSerializer.Serialize(data, _jsonOptions));
+        AtomicFileWriter.WriteAllText(_filePath,
+            JsonSerializer.Serialize(data, RadioServicesJsonContext.Indented.RadioLibraryData));
     }
 
-    private sealed class RadioLibraryData
+    internal sealed class RadioLibraryData
     {
         public int SchemaVersion { get; set; } = CurrentSchemaVersion;
         public List<RadioStation> Favorites { get; set; } = [];

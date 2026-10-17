@@ -42,7 +42,7 @@ public sealed class RadioAppearancePreferences
                 throw new InvalidDataException();
             }
 
-            var data = JsonSerializer.Deserialize<AppearanceData>(bytes.AsSpan(0, count));
+            var data = JsonSerializer.Deserialize(bytes.AsSpan(0, count), RadioCoreJsonContext.Default.AppearanceData);
             if (data?.SchemaVersion == 1 && data.Backdrop is { } value && Enum.IsDefined(value))
             {
                 Current = value;
@@ -117,7 +117,8 @@ public sealed class RadioAppearancePreferences
         }
 
         await Task.Run(() => AtomicFileWriter.WriteAllText(_path,
-            JsonSerializer.Serialize(new AppearanceData(1, backdrop)))).ConfigureAwait(false);
+            JsonSerializer.Serialize(new AppearanceData(1, backdrop),
+                RadioCoreJsonContext.Default.AppearanceData))).ConfigureAwait(false);
         Current = backdrop;
     }
 
@@ -130,5 +131,5 @@ public sealed class RadioAppearancePreferences
         }
     }
 
-    private sealed record AppearanceData(int SchemaVersion, RadioWindowBackdrop? Backdrop);
+    internal sealed record AppearanceData(int SchemaVersion, RadioWindowBackdrop? Backdrop);
 }

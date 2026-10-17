@@ -269,22 +269,40 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>Filters applied by the next <see cref="SearchAsync" /> or <see cref="SearchGenreAsync" />.</summary>
+    public SearchFiltersViewModel SearchFilters { get; } = new();
+
     public Task SearchAsync(string query)
     {
-        return SearchCoreAsync(
-            token => _directory.SearchAsync(query, cancellationToken: token),
-            string.IsNullOrWhiteSpace(query) ? "Browse by genre" : "Searching…",
-            string.IsNullOrWhiteSpace(query)
-                ? RadioDirectorySnapshotCache.PopularKey(50)
-                : RadioDirectorySnapshotCache.SearchKey(query));
+        var filters = SearchFilters.Current;
+        return filters.IsActive
+            ? FilteredSearchAsync(query, filters, "Searching…")
+            : SearchCoreAsync(
+                token => _directory.SearchAsync(query, cancellationToken: token),
+                string.IsNullOrWhiteSpace(query) ? "Browse by genre" : "Searching…",
+                string.IsNullOrWhiteSpace(query)
+                    ? RadioDirectorySnapshotCache.PopularKey(50)
+                    : RadioDirectorySnapshotCache.SearchKey(query));
     }
 
     public Task SearchGenreAsync(string genre)
     {
+        // A genre is a tag; any country or bitrate filter still applies to it.
+        var filters = SearchFilters.Current.WithTag(genre);
+        return filters.MinimumBitrate is not null || filters.CountryCode is not null
+            ? FilteredSearchAsync(string.Empty, filters, $"Browsing {genre}…")
+            : SearchCoreAsync(
+                token => _directory.SearchGenreAsync(genre, cancellationToken: token),
+                $"Browsing {genre}…",
+                RadioDirectorySnapshotCache.GenreKey(genre));
+    }
+
+    private Task FilteredSearchAsync(string query, RadioSearchFilters filters, string loadingStatus)
+    {
         return SearchCoreAsync(
-            token => _directory.SearchGenreAsync(genre, cancellationToken: token),
-            $"Browsing {genre}…",
-            RadioDirectorySnapshotCache.GenreKey(genre));
+            token => _directory.SearchAsync(query, filters, cancellationToken: token),
+            loadingStatus,
+            RadioDirectorySnapshotCache.SearchKey(filters.CacheIdentity(query)));
     }
 
     public Task WarmGenresAsync()
@@ -922,6 +940,45 @@ public partial class RadioMainViewModel : ObservableObject, IDisposable
         return _trackHistory is { } history
             ? LocalDataExport.HistoryAsync(history)
             : Task.FromException<string>(new InvalidOperationException("Listening history is unavailable."));
+    }
+
+    public Task<string> ExportFavoritesAsync()
+    {
+        return LocalDataExport.FavoritesAsync(_library);
+    }
+
+    /// <summary>Validates a picked backup against the saved library; nothing is saved.</summary>
+    public Task<FavoritesImportPreview> PreviewFavoritesImportAsync(Stream utf8)
+    {
+        return FavoritesTransfer.PreviewAsync(utf8, _library.Favorites, _lifetimeCancellation.Token);
+    }
+
+    /// <summary>Appends a confirmed preview's new stations. Returns how many were added, or -1 when saving failed.</summary>
+    public async Task<int> ImportFavoritesAsync(FavoritesImportPreview preview)
+    {
+        ArgumentNullException.ThrowIfNull(preview);
+        if (!preview.CanImport)
+        {
+            return 0;
+        }
+
+        var added = -1;
+        await RunTracked(async () => added = await ImportFavoritesCoreAsync(preview));
+        return added;
+    }
+
+    private async Task<int> ImportFavoritesCoreAsync(FavoritesImportPreview preview)
+    {
+        var added = -1;
+        await SaveLibraryChangeAsync(async () => added = await _library.AddFavoritesAsync(preview.StationsToAdd),
+            "library.favorite-import");
+        if (added > 0 && Volatile.Read(ref _disposed) == 0)
+        {
+            // Refresh favorite glyphs for a now-playing station that the backup just saved.
+            OnPropertyChanged(nameof(CurrentStation));
+        }
+
+        return added;
     }
 
     private void StartArtworkLookup(RadioStation station, RadioTrackInfo track)

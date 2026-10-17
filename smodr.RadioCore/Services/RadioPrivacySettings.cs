@@ -80,7 +80,8 @@ public sealed class RadioPrivacySettings : IRadioPrivacySettings
             }
 
             // A damaged existing choice must not silently re-enable network reporting.
-            var data = JsonSerializer.Deserialize<PrivacyData>(File.ReadAllText(_filePath));
+            var data = JsonSerializer.Deserialize(File.ReadAllText(_filePath),
+                RadioCoreJsonContext.Default.PrivacyData);
             return data?.PlayReportingEnabled is { } reporting && data.SchemaVersion is null or 1
                 ? new RadioPrivacyChoices(reporting,
                     data.AlbumArtworkEnabled ?? true) // Existing settings predate artwork.
@@ -137,10 +138,10 @@ public sealed class RadioPrivacySettings : IRadioPrivacySettings
                 SchemaVersion = 1,
                 PlayReportingEnabled = choices.PlayReportingEnabled,
                 AlbumArtworkEnabled = choices.AlbumArtworkEnabled
-            }));
+            }, RadioCoreJsonContext.Default.PrivacyData));
     }
 
-    private sealed class PrivacyData
+    internal sealed class PrivacyData
     {
         public int? SchemaVersion { get; set; }
         public bool? PlayReportingEnabled { get; set; }

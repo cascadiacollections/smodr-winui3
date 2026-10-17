@@ -5,6 +5,27 @@ namespace smodr.Models;
 
 public sealed class RadioStation
 {
+    public RadioStation()
+    {
+    }
+
+    // Source-generated JSON populates init-only members as constructor arguments; these defaults keep
+    // members missing from older saved files at their initializers instead of null.
+    [JsonConstructor]
+    internal RadioStation(string id = "", string name = "", string streamUrl = "", string artworkUrl = "",
+        string tags = "", string country = "", string countryCode = "", string codec = "", int bitrate = 0)
+    {
+        Id = id;
+        Name = name;
+        StreamUrl = streamUrl;
+        ArtworkUrl = artworkUrl;
+        Tags = tags;
+        Country = country;
+        CountryCode = countryCode;
+        Codec = codec;
+        Bitrate = bitrate;
+    }
+
     [JsonPropertyName("stationuuid")] public string Id { get; init; } = string.Empty;
 
     [JsonPropertyName("name")] public string Name { get; init; } = string.Empty;

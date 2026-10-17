@@ -60,6 +60,10 @@
   lock file has `win-arm64`/`win-x64` sections. Never "fix" this by adding RID
   sections to other lock files. The test project is RID-agnostic, so omit the
   RID when testing.
+- RID-specific app builds (publish and MSIX) compile ReadyToRun images; the
+  RID-agnostic solution restore already fetches the Crossgen2 pack. Build MSIX
+  packages with `-p:RuntimeIdentifier=...` after that restore, never with
+  `msbuild -restore`, and keep `scripts/Test-ReadyToRun.ps1` passing.
 
 - Use x64/win-x64 for x64 verification. For the complete static analysis gate,
   follow `STATIC_ANALYSIS.md`, including its separate locked restore and SARIF

@@ -21,6 +21,12 @@ public interface IRadioLibraryService
     /// </summary>
     Task ReorderFavoritesAsync(IReadOnlyList<RadioStation> order);
 
+    /// <summary>
+    ///     Appends stations that are not already saved, in order, as one durable write. Existing favorites are never
+    ///     reordered or replaced. Returns how many were added.
+    /// </summary>
+    Task<int> AddFavoritesAsync(IReadOnlyList<RadioStation> stations);
+
     Task LogRecentAsync(RadioStation station);
     Task ClearRecentsAsync();
     Task FlushAsync();
