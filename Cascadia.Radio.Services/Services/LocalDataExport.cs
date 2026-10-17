@@ -15,6 +15,14 @@ public static class LocalDataExport
             RadioServicesJsonContext.Indented.HistoryExport);
     }
 
+    /// <summary>A favorites backup that Shoutkit for iOS and Windows can import.</summary>
+    public static async Task<string> FavoritesAsync(IRadioLibraryService library)
+    {
+        ArgumentNullException.ThrowIfNull(library);
+        await library.FlushAsync().ConfigureAwait(false);
+        return FavoritesTransfer.Export(library.Favorites);
+    }
+
     public static string Diagnostics(RuntimeDiagnosticCounters counters)
     {
         ArgumentNullException.ThrowIfNull(counters);

@@ -9,6 +9,8 @@ namespace smodr.Tests.ViewModels;
 [TestClass]
 public sealed class RadioMainViewModelTests
 {
+    private static readonly string[] _importedIds = ["saved", "new"];
+
     [TestMethod]
     public async Task RowPlaybackStateTracksBufferingAndResetsOnStationChange()
     {
@@ -650,6 +652,136 @@ public sealed class RadioMainViewModelTests
         Assert.AreEqual(0, pauses);
     }
 
+    [TestMethod]
+    public async Task SearchAppliesActiveFiltersAndClearReturnsToPlainSearch()
+    {
+        var calls = new List<(string Query, RadioSearchFilters? Filters)>();
+        var directory = new StubDirectory(
+            (query, _) =>
+            {
+                calls.Add((query, null));
+                return Task.FromResult<IReadOnlyList<RadioStation>>([]);
+            },
+            filtered: (query, filters) =>
+            {
+                calls.Add((query, filters));
+                return Task.FromResult<IReadOnlyList<RadioStation>>((RadioStation[])[new RadioStation { Name = "Filtered" }]);
+            });
+        using var viewModel =
+            new RadioMainViewModel(new StubPlayer(), directory, new StubLibrary(), action => action());
+
+        viewModel.SearchFilters.TagText = "Jazz";
+        viewModel.SearchFilters.SelectedBitrateIndex = 3;
+        await viewModel.SearchAsync("bbc");
+        viewModel.SearchFilters.ClearCommand.Execute(null);
+        await viewModel.SearchAsync("bbc");
+
+        Assert.HasCount(2, calls);
+        Assert.AreEqual(RadioSearchFilters.Create(128, "jazz"), calls[0].Filters);
+        Assert.AreEqual("bbc", calls[0].Query);
+        Assert.IsNull(calls[1].Filters);
+        Assert.IsFalse(viewModel.SearchFilters.IsActive);
+    }
+
+    [TestMethod]
+    public async Task GenreBrowseKeepsCountryAndBitrateFilters()
+    {
+        var calls = new List<(string Query, RadioSearchFilters? Filters)>();
+        var directory = new StubDirectory(
+            (query, _) =>
+            {
+                calls.Add((query, null));
+                return Task.FromResult<IReadOnlyList<RadioStation>>([]);
+            },
+            filtered: (query, filters) =>
+            {
+                calls.Add((query, filters));
+                return Task.FromResult<IReadOnlyList<RadioStation>>([]);
+            });
+        using var viewModel =
+            new RadioMainViewModel(new StubPlayer(), directory, new StubLibrary(), action => action());
+
+        viewModel.SearchFilters.TagText = "ignored for genres";
+        await viewModel.SearchGenreAsync("rock");
+        viewModel.SearchFilters.SelectedCountryIndex = SearchFiltersViewModel.CountryOptions.ToList()
+            .FindIndex(option => option.Code == "US");
+        await viewModel.SearchGenreAsync("hip hop");
+
+        Assert.AreEqual(("rock", (RadioSearchFilters?)null), calls[0]);
+        Assert.AreEqual(string.Empty, calls[1].Query);
+        Assert.AreEqual(RadioSearchFilters.Create(tag: "hip hop", countryCode: "US"), calls[1].Filters);
+    }
+
+    [TestMethod]
+    public async Task ImportAppendsConfirmedPreviewAndRefreshesFavorites()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"shoutkit-vm-import-{Guid.NewGuid():N}.json");
+        try
+        {
+            var library = new RadioLibraryService(path);
+            var saved = new RadioStation { Id = "saved", Name = "Saved", StreamUrl = "https://s.example/saved" };
+            await library.ToggleFavoriteAsync(saved);
+            using var viewModel = new RadioMainViewModel(new StubPlayer(),
+                new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])), library,
+                action => action());
+            var backup = FavoritesTransfer.Export(
+                (RadioStation[])[saved, new RadioStation { Id = "new", Name = "New", StreamUrl = "https://s.example/new" }]);
+
+            await using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(backup));
+            var preview = await viewModel.PreviewFavoritesImportAsync(stream);
+            Assert.HasCount(1, viewModel.Favorites, "Previewing must not change the library.");
+            Assert.AreEqual(1, await viewModel.ImportFavoritesAsync(preview));
+
+            CollectionAssert.AreEqual(_importedIds, viewModel.Favorites.Select(station => station.Id).ToArray());
+            Assert.AreNotEqual("Favorites could not be saved.", viewModel.Status);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [TestMethod]
+    public async Task MalformedImportNeverWritesTheLibrary()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"shoutkit-vm-import-{Guid.NewGuid():N}.json");
+        try
+        {
+            var library = new RadioLibraryService(path);
+            await library.ToggleFavoriteAsync(new RadioStation { Id = "a", Name = "A", StreamUrl = "https://s.example/a" });
+            var before = await File.ReadAllBytesAsync(path);
+            using var viewModel = new RadioMainViewModel(new StubPlayer(),
+                new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])), library,
+                action => action());
+
+            await using var stream = new MemoryStream("{\"schemaVersion\":1,\"favorites\":[{"u8.ToArray());
+            var preview = await viewModel.PreviewFavoritesImportAsync(stream);
+
+            Assert.AreEqual(FavoritesImportError.NotJson, preview.Error);
+            Assert.AreEqual(0, await viewModel.ImportFavoritesAsync(preview));
+            CollectionAssert.AreEqual(before, await File.ReadAllBytesAsync(path));
+        }
+        finally { File.Delete(path); }
+    }
+
+    [TestMethod]
+    public async Task ImportSaveFailureReportsAndKeepsDurableFavorites()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"shoutkit-vm-import-{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(path, """{"SchemaVersion":99,"Favorites":[],"Recents":[]}""");
+        try
+        {
+            using var viewModel = new RadioMainViewModel(new StubPlayer(),
+                new StubDirectory((_, _) => Task.FromResult<IReadOnlyList<RadioStation>>([])),
+                new RadioLibraryService(path), action => action());
+            await using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(FavoritesTransfer.Export(
+                (RadioStation[])[new RadioStation { Id = "x", Name = "X", StreamUrl = "https://s.example/x" }])));
+
+            Assert.AreEqual(-1, await viewModel.ImportFavoritesAsync(
+                await viewModel.PreviewFavoritesImportAsync(stream)));
+            Assert.AreEqual("Favorites could not be saved.", viewModel.Status);
+            Assert.IsEmpty(viewModel.Favorites);
+        }
+        finally { File.Delete(path); }
+    }
+
     private sealed class StubResolver(Func<RadioStation, CancellationToken, Task<RadioStation>> resolve)
         : IStationStreamResolver
     {
@@ -762,8 +894,15 @@ public sealed class RadioMainViewModelTests
 
     private sealed class StubDirectory(
         Func<string, CancellationToken, Task<IReadOnlyList<RadioStation>>> search,
-        Func<CancellationToken, Task<IReadOnlyList<RadioStation>>>? popular = null) : IRadioDirectoryService
+        Func<CancellationToken, Task<IReadOnlyList<RadioStation>>>? popular = null,
+        Func<string, RadioSearchFilters, Task<IReadOnlyList<RadioStation>>>? filtered = null) : IRadioDirectoryService
     {
+        public Task<IReadOnlyList<RadioStation>> SearchAsync(string query, RadioSearchFilters filters,
+            int limit = 50, CancellationToken cancellationToken = default)
+        {
+            return filtered?.Invoke(query, filters) ?? search(query, cancellationToken);
+        }
+
         public Task<IReadOnlyList<RadioStation>> GetPopularStationsAsync(
             int limit = 50, CancellationToken cancellationToken = default)
         {
@@ -814,6 +953,11 @@ public sealed class RadioMainViewModelTests
         public Task ReorderFavoritesAsync(IReadOnlyList<RadioStation> order)
         {
             return Task.CompletedTask;
+        }
+
+        public Task<int> AddFavoritesAsync(IReadOnlyList<RadioStation> stations)
+        {
+            return Task.FromResult(0);
         }
 
         public Task LogRecentAsync(RadioStation station)

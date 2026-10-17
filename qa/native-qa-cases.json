@@ -11,6 +11,8 @@
   { "id": "playback.output-route", "area": "Playback", "title": "Headset, Bluetooth, and dock route changes pause safely" },
   { "id": "playback.long-run", "area": "Playback", "title": "Long-running stream survives title changes and HLS timeline discontinuities without false stall recovery" },
   { "id": "metadata.live", "area": "Metadata", "title": "KEXP and Brookdale titles, artwork, media controls, and history agree" },
+  { "id": "library.favorites-backup", "area": "Library", "title": "Favorites export/import round-trips with iOS, previews before saving, and leaves the library unchanged on malformed or cancelled files" },
+  { "id": "search.filters", "area": "Search", "title": "Tag, country, and bitrate filters narrow live search and genre results and clear back to unfiltered results" },
   { "id": "privacy.reporting", "area": "Privacy", "title": "Radio Browser reporting sends only explicit enabled play events" },
   { "id": "accessibility.keyboard", "area": "Accessibility", "title": "Keyboard navigation, focus restoration, Escape, and dialogs work" },
   { "id": "accessibility.screen-reader", "area": "Accessibility", "title": "Narrator names and state announcements are useful and non-spamming" },

@@ -51,6 +51,15 @@ public sealed class RadioDirectoryService : IRadioDirectoryService, IStationPlay
                     cancellationToken));
     }
 
+    public Task<IReadOnlyList<RadioStation>> SearchAsync(string query, RadioSearchFilters filters, int limit = 50,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(filters);
+        return filters.IsActive
+            ? AdaptAsync(() => _client.SearchAsync(filters.ToSearchOptions(query, limit), cancellationToken))
+            : SearchAsync(query, limit, cancellationToken);
+    }
+
     public Task<IReadOnlyList<RadioStation>> SearchGenreAsync(string genre, int limit = 50,
         CancellationToken cancellationToken = default)
     {

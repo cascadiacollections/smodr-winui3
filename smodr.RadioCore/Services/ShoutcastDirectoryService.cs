@@ -206,6 +206,12 @@ public sealed class FallbackRadioDirectory(IRadioDirectoryService primary, IRadi
         return QueryAsync(service => service.SearchAsync(query, limit, cancellationToken), cancellationToken);
     }
 
+    public Task<IReadOnlyList<RadioStation>> SearchAsync(string query, RadioSearchFilters filters, int limit = 50,
+        CancellationToken cancellationToken = default)
+    {
+        return QueryAsync(service => service.SearchAsync(query, filters, limit, cancellationToken), cancellationToken);
+    }
+
     public Task<IReadOnlyList<RadioStation>> SearchGenreAsync(string genre, int limit = 50,
         CancellationToken cancellationToken = default)
     {

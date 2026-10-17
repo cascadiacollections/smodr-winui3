@@ -115,6 +115,45 @@
                         <AutoSuggestBox x:Name="StationSearchBox" PlaceholderText="Stations, genres" QueryIcon="Find"
                                         AutomationProperties.Name="Search stations"
                                         QuerySubmitted="StationSearchBox_QuerySubmitted" />
+                        <Expander x:Name="SearchFiltersExpander" HorizontalAlignment="Stretch"
+                                  HorizontalContentAlignment="Stretch" AutomationProperties.Name="Search filters">
+                            <Expander.Header>
+                                <StackPanel Padding="0,8" Spacing="2">
+                                    <TextBlock Text="Filters" />
+                                    <TextBlock x:Name="SearchFiltersSummary"
+                                               Text="{x:Bind ViewModel.SearchFilters.Summary, Mode=OneWay}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}" TextWrapping="Wrap"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                            </Expander.Header>
+                            <StackPanel MaxWidth="480" HorizontalAlignment="Left" Spacing="12">
+                                <TextBox x:Name="FilterTagBox" Header="Tag" PlaceholderText="For example, jazz"
+                                         MaxLength="64" AutomationProperties.Name="Tag filter"
+                                         Text="{x:Bind ViewModel.SearchFilters.TagText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         KeyDown="FilterTagBox_KeyDown" />
+                                <ComboBox x:Name="FilterCountryBox" Header="Country" HorizontalAlignment="Stretch"
+                                          AutomationProperties.Name="Country filter"
+                                          SelectionChanged="FilterCountryBox_SelectionChanged" />
+                                <ComboBox x:Name="FilterBitrateBox" Header="Minimum bitrate"
+                                          HorizontalAlignment="Stretch" AutomationProperties.Name="Minimum bitrate filter"
+                                          SelectedIndex="{x:Bind ViewModel.SearchFilters.SelectedBitrateIndex, Mode=OneWay}"
+                                          SelectionChanged="FilterBitrateBox_SelectionChanged">
+                                    <ComboBoxItem Content="Any bitrate" /><ComboBoxItem Content="64 kbps or higher" />
+                                    <ComboBoxItem Content="96 kbps or higher" />
+                                    <ComboBoxItem Content="128 kbps or higher" />
+                                    <ComboBoxItem Content="192 kbps or higher" />
+                                    <ComboBoxItem Content="256 kbps or higher" />
+                                    <ComboBoxItem Content="320 kbps or higher" />
+                                </ComboBox>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button x:Name="ApplyFiltersButton" Content="Apply filters"
+                                            Style="{ThemeResource AccentButtonStyle}" Click="ApplyFilters_Click" />
+                                    <Button x:Name="ClearFiltersButton" Content="Clear filters"
+                                            IsEnabled="{x:Bind ViewModel.SearchFilters.IsActive, Mode=OneWay}"
+                                            Click="ClearFilters_Click" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Expander>
                         <StackPanel x:Name="GenreSection" Spacing="10">
                             <TextBlock Text="Browse by Genre" Style="{ThemeResource SubtitleTextBlockStyle}" />
                             <ItemsControl>
@@ -169,12 +208,26 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" /><RowDefinition Height="*" />
                             </Grid.RowDefinitions>
-                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="8,0">
-                                <TextBlock Text="Favorites" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                                <TextBlock Text="Drag, or press Alt+Up/Down, to reorder" VerticalAlignment="Center"
-                                           Style="{ThemeResource CaptionTextBlockStyle}"
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            </StackPanel>
+                            <Grid Margin="8,0" ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <TextBlock Text="Favorites" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                    <TextBlock Text="Drag, or press Alt+Up/Down, to reorder" VerticalAlignment="Center"
+                                               Style="{ThemeResource CaptionTextBlockStyle}" TextWrapping="Wrap"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right"
+                                            Spacing="8">
+                                    <Button x:Name="ImportFavoritesButton" Content="Import"
+                                            Click="ImportFavorites_Click"
+                                            AutomationProperties.Name="Import favorites from a backup file" />
+                                    <Button x:Name="ExportFavoritesButton" Content="Export"
+                                            Click="ExportFavorites_Click"
+                                            AutomationProperties.Name="Export favorites to a backup file" />
+                                </StackPanel>
+                            </Grid>
                             <ListView x:Name="FavoritesList" Grid.Row="1"
                                       ItemsSource="{x:Bind ViewModel.Favorites, Mode=OneWay}" IsItemClickEnabled="True"
                                       ItemClick="StationList_ItemClick" SelectionMode="None"
@@ -433,6 +486,9 @@
                                 AutomationProperties.Name="Undo remove favorite" />
                     </InfoBar.ActionButton>
                 </InfoBar>
+                <InfoBar x:Name="FavoritesImportBar" IsOpen="False" Severity="Success" IsClosable="True"
+                         AutomationProperties.LiveSetting="Polite" Title="Favorites imported"
+                         HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="16" MaxWidth="560" />
             </Grid>
         </NavigationView>
         <Grid x:Name="NowPlayingView" Grid.Row="1" Visibility="Collapsed" KeyDown="NowPlayingView_KeyDown"

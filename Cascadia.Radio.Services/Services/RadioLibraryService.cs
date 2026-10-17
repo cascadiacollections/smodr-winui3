@@ -100,6 +100,19 @@ public sealed class RadioLibraryService : IRadioLibraryService
         });
     }
 
+    public Task<int> AddFavoritesAsync(IReadOnlyList<RadioStation> stations)
+    {
+        ArgumentNullException.ThrowIfNull(stations);
+        RadioStation[] requested = [.. stations];
+        return MutateAsync(data =>
+        {
+            // Re-check against the saved list: favorites may have changed since the import was previewed.
+            var additions = FavoritesTransfer.SelectNew(data.Favorites, requested);
+            data.Favorites.AddRange(additions);
+            return additions.Count;
+        });
+    }
+
     public Task LogRecentAsync(RadioStation station)
     {
         return MutateAsync(data =>

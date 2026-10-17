@@ -34,9 +34,29 @@ Windows 11 ARM64 driven through UI Automation):
 - **Recovery UX** (#208): "Reconnecting…" during automatic rejoins and a Retry
   action once the retry budget is spent.
 
-Still missing versus iOS/Android, highest value first: favorites export/import,
-search filters (bitrate/tag/country; the client already supports bitrate),
-localization (`.resw`; iOS ships 10 catalogs), first-run welcome, initials
+Closed after this sync (headless tests only; native UI checks below remain open):
+
+- **Favorites export/import** (`FavoritesTransfer`, iOS
+  `LibraryStore+FavoritesTransfer.swift`): same schema-1 document, so backups
+  move between platforms. Windows is stricter than iOS: bounded size/entries,
+  duplicate-key/comment/depth rejection, per-entry URL and length validation,
+  and a preview/confirm step before an append-only, re-deduplicated write. iOS
+  favorites without a `streamURL` are skipped as invalid because Windows cannot
+  play them without another directory lookup.
+- **Search filters** (`RadioSearchFilters`, `SearchFiltersViewModel`, iOS
+  `StationSearchFilters`): tag, country and minimum bitrate. iOS also has a
+  bitrate ceiling and uses exact `tagList` matching; Windows sends Radio
+  Browser's substring `tag`. Directories without server-side filters (SHOUTcast
+  fallback) filter their returned page locally with the iOS rule that unknown
+  bitrate/country does not exclude a station.
+
+Native checks still needed for both: keyboard order and Enter/Escape in the
+filter Expander and import dialog, Narrator announcements for the country and
+bitrate ComboBoxes, the import preview list and the success InfoBar, the
+Windows file pickers (packaged and unpackaged), text scaling/narrow widths in
+the Search header, and an import of a real iOS export.
+
+Still missing versus iOS/Android, highest value first: localization (`.resw`; iOS ships 10 catalogs), first-run welcome, initials
 placeholder artwork, directory-unavailable empty state with Retry, Share
 (`DataTransferManager`), fade-in on rejoin, and the iOS `SongTitleFilter`
 station-name heuristics. Android-only (`sir-android`): home widget, Quick
@@ -145,6 +165,8 @@ verification also passed. Windows build/test outputs are isolated under
 | Reorder/remove saved stations with undo | ListView drag, Alt+Up/Down and Move up/down menu; InfoBar Undo restoring the former position |
 | Clear listening history | Confirmed Clear for Recently Played and Recently Heard; Top Tracks recomputed |
 | Reconnecting state and Retry | `LiveRadioRecovery.IsReconnecting` mapped to "Reconnecting…"; InfoBar Retry after the budget is spent |
+| Favorites backup export/import | iOS-compatible JSON via `FileSavePicker`/`FileOpenPicker`; validated preview dialog, append-only merge |
+| Search filters (bitrate/tag/country) | Search Expander with tag box and ComboBoxes; Radio Browser `bitrateMin`/`tag`/`countrycode` |
 
 ## Next platform-native slices
 

@@ -42,6 +42,9 @@ public sealed partial class MainWindow : Window
         _prewarmer = prewarmer;
         _jumpList = jumpList;
         InitializeComponent();
+        FilterCountryBox.ItemsSource = SearchFiltersViewModel.CountryOptions;
+        FilterCountryBox.SelectedIndex = ViewModel.SearchFilters.SelectedCountryIndex;
+        ViewModel.SearchFilters.PropertyChanged += SearchFilters_PropertyChanged;
         ApplyAppearance();
         Settings.PropertyChanged += Settings_PropertyChanged;
         HeroArtwork.AccentColorChanged += HeroArtwork_AccentColorChanged;
@@ -166,6 +169,7 @@ public sealed partial class MainWindow : Window
         _undoTimer.Tick -= UndoTimer_Tick;
         _appWindow?.Closing -= AppWindow_Closing;
         ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+        ViewModel.SearchFilters.PropertyChanged -= SearchFilters_PropertyChanged;
         ViewModel.Recents.CollectionChanged -= LibraryCollectionChanged;
         ViewModel.Favorites.CollectionChanged -= LibraryCollectionChanged;
         ViewModel.HeardTracks.CollectionChanged -= LibraryCollectionChanged;
@@ -293,9 +297,57 @@ public sealed partial class MainWindow : Window
     private async void StationSearchBox_QuerySubmitted(AutoSuggestBox sender,
         AutoSuggestBoxQuerySubmittedEventArgs args)
     {
+        await RunSearchAsync(args.QueryText);
+    }
+
+    private async Task RunSearchAsync(string query)
+    {
         GenreSection.Visibility = Visibility.Collapsed;
         SearchResultsList.Visibility = Visibility.Visible;
-        await ViewModel.SearchAsync(args.QueryText);
+        await ViewModel.SearchAsync(query);
+    }
+
+    private async void ApplyFilters_Click(object sender, RoutedEventArgs e)
+    {
+        await RunSearchAsync(StationSearchBox.Text);
+    }
+
+    private async void ClearFilters_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.SearchFilters.ClearCommand.Execute(null);
+        FilterTagBox.Focus(FocusState.Programmatic);
+        if (SearchResultsList.Visibility == Visibility.Visible)
+        {
+            await RunSearchAsync(StationSearchBox.Text);
+        }
+    }
+
+    private async void FilterTagBox_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.Enter)
+        {
+            e.Handled = true;
+            await RunSearchAsync(StationSearchBox.Text);
+        }
+    }
+
+    private void FilterCountryBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        ViewModel.SearchFilters.SelectedCountryIndex = Math.Max(0, FilterCountryBox.SelectedIndex);
+    }
+
+    private void FilterBitrateBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        ViewModel.SearchFilters.SelectedBitrateIndex = Math.Max(0, FilterBitrateBox.SelectedIndex);
+    }
+
+    private void SearchFilters_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SearchFiltersViewModel.SelectedCountryIndex)
+            && FilterCountryBox.SelectedIndex != ViewModel.SearchFilters.SelectedCountryIndex)
+        {
+            FilterCountryBox.SelectedIndex = ViewModel.SearchFilters.SelectedCountryIndex;
+        }
     }
 
     private async void GenreButton_Click(object sender, RoutedEventArgs e)
@@ -722,6 +774,7 @@ public sealed partial class MainWindow : Window
         EmptyLibraryView.Visibility = empty
             ? Visibility.Visible
             : Visibility.Collapsed;
+        ExportFavoritesButton.IsEnabled = ViewModel.Favorites.Count > 0;
         ClearRecentsButton.IsEnabled = ViewModel.Recents.Count > 0;
         ClearHeardTracksButton.IsEnabled = ViewModel.HeardTracks.Count > 0;
     }

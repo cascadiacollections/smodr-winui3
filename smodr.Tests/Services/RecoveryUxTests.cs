@@ -228,6 +228,11 @@ public sealed class RecoveryUxTests
             return Task.CompletedTask;
         }
 
+        public Task<int> AddFavoritesAsync(IReadOnlyList<RadioStation> stations)
+        {
+            return Task.FromResult(0);
+        }
+
         public Task LogRecentAsync(RadioStation station)
         {
             return Task.CompletedTask;
