@@ -10,13 +10,13 @@ Both solution formats expose Debug/Release on ARM64 and x64 only. Native app/tes
 Portable radio libraries target stable .NET 10 alongside the Windows app's pinned .NET 11 RC. See [RADIO_SDK.md](RADIO_SDK.md) for extraction boundaries, headless tests, local package consumers and compatibility/trim checks. VS Code and Zed have a portable test task; the dev container installs both SDKs and runs portable tests after its RadioCore build.
 
 This is the active Windows ARM64/x64 WinUI 3 preview. The solution is `smodr.slnx`,
-and `global.json` pins .NET SDK `11.0.100-rc.1.26425.128`. See [README.md](README.md)
+and `global.json` pins .NET SDK `11.0.100-rc.2.26504.105`. See [README.md](README.md)
 for the current app behavior and self-contained publish command.
 
 ## Windows host: VS Code or Zed
 
 Stable dependencies use Windows App SDK 2.5.1, Windows SDK BuildTools 10.0.28000.2705,
-CommunityToolkit.Mvvm 8.4.2 and MSTest 4.5.1. The Windows app still pins .NET 11 RC1;
+CommunityToolkit.Mvvm 8.4.2 and MSTest 4.5.1. The Windows app still pins .NET 11 RC2;
 the portable SDK remains on stable .NET 10.
 
 `scripts/Test-WinUiExperiment.ps1` copies current source into a unique ignored directory,
@@ -70,7 +70,7 @@ an ordinary audited restore and is the release gate.
 ## Linux dev container and Codespaces
 
 Open the repository in VS Code Dev Containers or GitHub Codespaces. The
-container installs .NET 10.0.401 and the exact SDK pinned in `global.json`.
+container installs .NET 10.0.402 and the exact SDK pinned in `global.json`.
 Prebuild/update-content restores dependencies; post-create builds RadioCore and
 RadioSmoke and runs portable tests with warnings as errors. It never restores
 the Windows solution or launches live streams.
@@ -169,7 +169,7 @@ future x64 CI run after pushing/merging.
 The root `global.json` keeps .NET 11 RC rather than retargeting the app to .NET 10.
 Search paths include the invoking host, repo-local `.dotnet`, and this enlistment's
 sibling ARM64 RC installation. On this host, ordinary `dotnet --version` resolves
-`11.0.100-rc.1.26425.128`. Explicit x64 hosts retain their own SDK via host-first
+`11.0.100-rc.2.26504.105`. Explicit x64 hosts retain their own SDK via host-first
 search order. `scripts/dotnet-dev.ps1` remains available for older hosts;
 `SHOUTKIT_DOTNET_ARM64`/`SHOUTKIT_DOTNET_X64` select explicit binaries.
 

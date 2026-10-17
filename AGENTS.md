@@ -50,9 +50,16 @@
   relevant existing tests. Example ARM64 commands from the repository root:
 
   ```powershell
-  ./scripts/dotnet-dev.ps1 ARM64 build smodr/smodr.csproj '-p:Platform=ARM64' '-p:RuntimeIdentifier=win-arm64' '-p:RestoreLockedMode=true' --no-incremental -warnaserror
-  ./scripts/dotnet-dev.ps1 ARM64 test smodr.Tests/smodr.Tests.csproj '-p:Platform=ARM64' '-p:RuntimeIdentifier=win-arm64' --no-restore -warnaserror
+  ./scripts/dotnet-dev.ps1 ARM64 restore smodr.slnx '-p:Platform=ARM64' --locked-mode
+  ./scripts/dotnet-dev.ps1 ARM64 build smodr/smodr.csproj '-p:Platform=ARM64' '-p:RuntimeIdentifier=win-arm64' --no-restore --no-incremental -warnaserror
+  ./scripts/dotnet-dev.ps1 ARM64 test smodr.Tests/smodr.Tests.csproj '-p:Platform=ARM64' --no-restore -warnaserror
   ```
+
+  Restore separately, as CI does. A global `RuntimeIdentifier` during restore
+  flows to referenced RID-agnostic libraries and fails with NU1004; only the app
+  lock file has `win-arm64`/`win-x64` sections. Never "fix" this by adding RID
+  sections to other lock files. The test project is RID-agnostic, so omit the
+  RID when testing.
 
 - Use x64/win-x64 for x64 verification. For the complete static analysis gate,
   follow `STATIC_ANALYSIS.md`, including its separate locked restore and SARIF

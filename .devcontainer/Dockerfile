@@ -5,7 +5,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl \
     && rm -rf /var/lib/apt/lists/* \
     && curl --fail --silent --show-error --location https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
-    && bash /tmp/dotnet-install.sh --version 10.0.401 --install-dir /usr/share/dotnet
+    && bash /tmp/dotnet-install.sh --version 10.0.402 --install-dir /usr/share/dotnet
 COPY global.json /tmp/radio-global.json
 RUN sdk_version=$(sed -n 's/.*"version": "\([^"]*\)".*/\1/p' /tmp/radio-global.json) \
     && test -n "$sdk_version" \

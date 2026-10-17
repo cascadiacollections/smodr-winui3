@@ -45,7 +45,8 @@ stop debugging and close the solution before regenerating the affected output:
 
 ```powershell
 ./scripts/Reset-WinUiGeneratedCode.ps1 -Platform ARM64 -Configuration Debug
-./scripts/dotnet-dev.ps1 ARM64 build smodr/smodr.csproj '-p:Platform=ARM64' '-p:RuntimeIdentifier=win-arm64' '-p:RestoreLockedMode=true'
+./scripts/dotnet-dev.ps1 ARM64 restore smodr.slnx '-p:Platform=ARM64' --locked-mode
+./scripts/dotnet-dev.ps1 ARM64 build smodr/smodr.csproj '-p:Platform=ARM64' '-p:RuntimeIdentifier=win-arm64' --no-restore
 ```
 
 Use `x64` / `win-x64` for x64. The reset archives only the selected app's generated
