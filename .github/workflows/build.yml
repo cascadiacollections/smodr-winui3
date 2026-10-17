@@ -182,9 +182,23 @@ jobs:
       run: dotnet restore ${{ env.SOLUTION_PATH }} --locked-mode
 
     - name: Check code formatting
+      shell: pwsh
+      env:
+        # The WinUI app only loads with a platform; dotnet format reads it from the environment.
+        Platform: x64
       run: |
-        dotnet format smodr.RadioCore/smodr.RadioCore.csproj --verify-no-changes --verbosity diagnostic
-        dotnet format smodr.RadioSmoke/smodr.RadioSmoke.csproj --verify-no-changes --verbosity diagnostic
-        dotnet format smodr.HeadlessPerf/smodr.HeadlessPerf.csproj --verify-no-changes --verbosity diagnostic
-        dotnet format smodr/smodr.csproj --verify-no-changes --verbosity diagnostic
-        dotnet format smodr.Tests/smodr.Tests.csproj --verify-no-changes --verbosity diagnostic
+        # dotnet format does not run the XAML compiler, so its analyzers report XAML event
+        # handlers and x:Name members as unused. The app gets a whitespace check here; its
+        # style and analyzer rules are enforced by the warnings-as-errors build.
+        $checks = @(
+          @('smodr.RadioCore/smodr.RadioCore.csproj'),
+          @('smodr.RadioSmoke/smodr.RadioSmoke.csproj'),
+          @('smodr.HeadlessPerf/smodr.HeadlessPerf.csproj'),
+          @('whitespace', 'smodr/smodr.csproj'),
+          @('smodr.Tests/smodr.Tests.csproj'))
+        $failed = @()
+        foreach ($check in $checks) {
+          dotnet format @check --verify-no-changes --verbosity diagnostic
+          if ($LASTEXITCODE -ne 0) { $failed += $check[-1] }
+        }
+        if ($failed) { throw "Formatting check failed: $($failed -join ', ')" }
