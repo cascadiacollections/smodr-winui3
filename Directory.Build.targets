@@ -1,0 +1,18 @@
+<Project>
+  <!--
+    Pin the implicit Microsoft.NET.ILLink.Tasks reference that IsTrimmable /
+    IsAotCompatible projects get. The SDK otherwise picks the version of the
+    runtime it bundles, so the floating 10.0.x SDK used by the portable
+    workflows and the pinned .NET 11 SDK in global.json request different
+    versions, and one of them always fails locked restore (NU1004).
+    Bump this together with the packages.lock.json files.
+  -->
+  <PropertyGroup>
+    <ILLinkTasksVersion Condition="'$(ILLinkTasksVersion)' == ''">10.0.14</ILLinkTasksVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <KnownILLinkPack Update="Microsoft.NET.ILLink.Tasks">
+      <ILLinkPackVersion Condition="'%(TargetFramework)' == 'net10.0'">$(ILLinkTasksVersion)</ILLinkPackVersion>
+    </KnownILLinkPack>
+  </ItemGroup>
+</Project>
