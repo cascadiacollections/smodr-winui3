@@ -37,7 +37,7 @@ jobs:
         run: ./scripts/Test-DevContainerLifecycle.ps1
       - name: Retain test reports and package evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: docker-evidence-${{ matrix.arch }}
           path: out/docker-validation
