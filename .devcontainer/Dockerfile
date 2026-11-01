@@ -20,7 +20,7 @@ FROM tooling AS source
 ARG RADIO_NUGET_SOURCE=https://www.nuget.org/api/v2/
 ENV RADIO_NUGET_SOURCE=$RADIO_NUGET_SOURCE RADIO_NUGET_AUDIT=false RADIO_ARTIFACTS_DIR=/artifacts
 WORKDIR /radio
-COPY --chown=vscode:vscode Directory.Build.props Directory.Packages.props nuget.config .editorconfig global.json ./
+COPY --chown=vscode:vscode Directory.Build.props Directory.Build.targets Directory.Packages.props nuget.config .editorconfig global.json ./
 COPY --chown=vscode:vscode portable/ ./portable/
 COPY --chown=vscode:vscode Cascadia.Radio/ ./Cascadia.Radio/
 COPY --chown=vscode:vscode Cascadia.RadioBrowser/ ./Cascadia.RadioBrowser/

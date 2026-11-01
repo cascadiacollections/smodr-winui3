@@ -4,7 +4,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS dependencies
 ARG RADIO_NUGET_SOURCE=https://www.nuget.org/api/v2/
 ENV RADIO_NUGET_SOURCE=$RADIO_NUGET_SOURCE RADIO_NUGET_AUDIT=false RADIO_ARTIFACTS_DIR=/artifacts
 WORKDIR /radio
-COPY Directory.Build.props Directory.Packages.props nuget.config .editorconfig ./
+COPY Directory.Build.props Directory.Build.targets Directory.Packages.props nuget.config .editorconfig ./
 COPY portable/ ./portable/
 COPY Cascadia.Radio/*.csproj Cascadia.Radio/packages.lock.json ./Cascadia.Radio/
 COPY Cascadia.RadioBrowser/*.csproj Cascadia.RadioBrowser/packages.lock.json ./Cascadia.RadioBrowser/
