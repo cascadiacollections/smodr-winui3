@@ -15,6 +15,11 @@ updates:
     reviewers:
       - "cascadiacollections/maintainers"
     open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns: ["*"]
+    cooldown:
+      default-days: 7
 
   # NuGet dependencies
   - package-ecosystem: "nuget"
@@ -44,6 +49,8 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    cooldown:
+      default-days: 7
 
   # Docker dependencies for devcontainer
   - package-ecosystem: "docker"
@@ -60,3 +67,8 @@ updates:
     reviewers:
       - "cascadiacollections/maintainers"
     open-pull-requests-limit: 3
+    groups:
+      docker:
+        patterns: ["*"]
+    cooldown:
+      default-days: 7
