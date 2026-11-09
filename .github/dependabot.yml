@@ -49,6 +49,11 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      # Catch-all so every remaining NuGet update (including majors) is
+      # grouped too. Groups are matched in order, so the named groups above
+      # still take precedence.
+      nuget:
+        patterns: ["*"]
     cooldown:
       default-days: 7
 

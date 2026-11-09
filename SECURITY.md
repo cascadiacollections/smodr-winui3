@@ -4,10 +4,13 @@
 
 We release patches for security vulnerabilities for the following versions:
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.x.x   | :white_check_mark: |
-| < 1.0   | :x:                |
+There are no tagged releases yet. Security fixes land on the `main` branch;
+only the latest `main` (and the preview builds produced from it) is supported.
+
+| Version       | Supported          |
+| ------------- | ------------------ |
+| latest `main` | :white_check_mark: |
+| older commits | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -63,9 +66,9 @@ Please include the following information in your report:
 
 ### Application Security
 
-- **RSS Feed Parsing**: The app parses external RSS feeds. We validate and sanitize input, but be cautious with untrusted feed sources.
-- **Media Playback**: Audio files are loaded from external URLs. Ensure feeds point to trusted sources.
-- **Local Storage**: Episode cache and settings are stored locally. Sensitive data should not be stored in the app.
+- **Station directory and metadata**: Station lists come from the Radio Browser API, and ICY / HLS timed-ID3 stream metadata is parsed from untrusted stations. Parsers are bounded and reject malformed input.
+- **Media Playback**: Audio streams and artwork are loaded from station-provided URLs, which are untrusted.
+- **Local Storage**: Favorites, recents, track history and settings are stored locally. Sensitive data should not be stored in the app.
 - **Network Communication**: All network requests should use HTTPS when possible.
 
 ### Dependencies
@@ -87,7 +90,7 @@ Our key dependencies include:
 When contributing to smodr, please:
 
 1. **Never commit secrets**: API keys, tokens, passwords, etc.
-2. **Validate inputs**: Especially data from RSS feeds or user input
+2. **Validate inputs**: Especially stream metadata, directory responses, imported files or user input
 3. **Handle exceptions**: Don't expose sensitive information in error messages
 4. **Use HTTPS**: For all external communications
 5. **Follow OWASP guidelines**: For web-related security concerns
@@ -105,8 +108,8 @@ When contributing to smodr, please:
 
 ### Current Protections
 
-- Input validation on RSS feed URLs
-- Sanitization of feed content before display
+- Validation of station stream and artwork URLs
+- Bounded parsing of stream metadata and imported favorites
 - Exception handling to prevent information disclosure
 - No storage of sensitive user data
 - CodeQL security scanning in CI/CD
