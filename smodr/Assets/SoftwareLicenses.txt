@@ -87,18 +87,18 @@ Authors: Microsoft
 https://www.nuget.org/packages/Microsoft.Extensions.Compliance.Abstractions/10.11.0
 No bundled license/notice text found; review the declared license before redistribution.
 
-Microsoft.Extensions.Configuration.Binder 11.0.0-rc.2.26504.105
+Microsoft.Extensions.Configuration.Binder 11.0.0-rc.3.26522.148
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.Extensions.Configuration.Binder/11.0.0-rc.2.26504.105
+https://www.nuget.org/packages/Microsoft.Extensions.Configuration.Binder/11.0.0-rc.3.26522.148
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
-Microsoft.Extensions.Configuration 11.0.0-rc.2.26504.105
+Microsoft.Extensions.Configuration 11.0.0-rc.3.26522.148
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.Extensions.Configuration/11.0.0-rc.2.26504.105
+https://www.nuget.org/packages/Microsoft.Extensions.Configuration/11.0.0-rc.3.26522.148
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
 Microsoft.Extensions.DependencyInjection.AutoActivation 10.11.0
@@ -108,11 +108,11 @@ Authors: Microsoft
 https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection.AutoActivation/10.11.0
 No bundled license/notice text found; review the declared license before redistribution.
 
-Microsoft.Extensions.DependencyInjection 11.0.0-rc.2.26504.105
+Microsoft.Extensions.DependencyInjection 11.0.0-rc.3.26522.148
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection/11.0.0-rc.2.26504.105
+https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection/11.0.0-rc.3.26522.148
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
 Microsoft.Extensions.Diagnostics.ExceptionSummarization 10.11.0
@@ -122,11 +122,11 @@ Authors: Microsoft
 https://www.nuget.org/packages/Microsoft.Extensions.Diagnostics.ExceptionSummarization/10.11.0
 No bundled license/notice text found; review the declared license before redistribution.
 
-Microsoft.Extensions.Diagnostics 11.0.0-rc.2.26504.105
+Microsoft.Extensions.Diagnostics 11.0.0-rc.3.26522.148
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.Extensions.Diagnostics/11.0.0-rc.2.26504.105
+https://www.nuget.org/packages/Microsoft.Extensions.Diagnostics/11.0.0-rc.3.26522.148
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
 Microsoft.Extensions.Http.Diagnostics 10.11.0
@@ -143,11 +143,11 @@ Authors: Microsoft
 https://www.nuget.org/packages/Microsoft.Extensions.Http.Resilience/10.11.0
 No bundled license/notice text found; review the declared license before redistribution.
 
-Microsoft.Extensions.Http 11.0.0-rc.2.26504.105
+Microsoft.Extensions.Http 11.0.0-rc.3.26522.148
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.Extensions.Http/11.0.0-rc.2.26504.105
+https://www.nuget.org/packages/Microsoft.Extensions.Http/11.0.0-rc.3.26522.148
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
 Microsoft.Extensions.Logging.Configuration 10.0.13
@@ -157,11 +157,11 @@ Authors: Microsoft
 https://www.nuget.org/packages/Microsoft.Extensions.Logging.Configuration/10.0.13
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 b7d4569659507a00efeea90f15a0a95bb2f8b6ce33737d86090b8e22c74a8c98
 
-Microsoft.Extensions.Logging 11.0.0-rc.2.26504.105
+Microsoft.Extensions.Logging 11.0.0-rc.3.26522.148
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.Extensions.Logging/11.0.0-rc.2.26504.105
+https://www.nuget.org/packages/Microsoft.Extensions.Logging/11.0.0-rc.3.26522.148
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
 Microsoft.Extensions.ObjectPool 10.0.13
@@ -171,11 +171,11 @@ Authors: Microsoft
 https://www.nuget.org/packages/Microsoft.Extensions.ObjectPool/10.0.13
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 9c0268c3085d693279c6e75e2509e4c67d976170dbd4f886aaccbb163e345b9e
 
-Microsoft.Extensions.Options.ConfigurationExtensions 11.0.0-rc.2.26504.105
+Microsoft.Extensions.Options.ConfigurationExtensions 11.0.0-rc.3.26522.148
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.Extensions.Options.ConfigurationExtensions/11.0.0-rc.2.26504.105
+https://www.nuget.org/packages/Microsoft.Extensions.Options.ConfigurationExtensions/11.0.0-rc.3.26522.148
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
 Microsoft.Extensions.Resilience 10.11.0
@@ -199,19 +199,19 @@ Authors: Microsoft
 https://www.nuget.org/packages/Microsoft.Extensions.Telemetry/10.11.0
 No bundled license/notice text found; review the declared license before redistribution.
 
-Microsoft.NETCore.App.Runtime.win-arm64 11.0.0-rc.2.26504.105
+Microsoft.NETCore.App.Runtime.win-arm64 11.0.0-rc.3.26522.148
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.NETCore.App.Runtime.win-arm64/11.0.0-rc.2.26504.105
+https://www.nuget.org/packages/Microsoft.NETCore.App.Runtime.win-arm64/11.0.0-rc.3.26522.148
 Notice: LICENSE.TXT -> SHA256 ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
-Microsoft.NETCore.App.Runtime.win-x64 11.0.0-rc.2.26504.105
+Microsoft.NETCore.App.Runtime.win-x64 11.0.0-rc.3.26522.148
 Declared license (expression): MIT
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.NETCore.App.Runtime.win-x64/11.0.0-rc.2.26504.105
+https://www.nuget.org/packages/Microsoft.NETCore.App.Runtime.win-x64/11.0.0-rc.3.26522.148
 Notice: LICENSE.TXT -> SHA256 ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b
 Notice: THIRD-PARTY-NOTICES.TXT -> SHA256 a9a59db1b6a6f783b128460aeafc6e5e83ce782da40a05c3f67742496a255f05
 
@@ -223,11 +223,11 @@ https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.3719.77
 Notice: LICENSE.txt -> SHA256 0af8f1b807512aae39c2ac1aa4d0cae65cabecb6fd554b8439a5162a0d6eca55
 Notice: NOTICE.txt -> SHA256 ee9973a1c8ac4f0a7946197ebc458ed5fe3218f8b16707994599ca33be770de7
 
-Microsoft.Windows.AI.MachineLearning 2.1.74
+Microsoft.Windows.AI.MachineLearning 2.4.89
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.Windows.AI.MachineLearning/2.1.74
+https://www.nuget.org/packages/Microsoft.Windows.AI.MachineLearning/2.4.89
 Notice: license.txt -> SHA256 d756d487ee305d582a4097f181674e9a8a97cfcf159db6f8c5f51396805aae22
 Notice: ThirdPartyNotices.txt -> SHA256 c4fcfa1b48ff5d5b8b269a7d016e491c029d737f362e4d402947cf2514008e5d
 
@@ -239,92 +239,92 @@ https://www.nuget.org/packages/Microsoft.Windows.SDK.BuildTools.MSIX/1.7.2512211
 Notice: NOTICE.txt -> SHA256 a0865b04bfc0e08d9ec8e53aaabddb01fa781c04b8f8d0e8bfdbf66d2d2e69db
 Notice: sdk_license.txt -> SHA256 ee21bcfdd62f376d1baa63cb6659a5163f74010127a10debe681b7dd30641ece
 
-Microsoft.Windows.SDK.BuildTools 10.0.28000.2705 [build-only]
+Microsoft.Windows.SDK.BuildTools 10.0.28000.2957 [build-only]
 Declared license (legacy-url): https://aka.ms/WinSDKLicenseURL
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.Windows.SDK.BuildTools/10.0.28000.2705
+https://www.nuget.org/packages/Microsoft.Windows.SDK.BuildTools/10.0.28000.2957
 No bundled license/notice text found; review the declared license before redistribution.
 
-Microsoft.WindowsAppSDK.AI 2.5.5
+Microsoft.WindowsAppSDK.AI 2.6.5
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK.AI/2.5.5
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK.AI/2.6.5
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 
-Microsoft.WindowsAppSDK.Base 2.0.4
+Microsoft.WindowsAppSDK.Base 2.6.5
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Base/2.0.4
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Base/2.6.5
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 Notice: NOTICE.txt -> SHA256 0d58793a293c3b7cc61db9a94cdeb76d48c0442722bbed30a22105b57ed43599
 
-Microsoft.WindowsAppSDK.DWrite 2.1.0
+Microsoft.WindowsAppSDK.DWrite 2.6.5
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK.DWrite/2.1.0
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK.DWrite/2.6.5
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 
-Microsoft.WindowsAppSDK.Foundation 2.3.12
+Microsoft.WindowsAppSDK.Foundation 2.6.5
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Foundation/2.3.12
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Foundation/2.6.5
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 
-Microsoft.WindowsAppSDK.InteractiveExperiences 2.1.9
+Microsoft.WindowsAppSDK.InteractiveExperiences 2.6.5
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK.InteractiveExperiences/2.1.9
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK.InteractiveExperiences/2.6.5
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 
-Microsoft.WindowsAppSDK.ML 2.1.94
+Microsoft.WindowsAppSDK.ML 2.6.5
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK.ML/2.1.94
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK.ML/2.6.5
 Notice: license.txt -> SHA256 3f861a9e1adbe168f5eb54f8ce27612e5703fcacf576958b2caf7feddcd96ba8
 
-Microsoft.WindowsAppSDK.Runtime 2.5.1
+Microsoft.WindowsAppSDK.Runtime 2.6.5
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Runtime/2.5.1
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Runtime/2.6.5
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 Notice: NOTICE.txt -> SHA256 0d58793a293c3b7cc61db9a94cdeb76d48c0442722bbed30a22105b57ed43599
 
-Microsoft.WindowsAppSDK.Search 2.5.5
+Microsoft.WindowsAppSDK.Search 2.6.5
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Search/2.5.5
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Search/2.6.5
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 
-Microsoft.WindowsAppSDK.Widgets 2.0.5
+Microsoft.WindowsAppSDK.Widgets 2.6.5
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Widgets/2.0.5
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Widgets/2.6.5
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 
-Microsoft.WindowsAppSDK.WinUI 2.3.9
+Microsoft.WindowsAppSDK.WinUI 2.6.5
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK.WinUI/2.3.9
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK.WinUI/2.6.5
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 Notice: NOTICE.txt -> SHA256 2abd2efc56d6e0268abc0ce767c3087459dd0b544c97d99ec3c65d567d3bcc9a
 Notice: tools/NOTICE.txt -> SHA256 31523fc2e8e089b04311eba6b55090868db431eb512567641d1bd6f8ad7e8912
 
-Microsoft.WindowsAppSDK 2.5.1
+Microsoft.WindowsAppSDK 2.6.5
 Declared license (file): license.txt
 Authors: Microsoft
 © Microsoft Corporation. All rights reserved.
-https://www.nuget.org/packages/Microsoft.WindowsAppSDK/2.5.1
+https://www.nuget.org/packages/Microsoft.WindowsAppSDK/2.6.5
 Notice: license.txt -> SHA256 d57ece3ec0746b460f9d00007d0300276a852613d6d1ebd2a1d075255e4ebe28
 Notice: NOTICE.txt -> SHA256 0d58793a293c3b7cc61db9a94cdeb76d48c0442722bbed30a22105b57ed43599
 
