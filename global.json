@@ -1,7 +1,7 @@
 {
   "sdk": {
     "version": "11.0.100-rc.3.26522.148",
-    "rollForward": "latestPatch",
+    "rollForward": "disable",
     "allowPrerelease": true,
     "paths": ["$host$", ".dotnet", "../dotnet11-rc-sdk/runtime"],
     "errorMessage": "Shoutkit Windows requires the pinned .NET 11 RC SDK. Install it locally in .dotnet or use scripts/dotnet-dev.ps1. Portable SDK work uses portable/global.json (.NET 10)."

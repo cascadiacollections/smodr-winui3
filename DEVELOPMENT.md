@@ -175,6 +175,9 @@ search order. `scripts/dotnet-dev.ps1` remains available for older hosts;
 
 For a new enlistment, install the exact SDK from `global.json` into `.dotnet`
 using Microsoft's dotnet-install script or use an architecture override.
+Roll-forward is disabled: the RC pin sits in the same feature band as the GA
+`11.0.100` SDK, so `latestPatch` would silently pick GA on hosts and CI images
+that have it, which changes the bundled runtime packs and the generated notices.
 `.dotnet` is ignored by Git and excluded from Docker contexts. SDK search paths
 require a .NET 10-or-newer host; see Microsoft's
 [local SDK discovery guidance](https://learn.microsoft.com/en-us/dotnet/core/tools/test-prerelease-sdk-locally).
