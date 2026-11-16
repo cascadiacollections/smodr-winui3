@@ -212,7 +212,18 @@ foreach ($name in $outputs.Keys) {
     $path = Join-Path $repository "smodr/Assets/$name"
     if ($utf8.GetByteCount($outputs[$name]) -gt 32MB) { throw "Generated inventory exceeds 32 MiB: $name" }
     if ($Check) {
-        if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or [IO.File]::ReadAllText($path, $utf8).Replace("`r`n", "`n") -cne $outputs[$name]) {
+        $committed = if (Test-Path -LiteralPath $path -PathType Leaf) { [IO.File]::ReadAllText($path, $utf8).Replace("`r`n", "`n") } else { $null }
+        if ($null -eq $committed -or $committed -cne $outputs[$name]) {
+            if ($null -ne $committed) {
+                # Name the first differing line so a stale check on a CI host is diagnosable
+                # without reproducing that host.
+                $expectedLines = $outputs[$name].Split("`n")
+                $committedLines = $committed.Split("`n")
+                $line = 0
+                while ($line -lt [Math]::Min($expectedLines.Count, $committedLines.Count) -and $expectedLines[$line] -ceq $committedLines[$line]) { $line++ }
+                $show = { param($lines) if ($line -lt $lines.Count) { $lines[$line] } else { '<end of file>' } }
+                Write-Warning "$name differs at line $($line + 1) (generated $($expectedLines.Count) lines, committed $($committedLines.Count)).`n  generated: $(& $show $expectedLines)`n  committed: $(& $show $committedLines)"
+            }
             throw "Stale $name. Run pwsh -File scripts/Update-LicenseInventory.ps1 after locked restore and commit both generated assets."
         }
     } else {
