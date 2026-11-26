@@ -42,6 +42,8 @@ The Windows snapshot policy intentionally differs from iOS's six-hour stable lan
 
 Live radio bounds a stalled or initial buffer to 30 seconds, then rejoins the stream with up to three backed-off retries (2, 4, and 8 seconds). A resume that never reaches Playing is rejoined after 2 seconds. Pausing, stopping, or switching stations cancels stale recovery work; finished finite streams are not looped unless the optional Playback setting is enabled. After the retry budget is spent, playback stops with an explicit Play-to-retry message. These timings match the iOS playback controller's defaults and are covered by headless recovery tests; real station/network behavior still needs interactive validation.
 
+## Build from source
+
 Build and run on Windows ARM64 with the [.NET 11 RC3 ARM64 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/11.0). The repository's `global.json` pins `11.0.100-rc.3.26522.148`; .NET 10 alone will not build this version:
 
 VS Code, Zed, and Linux dev-container setup is documented in [DEVELOPMENT.md](DEVELOPMENT.md). The Linux container validates RadioCore only; the WinUI app and native tests require Windows.

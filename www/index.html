@@ -85,6 +85,18 @@
       text-align: center;
       padding: 2rem 1rem 4rem;
     }
+    .cta h2 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.75rem;
+    }
+    .cta p {
+      font-size: 1.05rem;
+      max-width: 36rem;
+      margin: 0 auto 1.5rem;
+      opacity: 0.85;
+    }
     .cta a {
       display: inline-block;
       background: var(--accent);
@@ -95,8 +107,14 @@
       font-weight: 600;
       margin: 0.5rem;
     }
+    .cta a.secondary {
+      background: transparent;
+      color: var(--accent);
+      border: 2px solid var(--accent);
+    }
     @media (prefers-color-scheme: dark) {
       .cta a { color: #000; }
+      .cta a.secondary { color: var(--accent); }
     }
     footer {
       text-align: center;
@@ -155,9 +173,11 @@
       </ul>
     </section>
 
-    <section class="cta">
-      <a href="https://github.com/cascadiacollections/smodr-winui3">View on GitHub</a>
-      <a href="https://github.com/cascadiacollections/smodr-winui3/releases">Releases</a>
+    <section class="cta" id="get">
+      <h2>Get the app</h2>
+      <p>No public build is published yet. GitHub Releases, the Microsoft Store, and winget do not distribute this preview. Build it from the repository instructions.</p>
+      <a href="https://github.com/cascadiacollections/smodr-winui3/blob/main/README.md#build-from-source">Build from source</a>
+      <a class="secondary" href="https://github.com/cascadiacollections/smodr-winui3">View on GitHub</a>
     </section>
   </main>
 
